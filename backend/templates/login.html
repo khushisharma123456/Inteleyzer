@@ -1,4 +1,4 @@
-< !DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Login - MedSafe</title><link rel="stylesheet" href="/static/css/style.css"><script src="https://unpkg.com/lucide@latest"></script><style>
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Login - MedSafe</title><link rel="stylesheet" href="/static/css/style.css"><script src="https://unpkg.com/lucide@latest"></script><style>
 
 /* ... style omitted ... */
 body {
@@ -41,11 +41,9 @@ document.getElementById('login-form').addEventListener('submit', async (e)=> {
 
             else if (result.user.role==='pharma') {
                 window.location.href='/pharma/dashboard';
-            }
-        }
+            }}
 
         else {
             alert(result.message || 'Login failed');
-        }
-    });
+        }});
 </script></body></html>

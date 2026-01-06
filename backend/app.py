@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from flask_cors import CORS
-from models import db, User, Patient
+from models import db, User, Patient, Drug, Alert
 import os
 import random
 from datetime import datetime
@@ -67,6 +67,11 @@ def pharma_reports():
         return redirect(url_for('login_page'))
     return render_template('pharma/reports.html')
 
+@app.route('/pharma/drugs')
+def pharma_drugs():
+    if 'user_id' not in session or session.get('role') != 'pharma':
+        return redirect(url_for('login_page'))
+    return render_template('pharma/drugs.html')
 
 # --- API Endpoints ---
 
@@ -250,6 +255,112 @@ def get_stats():
             'high': Patient.query.filter_by(risk_level='High').count()
         }
     })
+
+# --- Drug Management API ---
+
+@app.route('/api/drugs', methods=['GET'])
+def get_drugs():
+    try:
+        if session.get('role') != 'pharma':
+            return jsonify({'error': 'Unauthorized'}), 403
+        
+        user_id = session.get('user_id')
+        drugs = Drug.query.filter_by(company_id=user_id).all()
+        return jsonify([d.to_dict() for d in drugs])
+    except Exception as e:
+        print(f"ERROR getting drugs: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/drugs', methods=['POST'])
+def create_drug():
+    if session.get('role') != 'pharma':
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+    
+    try:
+        data = request.json
+        
+        # Simulate AI risk assessment
+        ai_risk = 'Low'
+        ai_details = 'Initial analysis shows standard safety profile.'
+        
+        # Simple AI logic based on ingredients
+        ingredients = data.get('activeIngredients', '').lower()
+        if 'pseudo' in ingredients or 'advilone' in ingredients:
+            ai_risk = 'High'
+            ai_details = 'Historical data shows increased risk with similar compounds. Recommend enhanced monitoring.'
+        elif len(ingredients) > 50:
+            ai_risk = 'Medium'
+            ai_details = 'Complex formulation requires additional safety monitoring.'
+        
+        new_drug = Drug(
+            name=data['name'],
+            company_id=session['user_id'],
+            description=data.get('description'),
+            active_ingredients=data.get('activeIngredients'),
+            ai_risk_assessment=ai_risk,
+            ai_risk_details=ai_details
+        )
+        
+        db.session.add(new_drug)
+        db.session.commit()
+        return jsonify({'success': True, 'drug': new_drug.to_dict()})
+    except Exception as e:
+        print(f"ERROR creating drug: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+# --- Alert Management API ---
+
+@app.route('/api/alerts', methods=['GET'])
+def get_alerts():
+    try:
+        if session.get('role') == 'doctor':
+            # Doctors see all alerts
+            alerts = Alert.query.order_by(Alert.created_at.desc()).all()
+        else:
+            # Pharma sees their own sent alerts
+            user_id = session.get('user_id')
+            alerts = Alert.query.filter_by(sender_id=user_id).order_by(Alert.created_at.desc()).all()
+        
+        return jsonify([a.to_dict() for a in alerts])
+    except Exception as e:
+        print(f"ERROR getting alerts: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/alerts', methods=['POST'])
+def create_alert():
+    if session.get('role') != 'pharma':
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+    
+    try:
+        data = request.json
+        
+        new_alert = Alert(
+            drug_name=data['drugName'],
+            message=data['message'],
+            severity=data.get('severity', 'Medium'),
+            sender_id=session['user_id']
+        )
+        
+        db.session.add(new_alert)
+        db.session.commit()
+        return jsonify({'success': True, 'alert': new_alert.to_dict()})
+    except Exception as e:
+        print(f"ERROR creating alert: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/alerts/<int:alert_id>/read', methods=['POST'])
+def mark_alert_read(alert_id):
+    try:
+        alert = Alert.query.get(alert_id)
+        if not alert:
+            return jsonify({'success': False, 'message': 'Alert not found'}), 404
+        
+        alert.is_read = True
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"ERROR marking alert read: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

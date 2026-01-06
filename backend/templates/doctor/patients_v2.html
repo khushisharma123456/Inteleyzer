@@ -1,4 +1,4 @@
-< !DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>My Patients - MedSafe</title><link rel="stylesheet" href="/static/css/style.css"><script src="https://unpkg.com/lucide@latest"></script><script type="module" src="/static/js/sidebar.js"></script><style>.modal-overlay {
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>My Patients - MedSafe</title><link rel="stylesheet" href="/static/css/style.css"><script src="https://unpkg.com/lucide@latest"></script><script type="module" src="/static/js/sidebar.js"></script><style>.modal-overlay {
     position: fixed;
     top: 0;
     left: 0;
@@ -63,7 +63,7 @@
     border-radius: 12px;
 }
 
-</style></head><body><div class="dashboard-layout"><app-sidebar></app-sidebar><main class="main-content"><header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;"><h1>My Patients</h1><button class="btn btn-primary" onclick="openAddModal()">+Add Patient</button></header><div class="split-view"><div class="patient-list-panel"><div style="padding:1rem; border-bottom:1px solid #eee;"><input type="text" id="patient-search" placeholder="Search..." onkeyup="renderList()"></div><div class="patient-list" id="list-container"><p style="padding:1rem; text-align:center;">Loading...</p></div></div><div class="patient-detail-panel" id="detail-panel"><p style="text-align:center; margin-top:4rem; color:#888;">Select a patient</p></div></div></main></div>< !-- ADD PATIENT MODAL --><div class="modal-overlay" id="add-modal"><div class="modal"><div style="display:flex; justify-content:space-between; margin-bottom:1rem;"><h3>Add Patient</h3><button onclick="closeAddModal()" style="border:none; cursor:pointer; background:none; font-size:1.2rem;">X</button></div><form onsubmit="savePatient(event)"><div style="margin-bottom:1rem"><label>Name</label><input type="text" name="name" required style="width:100%; padding:0.5rem; border:1px solid #ccc; border-radius:4px;"></div><div style="margin-bottom:1rem"><label>Age</label><input type="number" name="age" required style="width:100%; padding:0.5rem; border:1px solid #ccc; border-radius:4px;"></div><div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;"><div><label>Gender</label><select name="gender" style="width:100%; padding:0.5rem;"><option value="Male">Male</option><option value="Female">Female</option></select></div><div><label>Phone</label><input type="tel" name="phone" style="width:100%; padding:0.5rem; border:1px solid #ccc; border-radius:4px;"></div></div><div style="margin-bottom:1rem"><label>Drug</label><input type="text" name="drugName" required style="width:100%; padding:0.5rem; border:1px solid #ccc; border-radius:4px;"></div><div style="margin-bottom:1rem"><label>Symptoms</label><textarea name="symptoms" style="width:100%; padding:0.5rem; border:1px solid #ccc; border-radius:4px;"></textarea></div><button type="submit" class="btn btn-primary" style="width:100%">Save Patient</button></form></div></div>< !-- REPORT SYMPTOM MODAL --><div class="modal-overlay" id="symptom-modal"><div class="modal"><div style="display:flex; justify-content:space-between; margin-bottom:1rem;"><h3>Report Side Effect</h3><button onclick="closeSymptomModal()" style="border:none; cursor:pointer; background:none; font-size:1.2rem;">X</button></div><p id="symptom-patient-name" style="color:#666; margin-bottom:1rem;"></p><form onsubmit="submitSymptom(event)"><div style="margin-bottom:1rem"><label>New Symptom / Side Effect</label><textarea name="newSymptom" required rows="4" style="width:100%; padding:0.5rem; border:1px solid #ccc; border-radius:4px;" placeholder="Describe what happened..."></textarea></div><button type="submit" class="btn btn-warning" style="width:100%">Submit Report</button></form></div></div><script>let patients=[];
+</style></head><body><div class="dashboard-layout"><app-sidebar></app-sidebar><main class="main-content"><header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;"><h1>My Patients</h1><button class="btn btn-primary" onclick="openAddModal()">+Add Patient</button></header><div class="split-view"><div class="patient-list-panel"><div style="padding:1rem; border-bottom:1px solid #eee;"><input type="text" id="patient-search" placeholder="Search..." onkeyup="renderList()"></div><div class="patient-list" id="list-container"><p style="padding:1rem; text-align:center;">Loading...</p></div></div><div class="patient-detail-panel" id="detail-panel"><p style="text-align:center; margin-top:4rem; color:#888;">Select a patient</p></div></div></main></div><!-- ADD PATIENT MODAL --><div class="modal-overlay" id="add-modal"><div class="modal"><div style="display:flex; justify-content:space-between; margin-bottom:1rem;"><h3>Add Patient</h3><button onclick="closeAddModal()" style="border:none; cursor:pointer; background:none; font-size:1.2rem;">X</button></div><form onsubmit="savePatient(event)"><div style="margin-bottom:1rem"><label>Name</label><input type="text" name="name" required style="width:100%; padding:0.5rem; border:1px solid #ccc; border-radius:4px;"></div><div style="margin-bottom:1rem"><label>Age</label><input type="number" name="age" required style="width:100%; padding:0.5rem; border:1px solid #ccc; border-radius:4px;"></div><div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;"><div><label>Gender</label><select name="gender" style="width:100%; padding:0.5rem;"><option value="Male">Male</option><option value="Female">Female</option></select></div><div><label>Phone</label><input type="tel" name="phone" style="width:100%; padding:0.5rem; border:1px solid #ccc; border-radius:4px;"></div></div><div style="margin-bottom:1rem"><label>Drug</label><input type="text" name="drugName" required style="width:100%; padding:0.5rem; border:1px solid #ccc; border-radius:4px;"></div><div style="margin-bottom:1rem"><label>Symptoms</label><textarea name="symptoms" style="width:100%; padding:0.5rem; border:1px solid #ccc; border-radius:4px;"></textarea></div><button type="submit" class="btn btn-primary" style="width:100%">Save Patient</button></form></div></div><!-- REPORT SYMPTOM MODAL --><div class="modal-overlay" id="symptom-modal"><div class="modal"><div style="display:flex; justify-content:space-between; margin-bottom:1rem;"><h3>Report Side Effect</h3><button onclick="closeSymptomModal()" style="border:none; cursor:pointer; background:none; font-size:1.2rem;">X</button></div><p id="symptom-patient-name" style="color:#666; margin-bottom:1rem;"></p><form onsubmit="submitSymptom(event)"><div style="margin-bottom:1rem"><label>New Symptom / Side Effect</label><textarea name="newSymptom" required rows="4" style="width:100%; padding:0.5rem; border:1px solid #ccc; border-radius:4px;" placeholder="Describe what happened..."></textarea></div><button type="submit" class="btn btn-warning" style="width:100%">Submit Report</button></form></div></div><script>let patients=[];
 let selectedId=null;
 let reportingId=null;
 
@@ -101,8 +101,7 @@ async function init() {
     catch(e) {
         console.error(e);
         document.getElementById('list-container').innerHTML='<p style="color:red; text-align:center">Error loading data</p>';
-    }
-}
+    }}
 
 function renderList() {
     const filter=document.getElementById('patient-search').value.toLowerCase();
@@ -155,14 +154,12 @@ async function savePatient(e) {
 
     else {
         alert('Error: ' + result.message);
-    }
-}
+    }}
 
 catch(err) {
     console.error(err);
     alert('Network Error');
-}
-}
+}}
 
 async function submitSymptom(e) {
     e.preventDefault();
@@ -199,14 +196,12 @@ if(result.success) {
 
 else {
     alert("Error: " + result.message);
-}
-}
+}}
 
 catch(err) {
     console.error(err);
     alert("Network error reporting side effect.");
-}
-}
+}}
 
 window.onload=init;
 </script></body></html>

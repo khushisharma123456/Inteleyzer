@@ -1,4 +1,4 @@
-< !DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>My Patients - MedSafe</title><link rel="stylesheet" href="/static/css/style.css"><script src="https://unpkg.com/lucide@latest"></script><script type="module" src="/static/js/sidebar.js"></script><style>
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>My Patients - MedSafe</title><link rel="stylesheet" href="/static/css/style.css"><script src="https://unpkg.com/lucide@latest"></script><script type="module" src="/static/js/sidebar.js"></script><style>
 
 /* Embedded critical styles to ensure modal works even if CSS fails */
 .modal-overlay {
@@ -84,7 +84,7 @@
     border-bottom: 1px solid #F1F5F9;
 }
 
-</style></head><body><div class="dashboard-layout"><app-sidebar></app-sidebar><main class="main-content"><header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;"><h1>My Patients</h1>< !-- DIRECT ONCLICK --><button class="btn btn-primary" onclick="window.openModal()">+Add Patient</button></header><div class="split-view"><div class="patient-list-panel"><div class="search-area"><input type="text" id="patient-search" placeholder="Search by Name or ID..." onkeyup="window.filterList(this.value)"></div><div class="patient-list" id="patient-list-container"><p style="padding: 1rem; text-align: center;">Loading patients...</p></div></div><div class="patient-detail-panel" id="detail-panel"><div style="text-align: center; color: var(--text-muted); padding-top: 4rem;"><i data-lucide="user-search" style="width: 48px; height: 48px; margin-bottom: 1rem;"></i><p>Select a patient to view details</p></div></div></div></main></div>< !-- ADD PATIENT MODAL --><div class="modal-overlay" id="add-modal"><div class="modal"><div class="modal-header" style="display: flex; justify-content: space-between; margin-bottom: 1.5rem;"><h3 style="margin: 0;">Add New Patient</h3><button onclick="window.closeModal()" style="background:none; border:none; cursor:pointer;"><i data-lucide="x"></i></button></div><form id="add-patient-form" onsubmit="window.handleFormSubmit(event)"><div class="form-group" style="margin-bottom: 1rem;"><label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Full Name</label><input type="text" name="name" required placeholder="e.g. Jane Doe" style="width: 100%; padding: 0.75rem; border: 1px solid #E2E8F0; border-radius: 6px;"></div><div class="form-group" style="margin-bottom: 1rem;"><label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Phone Number</label><input type="tel" name="phone" placeholder="e.g. 555-0123" style="width: 100%; padding: 0.75rem; border: 1px solid #E2E8F0; border-radius: 6px;"></div><div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;"><div class="form-group"><label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Age</label><input type="number" name="age" required min="0" max="120" style="width: 100%; padding: 0.75rem; border: 1px solid #E2E8F0; border-radius: 6px;"></div><div class="form-group"><label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Gender</label><select name="gender" style="width: 100%; padding: 0.75rem; border: 1px solid #E2E8F0; border-radius: 6px;"><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option></select></div></div><div class="form-group" style="margin-bottom: 1rem;"><label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Current Medication</label><input type="text" name="drugName" required placeholder="e.g. Lisinopril" style="width: 100%; padding: 0.75rem; border: 1px solid #E2E8F0; border-radius: 6px;"></div><div class="form-group" style="margin-bottom: 1.5rem;"><label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Reported Symptoms</label><textarea name="symptoms" placeholder="e.g. Dizziness" style="width: 100%; padding: 0.75rem; border: 1px solid #E2E8F0; border-radius: 6px;" rows="3"></textarea></div><div style="display: flex; justify-content: flex-end; gap: 1rem;"><button type="button" class="btn btn-outline" onclick="window.closeModal()">Cancel</button><button type="submit" class="btn btn-primary">Save Patient</button></div></form></div></div>< !-- Inline Logic for Reliability --><script> // Global State
+</style></head><body><div class="dashboard-layout"><app-sidebar></app-sidebar><main class="main-content"><header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;"><h1>My Patients</h1><!-- DIRECT ONCLICK --><button class="btn btn-primary" onclick="window.openModal()">+Add Patient</button></header><div class="split-view"><div class="patient-list-panel"><div class="search-area"><input type="text" id="patient-search" placeholder="Search by Name or ID..." onkeyup="window.filterList(this.value)"></div><div class="patient-list" id="patient-list-container"><p style="padding: 1rem; text-align: center;">Loading patients...</p></div></div><div class="patient-detail-panel" id="detail-panel"><div style="text-align: center; color: var(--text-muted); padding-top: 4rem;"><i data-lucide="user-search" style="width: 48px; height: 48px; margin-bottom: 1rem;"></i><p>Select a patient to view details</p></div></div></div></main></div><!-- ADD PATIENT MODAL --><div class="modal-overlay" id="add-modal"><div class="modal"><div class="modal-header" style="display: flex; justify-content: space-between; margin-bottom: 1.5rem;"><h3 style="margin: 0;">Add New Patient</h3><button onclick="window.closeModal()" style="background:none; border:none; cursor:pointer;"><i data-lucide="x"></i></button></div><form id="add-patient-form" onsubmit="window.handleFormSubmit(event)"><div class="form-group" style="margin-bottom: 1rem;"><label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Full Name</label><input type="text" name="name" required placeholder="e.g. Jane Doe" style="width: 100%; padding: 0.75rem; border: 1px solid #E2E8F0; border-radius: 6px;"></div><div class="form-group" style="margin-bottom: 1rem;"><label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Phone Number</label><input type="tel" name="phone" placeholder="e.g. 555-0123" style="width: 100%; padding: 0.75rem; border: 1px solid #E2E8F0; border-radius: 6px;"></div><div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;"><div class="form-group"><label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Age</label><input type="number" name="age" required min="0" max="120" style="width: 100%; padding: 0.75rem; border: 1px solid #E2E8F0; border-radius: 6px;"></div><div class="form-group"><label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Gender</label><select name="gender" style="width: 100%; padding: 0.75rem; border: 1px solid #E2E8F0; border-radius: 6px;"><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option></select></div></div><div class="form-group" style="margin-bottom: 1rem;"><label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Current Medication</label><input type="text" name="drugName" required placeholder="e.g. Lisinopril" style="width: 100%; padding: 0.75rem; border: 1px solid #E2E8F0; border-radius: 6px;"></div><div class="form-group" style="margin-bottom: 1.5rem;"><label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Reported Symptoms</label><textarea name="symptoms" placeholder="e.g. Dizziness" style="width: 100%; padding: 0.75rem; border: 1px solid #E2E8F0; border-radius: 6px;" rows="3"></textarea></div><div style="display: flex; justify-content: flex-end; gap: 1rem;"><button type="button" class="btn btn-outline" onclick="window.closeModal()">Cancel</button><button type="submit" class="btn btn-primary">Save Patient</button></div></form></div></div><!-- Inline Logic for Reliability --><script> // Global State
 window.patients=[];
 window.selectedId=new URLSearchParams(window.location.search).get('id');
 
@@ -111,8 +111,7 @@ window.init=async function() {
     catch (err) {
         console.error(err);
         document.getElementById('patient-list-container').innerHTML='<p style="padding:1rem; color:red; text-align:center;">Failed to load data.</p>';
-    }
-}
+    }}
 
 // --- Rendering ---
 window.renderList=function(filter='') {
@@ -126,23 +125,23 @@ window.renderList=function(filter='') {
 
     container.innerHTML=filtered.map(p=> ` <div class="patient-item ${p.id === window.selectedId ? 'active' : ''}"
 
-        onclick="window.selectPatient('${p.id}')" > <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;" > <strong style="color: var(--primary-dark);" >$ {
+        onclick="window.selectPatient('${p.id}')" > <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;" > <strong style="color: var(--primary-dark);" >${
             p.name || 'Unknown'
         }
 
-        </strong> <span class="badge badge-${(p.riskLevel||'low').toLowerCase()}" >$ {
+        </strong> <span class="badge badge-${(p.riskLevel||'low').toLowerCase()}" >${
             p.riskLevel||'Low'
         }
 
-        Risk</span> </div> <div style="font-size: 0.85rem; color: var(--text-muted);" > ID: $ {
+        Risk</span> </div> <div style="font-size: 0.85rem; color: var(--text-muted);" > ID: ${
             p.id
         }
 
-        • $ {
+        • ${
             p.age
         }
 
-        yrs • $ {
+        yrs • ${
             p.gender
         }
 
@@ -165,43 +164,43 @@ window.renderDetail=function(id) {
 
     const panel=document.getElementById('detail-panel');
 
-    panel.innerHTML=` <div class="detail-section"><div style="display: flex; justify-content: space-between; align-items: start;"><div><h2 style="margin-bottom: 0.5rem;">$ {
+    panel.innerHTML=` <div class="detail-section"><div style="display: flex; justify-content: space-between; align-items: start;"><div><h2 style="margin-bottom: 0.5rem;">${
         p.name
     }
 
-    </h2><p style="color: var(--text-muted);">ID: $ {
+    </h2><p style="color: var(--text-muted);">ID: ${
         p.id
     }
 
-    • $ {
+    • ${
         p.age
     }
 
-    yrs • $ {
+    yrs • ${
         p.gender
     }
 
-    <br>$ {
-        p.phone ? `Phone: $ {
+    <br>${
+        p.phone ? `Phone: ${
             p.phone
         }
 
         ` : ''
     }
 
-    </p></div><div style="text-align: right;"><span class="badge badge-${(p.riskLevel||'low').toLowerCase()}">$ {
+    </p></div><div style="text-align: right;"><span class="badge badge-${(p.riskLevel||'low').toLowerCase()}">${
         p.riskLevel||'Low'
     }
 
-    Risk</span></div></div></div><div class="detail-section"><h4>Medication</h4><p><strong>$ {
+    Risk</span></div></div></div><div class="detail-section"><h4>Medication</h4><p><strong>${
         p.drugName
     }
 
-    </strong></p></div><div class="detail-section"><h4>Timeline</h4><p>Reported: $ {
+    </strong></p></div><div class="detail-section"><h4>Timeline</h4><p>Reported: ${
         new Date(p.created_at || Date.now()).toLocaleDateString()
     }
 
-    </p><p>$ {
+    </p><p>${
         p.symptoms || 'No symptoms.'
     }
 
@@ -245,8 +244,7 @@ window.handleFormSubmit=async function(e) {
 
     else {
         alert("Error: " + result.message);
-    }
-}
+    }}
 
 catch (err) {
     console.error(err);
@@ -256,8 +254,7 @@ catch (err) {
 finally {
     btn.textContent='Save Patient';
     btn.disabled=false;
-}
-}
+}}
 
 // Start
 window.init();

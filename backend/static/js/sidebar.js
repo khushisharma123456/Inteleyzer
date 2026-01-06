@@ -32,6 +32,7 @@ export class Sidebar extends HTMLElement {
 
         const pharmaItems = [
             { icon: 'activity', text: 'Overview', link: '/pharma/dashboard' },
+            { icon: 'pill', text: 'Drug Portfolio', link: '/pharma/drugs' },
             { icon: 'file-text', text: 'Reports', link: '/pharma/reports' },
         ];
 

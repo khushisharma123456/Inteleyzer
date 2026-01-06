@@ -1,4 +1,4 @@
-< !DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Global Reports - MedSafe</title><link rel="stylesheet" href="/static/css/style.css"><script src="https://unpkg.com/lucide@latest"></script><script type="module" src="/static/js/sidebar.js"></script></head><body><div class="dashboard-layout"><app-sidebar></app-sidebar><main class="main-content"><header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;"><div><h1>Adverse Event Registry</h1><p>Comprehensive list of all reported side effects</p></div><button class="btn btn-outline" onclick="alert('Export functionality coming soon (requires pandas backend integration)')"><i data-lucide="download" style="width: 16px; height: 16px; display: inline-block; vertical-align: middle; margin-right: 0.5rem;"></i>Export Data </button></header><div class="card"><div class="table-container"><table style="width: 100%; border-collapse: collapse;"><thead><tr style="text-align: left; border-bottom: 1px solid #E2E8F0; color: var(--text-muted);"><th style="padding: 1rem;">Report ID</th><th style="padding: 1rem;">Date</th><th style="padding: 1rem;">Patient Age/Sex</th><th style="padding: 1rem;">Suspect Drug</th><th style="padding: 1rem;">Adverse Event</th><th style="padding: 1rem;">Risk Assessment</th></tr></thead><tbody id="reports-table"><tr><td colspan="6" style="padding: 1rem; text-align: center;">Loading registry...</td></tr></tbody></table></div></div></main></div><script type="module">import {
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Global Reports - MedSafe</title><link rel="stylesheet" href="/static/css/style.css"><script src="https://unpkg.com/lucide@latest"></script><script type="module" src="/static/js/sidebar.js"></script></head><body><div class="dashboard-layout"><app-sidebar></app-sidebar><main class="main-content"><header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;"><div><h1>Adverse Event Registry</h1><p>Comprehensive list of all reported side effects</p></div><button class="btn btn-outline" onclick="alert('Export functionality coming soon (requires pandas backend integration)')"><i data-lucide="download" style="width: 16px; height: 16px; display: inline-block; vertical-align: middle; margin-right: 0.5rem;"></i>Export Data </button></header><div class="card"><div class="table-container"><table style="width: 100%; border-collapse: collapse;"><thead><tr style="text-align: left; border-bottom: 1px solid #E2E8F0; color: var(--text-muted);"><th style="padding: 1rem;">Report ID</th><th style="padding: 1rem;">Date</th><th style="padding: 1rem;">Patient Age/Sex</th><th style="padding: 1rem;">Suspect Drug</th><th style="padding: 1rem;">Adverse Event</th><th style="padding: 1rem;">Risk Assessment</th></tr></thead><tbody id="reports-table"><tr><td colspan="6" style="padding: 1rem; text-align: center;">Loading registry...</td></tr></tbody></table></div></div></main></div><script type="module">import {
     PharmaApp
 }
 
@@ -21,37 +21,36 @@ async function init() {
     }
 
     else {
-        table.innerHTML=patients.map(p=> ` <tr style="border-bottom: 1px solid #F1F5F9; hover: background-color: var(--secondary);" > <td style="padding: 1rem;" >$ {
+        table.innerHTML=patients.map(p=> ` <tr style="border-bottom: 1px solid #F1F5F9; hover: background-color: var(--secondary);" > <td style="padding: 1rem;" >${
                 p.id
             }
 
-            </td> <td style="padding: 1rem;" >$ {
+            </td> <td style="padding: 1rem;" >${
                 new Date(p.created_at).toLocaleDateString()
             }
 
-            </td> <td style="padding: 1rem;" >$ {
+            </td> <td style="padding: 1rem;" >${
                 p.age
             }
 
-            / $ {
+            / ${
                 p.gender.charAt(0)
             }
 
-            </td> <td style="padding: 1rem; font-weight: 500;" >$ {
+            </td> <td style="padding: 1rem; font-weight: 500;" >${
                 p.drugName
             }
 
-            </td> <td style="padding: 1rem;" >$ {
+            </td> <td style="padding: 1rem;" >${
                 p.symptoms || 'N/A'
             }
 
-            </td> <td style="padding: 1rem;" > <span class="badge badge-${p.riskLevel.toLowerCase()}" >$ {
+            </td> <td style="padding: 1rem;" > <span class="badge badge-${p.riskLevel.toLowerCase()}" >${
                 p.riskLevel
             }
 
             </span> </td> </tr> `).join('');
-    }
-}
+    }}
 
 init();
 </script></body></html>
