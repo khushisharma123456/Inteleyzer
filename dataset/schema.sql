@@ -23,6 +23,8 @@ CREATE TABLE Patient (
     patient_id VARCHAR(50) PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     phone_number VARCHAR(20) NOT NULL,
+    email VARCHAR(255),                          -- Email for form delivery
+    preferred_language VARCHAR(10) DEFAULT 'en', -- Language preference (en, hi, ta, te, ml)
     age INT,
     gender VARCHAR(20),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -30,6 +32,7 @@ CREATE TABLE Patient (
 );
 
 CREATE INDEX idx_patient_phone ON Patient(phone_number);
+CREATE INDEX idx_patient_email ON Patient(email);
 
 
 -- -----------------------------------------------------------------------------
@@ -182,6 +185,36 @@ CREATE TABLE Adverse_Event (
 CREATE INDEX idx_adverse_visit ON Adverse_Event(visit_id);
 CREATE INDEX idx_adverse_severity ON Adverse_Event(severity);
 CREATE INDEX idx_adverse_safety ON Adverse_Event(safety_flag);
+
+
+-- -----------------------------------------------------------------------------
+-- TABLE: Form_Submission
+-- Tracks email forms sent to patients and their submission status
+-- Used for dual-channel communication (WhatsApp + Email Form)
+-- -----------------------------------------------------------------------------
+CREATE TABLE Form_Submission (
+    submission_id INT PRIMARY KEY AUTO_INCREMENT,
+    visit_id INT NOT NULL,
+    patient_id VARCHAR(50) NOT NULL,
+    form_type VARCHAR(50) NOT NULL CHECK (form_type IN ('initial', 'clarification')),
+    form_token VARCHAR(100) NOT NULL UNIQUE,
+    form_url VARCHAR(500),
+    language VARCHAR(10) DEFAULT 'en',
+    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    sent_via VARCHAR(20) DEFAULT 'email' CHECK (sent_via IN ('email', 'whatsapp', 'both')),
+    filled_at TIMESTAMP NULL,
+    responses JSON,                              -- Stored form responses
+    missing_questions JSON,                      -- For clarification forms
+    status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'sent', 'filled', 'expired')),
+    
+    FOREIGN KEY (visit_id) REFERENCES Visit(visit_id) ON DELETE CASCADE,
+    FOREIGN KEY (patient_id) REFERENCES Patient(patient_id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_form_visit ON Form_Submission(visit_id);
+CREATE INDEX idx_form_patient ON Form_Submission(patient_id);
+CREATE INDEX idx_form_token ON Form_Submission(form_token);
+CREATE INDEX idx_form_status ON Form_Submission(status);
 
 
 -- =============================================================================

@@ -51,6 +51,28 @@ try:
 except ImportError:
     GENAI_AVAILABLE = False
 
+# -----------------------------------------------------------------------------
+# NOTE: Database utilities for patient data queries
+# Import will fail if database drivers are not installed
+# -----------------------------------------------------------------------------
+try:
+    from db_utils import detect_data_query_intent, handle_data_query
+    DB_UTILS_AVAILABLE = True
+except ImportError:
+    DB_UTILS_AVAILABLE = False
+    print("⚠️ Warning: db_utils not available. Patient data queries disabled.")
+
+# -----------------------------------------------------------------------------
+# NOTE: Form service for email form integration
+# Handles form status checking and response syncing
+# -----------------------------------------------------------------------------
+try:
+    from form_service import check_form_completed, get_form_responses
+    FORM_SERVICE_AVAILABLE = True
+except ImportError:
+    FORM_SERVICE_AVAILABLE = False
+    print("⚠️ Warning: form_service not available. Email form integration disabled.")
+
 
 # =============================================================================
 # CONFIGURATION
@@ -181,7 +203,9 @@ class ConversationState(TypedDict, total=False):
     visit_id: int                    # Current visit ID (CRITICAL)
     patient_id: str                  # Patient identifier
     phone_number: str                # Patient's WhatsApp number
+    patient_email: str               # Patient's email for form delivery
     is_revisit: bool                 # True if returning patient
+    form_filled: bool                # True if patient filled email form
     
     # ===== FLOW CONTROL =====
     current_state: str               # Current state in flow
@@ -226,6 +250,7 @@ def create_initial_state(
     visit_id: int,
     patient_id: str,
     phone_number: str = "",
+    patient_email: str = "",
     is_revisit: bool = False,
     previous_symptoms: str = None
 ) -> ConversationState:
@@ -236,6 +261,7 @@ def create_initial_state(
         visit_id: The visit ID from database (REQUIRED)
         patient_id: Patient identifier (REQUIRED)
         phone_number: Patient's WhatsApp number
+        patient_email: Patient's email for form delivery
         is_revisit: Whether this is a returning patient
         previous_symptoms: Symptoms from last visit (for revisits)
     
@@ -247,7 +273,9 @@ def create_initial_state(
         visit_id=visit_id,
         patient_id=patient_id,
         phone_number=phone_number,
+        patient_email=patient_email,
         is_revisit=is_revisit,
+        form_filled=False,
         
         # Flow
         current_state="START",
@@ -1231,6 +1259,93 @@ class ConversationalAgent:
                 "current_state": state.get("current_state", ""),
                 "safety_flag": state.get("safety_flag", False)
             }
+        
+        # =====================================================================
+        # CHECK IF PATIENT FILLED THE EMAIL FORM
+        # If form was filled, thank them and end conversation
+        # =====================================================================
+        if FORM_SERVICE_AVAILABLE and not state.get("form_filled"):
+            if check_form_completed(visit_id):
+                state["form_filled"] = True
+                state["conversation_complete"] = True
+                self._states[visit_id] = state
+                
+                # Get preferred language for thank you message
+                preferred_language = state.get("preferred_language", "English")
+                
+                thank_you_messages = {
+                    "English": (
+                        "✅ *Thank You!*\n\n"
+                        "Since you've already filled the form through email, "
+                        "I won't be asking you the follow-up questions.\n\n"
+                        "📝 Your responses have been recorded.\n\n"
+                        "💬 If you have any problems or concerns about your medication, "
+                        "feel free to reach out to me here or contact your healthcare provider.\n\n"
+                        "🙏 Take care and get well soon!"
+                    ),
+                    "Hindi": (
+                        "✅ *धन्यवाद!*\n\n"
+                        "चूंकि आपने पहले ही ईमेल के माध्यम से फॉर्म भर दिया है, "
+                        "मैं आपसे फॉलो-अप प्रश्न नहीं पूछूंगा।\n\n"
+                        "📝 आपकी प्रतिक्रियाएं रिकॉर्ड कर ली गई हैं।\n\n"
+                        "💬 अगर आपको अपनी दवा के बारे में कोई समस्या या चिंता है, "
+                        "तो यहां मुझसे संपर्क करें या अपने डॉक्टर से बात करें।\n\n"
+                        "🙏 अपना ख्याल रखें!"
+                    ),
+                    "Tamil": (
+                        "✅ *நன்றி!*\n\n"
+                        "நீங்கள் ஏற்கனவே மின்னஞ்சல் மூலம் படிவத்தை நிரப்பியுள்ளதால், "
+                        "பின்தொடர்தல் கேள்விகளை நான் கேட்க மாட்டேன்.\n\n"
+                        "📝 உங்கள் பதில்கள் பதிவு செய்யப்பட்டுள்ளன।\n\n"
+                        "💬 உங்கள் மருந்து பற்றி ஏதேனும் சிக்கல் இருந்தால், "
+                        "என்னை தொடர்பு கொள்ளுங்கள்.\n\n"
+                        "🙏 நல்வாழ்த்துக்கள்!"
+                    )
+                }
+                
+                thank_you = thank_you_messages.get(preferred_language, thank_you_messages["English"])
+                
+                return {
+                    "visit_id": visit_id,
+                    "next_question": thank_you,
+                    "current_state": "END_FORM_FILLED",
+                    "safety_flag": False,
+                    "conversation_complete": True,
+                    "form_filled": True
+                }
+        
+        # =====================================================================
+        # CHECK FOR DATA QUERY REQUEST
+        # If patient asks for their data, handle it before normal flow
+        # =====================================================================
+        if DB_UTILS_AVAILABLE:
+            query_intent = detect_data_query_intent(user_input)
+            if query_intent.get('is_data_query'):
+                phone_number = state.get("phone_number", "")
+                query_type = query_intent.get('query_type', 'full_data')
+                specific_visit_id = query_intent.get('visit_id')
+                
+                # Get and format patient data
+                data_response = handle_data_query(
+                    phone_number=phone_number,
+                    query_type=query_type,
+                    visit_id=specific_visit_id
+                )
+                
+                # Return data without advancing conversation state
+                # Include reminder about the pending question
+                pending_question = state.get("pending_question", state.get("next_question", ""))
+                if pending_question:
+                    data_response += f"\n\n---\n📝 *Pending Question:*\n{pending_question}"
+                
+                return {
+                    "visit_id": visit_id,
+                    "next_question": data_response,
+                    "current_state": state.get("current_state", ""),
+                    "safety_flag": state.get("safety_flag", False),
+                    "conversation_complete": False,
+                    "is_data_query_response": True  # Flag to indicate this was a data query
+                }
         
         # Update state with user input
         state["last_user_input"] = user_input.strip()

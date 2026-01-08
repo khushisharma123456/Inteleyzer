@@ -26,6 +26,31 @@ import json
 from ConversationalAgent import ConversationalAgent, get_followup_reminder_message
 
 # =============================================================================
+# IMPORT EMAIL AND FORM SERVICES
+# =============================================================================
+try:
+    from email_service import send_form_email, send_clarification_email
+    EMAIL_SERVICE_AVAILABLE = True
+except ImportError:
+    EMAIL_SERVICE_AVAILABLE = False
+    print("⚠️ Warning: email_service not available")
+
+try:
+    from form_service import (
+        generate_form_url, validate_form_token, process_form_submission,
+        get_questions_for_language, LANGUAGE_NAMES
+    )
+    FORM_SERVICE_AVAILABLE = True
+except ImportError:
+    FORM_SERVICE_AVAILABLE = False
+    print("⚠️ Warning: form_service not available")
+
+# Import for serving HTML templates
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
+
+# =============================================================================
 # CONFIGURATION
 # =============================================================================
 
@@ -257,7 +282,10 @@ async def start_conversation(request: Request):
     # Extract required fields
     patient_id = data.get("patient_id")
     phone_number = data.get("phone_number")
+    patient_email = data.get("email", "")  # Optional email for form delivery
+    patient_name = data.get("patient_name", "Patient")  # For email personalization
     is_revisit = data.get("is_revisit", False)
+    preferred_language = data.get("language", "en")  # Preferred language code
     
     # Validate required fields
     if not patient_id:
@@ -281,8 +309,38 @@ async def start_conversation(request: Request):
     
     logger.info(f"📱 Started conversation: visit_id={visit_id}, patient={patient_id}, phone={phone_number}")
     
+    # ==========================================================================
+    # SEND EMAIL WITH FORM (if email provided)
+    # ==========================================================================
+    email_sent = False
+    form_url = None
+    
+    if patient_email and EMAIL_SERVICE_AVAILABLE and FORM_SERVICE_AVAILABLE:
+        try:
+            # Generate unique form URL
+            form_url = generate_form_url(visit_id, patient_id, preferred_language)
+            
+            # Send email with form link
+            email_sent = send_form_email(
+                to_email=patient_email,
+                patient_name=patient_name,
+                visit_id=visit_id,
+                patient_id=patient_id,
+                language=preferred_language
+            )
+            
+            if email_sent:
+                logger.info(f"📧 Form email sent to {patient_email}")
+            else:
+                logger.warning(f"⚠️ Form email not sent to {patient_email}")
+                
+        except Exception as e:
+            logger.error(f"Failed to send form email: {e}")
+    
+    # ==========================================================================
+    # SEND WHATSAPP MESSAGE
+    # ==========================================================================
     # Send the first question (language selection) via WhatsApp
-    # Use interactive list message for better UX (radio button-like selection)
     next_question = result.get("next_question", "")
     message_sent = False
     
@@ -311,7 +369,9 @@ async def start_conversation(request: Request):
         "visit_id": visit_id,
         "current_state": result.get("current_state", ""),
         "next_question": next_question,
-        "message_sent": message_sent
+        "message_sent": message_sent,
+        "email_sent": email_sent,
+        "form_url": form_url
     }
 
 
@@ -375,6 +435,10 @@ async def whatsapp_webhook(request: Request):
     # Safety flag handling - log for healthcare team
     if result.get("safety_flag"):
         logger.warning(f"🚨 SAFETY FLAG RAISED for visit_id={visit_id}!")
+    
+    # Log data query responses
+    if result.get("is_data_query_response"):
+        logger.info(f"📊 Data query response sent to {phone_number}")
     
     # Send the next question as TwiML response
     if next_question:
@@ -497,8 +561,156 @@ async def health_check():
     return {
         "status": "healthy",
         "twilio_configured": twilio_client is not None,
+        "email_service_available": EMAIL_SERVICE_AVAILABLE,
+        "form_service_available": FORM_SERVICE_AVAILABLE,
         "active_conversations": len(PHONE_TO_VISIT)
     }
+
+
+# =============================================================================
+# FORM ENDPOINTS
+# =============================================================================
+
+@app.get("/form/{token}", response_class=HTMLResponse)
+async def serve_form(token: str, lang: str = "en"):
+    """
+    Serve the patient follow-up form.
+    
+    Args:
+        token: Unique form token
+        lang: Language code (en, hi, ta, te, ml)
+    """
+    # Validate token
+    if FORM_SERVICE_AVAILABLE:
+        token_data = validate_form_token(token)
+        if not token_data:
+            return HTMLResponse(
+                content="<h1>Form Expired or Invalid</h1><p>This form link is no longer valid.</p>",
+                status_code=404
+            )
+        
+        if token_data.get('filled'):
+            return HTMLResponse(
+                content="<h1>Form Already Submitted</h1><p>Thank you! Your responses have already been recorded.</p>",
+                status_code=200
+            )
+    
+    # Read and serve the HTML form template
+    template_path = Path(__file__).parent / "templates" / "patient_form.html"
+    
+    if template_path.exists():
+        with open(template_path, 'r', encoding='utf-8') as f:
+            html_content = f.read()
+        return HTMLResponse(content=html_content)
+    else:
+        return HTMLResponse(
+            content="<h1>Form Not Found</h1><p>The form template is missing.</p>",
+            status_code=500
+        )
+
+
+@app.post("/api/form/submit")
+async def submit_form(request: Request):
+    """
+    Handle form submission from the web form.
+    
+    Request body:
+    {
+        "token": "form_token_here",
+        "responses": {
+            "language": "en",
+            "medicine_started": "yes",
+            "adherence": "once",
+            ...
+        }
+    }
+    """
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+    
+    token = data.get("token")
+    responses = data.get("responses", {})
+    
+    if not token:
+        raise HTTPException(status_code=400, detail="Form token is required")
+    
+    if not FORM_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Form service not available")
+    
+    # Process the form submission
+    result = process_form_submission(token, responses)
+    
+    if result.get('success'):
+        logger.info(f"✅ Form submitted: visit_id={result.get('visit_id')}")
+        return {
+            "success": True,
+            "message": "Thank you! Your responses have been recorded."
+        }
+    else:
+        return {
+            "success": False,
+            "error": result.get('error', 'Unknown error')
+        }
+
+
+@app.post("/send-clarification-form")
+async def send_clarification_form(request: Request):
+    """
+    Send a clarification form to a patient for missing data.
+    
+    Request body:
+    {
+        "visit_id": 123,
+        "patient_id": "P001",
+        "email": "patient@email.com",
+        "patient_name": "John",
+        "missing_fields": ["symptom_description", "severity"],
+        "language": "en"
+    }
+    """
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+    
+    visit_id = data.get("visit_id")
+    patient_id = data.get("patient_id")
+    email = data.get("email")
+    patient_name = data.get("patient_name", "Patient")
+    missing_fields = data.get("missing_fields", [])
+    language = data.get("language", "en")
+    
+    if not all([visit_id, patient_id, email, missing_fields]):
+        raise HTTPException(
+            status_code=400, 
+            detail="visit_id, patient_id, email, and missing_fields are required"
+        )
+    
+    if not EMAIL_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Email service not available")
+    
+    try:
+        # Send clarification email
+        email_sent = send_clarification_email(
+            to_email=email,
+            patient_name=patient_name,
+            visit_id=visit_id,
+            patient_id=patient_id,
+            missing_fields=missing_fields,
+            language=language
+        )
+        
+        if email_sent:
+            logger.info(f"📧 Clarification email sent to {email}")
+            return {"success": True, "message": "Clarification form sent"}
+        else:
+            return {"success": False, "error": "Failed to send email"}
+            
+    except Exception as e:
+        logger.error(f"Failed to send clarification email: {e}")
+        return {"success": False, "error": str(e)}
 
 
 # =============================================================================
@@ -515,12 +727,18 @@ if __name__ == "__main__":
     print("📡 Server starting on http://0.0.0.0:8000")
     print()
     print("Endpoints:")
-    print("  POST /start-conversation  - Start new patient follow-up")
-    print("  POST /whatsapp            - Twilio webhook for incoming messages")
-    print("  GET  /conversation-status - Check conversation status")
-    print("  POST /send-reminder       - Send appointment reminder")
-    print("  POST /send-alert          - Send custom alert")
-    print("  GET  /health              - Health check")
+    print("  POST /start-conversation    - Start new patient follow-up")
+    print("  POST /whatsapp              - Twilio webhook for incoming messages")
+    print("  GET  /conversation-status   - Check conversation status")
+    print("  POST /send-reminder         - Send appointment reminder")
+    print("  POST /send-alert            - Send custom alert")
+    print("  GET  /form/{token}          - Serve patient form")
+    print("  POST /api/form/submit       - Handle form submission")
+    print("  POST /send-clarification    - Send clarification form")
+    print("  GET  /health                - Health check")
+    print()
+    print(f"📧 Email Service: {'✅ Available' if EMAIL_SERVICE_AVAILABLE else '❌ Not configured'}")
+    print(f"📝 Form Service: {'✅ Available' if FORM_SERVICE_AVAILABLE else '❌ Not configured'}")
     print()
     print("🔧 To expose for Twilio:")
     print("  1. Run: ngrok http 8000")
