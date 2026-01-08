@@ -560,6 +560,135 @@ Before we end, please confirm:
 
 
 # =============================================================================
+# INPUT VALIDATION & EMPATHETIC RESPONSES
+# =============================================================================
+
+def validate_input(user_input: str, question_key: str) -> dict:
+    """
+    Validate if user input is a valid option for the given question.
+    
+    Args:
+        user_input: The user's raw input
+        question_key: The question key (e.g., 'LANG_SELECT', 'MEDICINE_STARTED')
+        
+    Returns:
+        Dict with 'valid' bool and 'error_message' if invalid
+    """
+    question = QUESTIONS.get(question_key)
+    if not question:
+        return {"valid": True}  # Unknown question, pass through
+    
+    options = question.get("options")
+    if not options:
+        return {"valid": True}  # Open text question, any input is valid
+    
+    # Check if input is a valid option
+    clean_input = user_input.strip()
+    if clean_input in options:
+        return {"valid": True}
+    
+    # Generate helpful error message
+    valid_options = list(options.keys())
+    max_option = max(valid_options, key=lambda x: int(x) if x.isdigit() else 0)
+    
+    error_message = f"""⚠️ Oops! That's not a valid option.
+
+Please reply with a number from 1 to {max_option}.
+
+---
+{question.get('text', '')}"""
+    
+    return {"valid": False, "error_message": error_message}
+
+
+def get_empathetic_prefix(state: dict, question_key: str) -> str:
+    """
+    Generate a warm, empathetic prefix message based on context.
+    
+    Args:
+        state: Current conversation state
+        question_key: The question being asked
+        
+    Returns:
+        Empathetic prefix string
+    """
+    prefixes = {
+        "MEDICINE_STARTED": "Great! Now let's check on your medication. 💊\n\n",
+        "MEDICINE_CONTINUED": "Let's see how your treatment is going. 💊\n\n",
+        "ADHERENCE": "Thank you for sharing! 🙏 This helps us understand your routine better.\n\n",
+        "TIMING": "Perfect! Just one more question about your routine.\n\n",
+        "FEELING_CHECK": "I appreciate you sticking with the questions! 💪 Let's check on how you're feeling.\n\n",
+        "NEW_SYMPTOMS": "Thank you for that update. Now, let's make sure everything is okay.\n\n",
+        "SYMPTOM_DESCRIBE": "I'm sorry to hear that. 😟 Please share more so we can help better.\n\n",
+        "ONSET": "Thank you for sharing. This information is important.\n\n",
+        "SEVERITY": "I understand. Let's assess this together.\n\n",
+        "BODY_PARTS": "Almost done! This helps us understand better.\n\n",
+        "SAFETY_CHECK": "You're doing great! 🌟 Just one final step.\n\n",
+        "PREVIOUS_SYMPTOMS": "Welcome back! 👋 Let's check on your previous symptoms.\n\n"
+    }
+    
+    return prefixes.get(question_key, "")
+
+
+def make_response_empathetic(response: str, user_answer: str, context: str = "") -> str:
+    """
+    Use Gemini to make responses more empathetic and human.
+    Falls back to predefined responses if Gemini unavailable.
+    
+    Args:
+        response: The original response/question
+        user_answer: What the user just answered
+        context: Additional context
+        
+    Returns:
+        More empathetic version of the response
+    """
+    global _gemini_model
+    
+    # Quick empathetic acknowledgments based on common answers
+    acknowledgments = {
+        "yes": "That's wonderful! 😊 ",
+        "no": "I understand. ",
+        "1": "Great choice! ",
+        "2": "Noted! ",
+        "3": "I see. ",
+        "better": "That's fantastic news! 🎉 ",
+        "same": "I understand. We'll keep monitoring. ",
+        "worse": "I'm sorry to hear that. 😟 Let's look into this. ",
+        "much_worse": "I'm really sorry you're feeling this way. 💙 Your health is our priority. ",
+        "mild": "Thank you for letting us know. ",
+        "moderate": "I appreciate you sharing this with us. ",
+        "severe": "Thank you for telling us. Your wellbeing is important to us. 💙 ",
+        "tomorrow": "No problem! 👍 We'll remind you. ",
+        "stopped": "I understand. It's important we know this. ",
+        "irregular": "Thank you for being honest. This helps us support you better. "
+    }
+    
+    # Check if we can use Gemini for enhanced empathy
+    if _gemini_model and GENAI_AVAILABLE:
+        try:
+            prompt = f"""You are a caring healthcare assistant. Make this response more warm and empathetic.
+Keep it concise (2 sentences max for acknowledgment).
+Do NOT change the question itself, only add a brief empathetic acknowledgment before it.
+Do NOT give medical advice.
+
+User just answered: {user_answer}
+Original response: {response}
+
+Respond with ONLY the improved message, nothing else:"""
+            
+            result = _gemini_model.generate_content(prompt)
+            if result and result.text:
+                return result.text.strip()
+        except Exception:
+            pass  # Fall back to predefined
+    
+    # Fallback: Use predefined acknowledgments
+    ack = acknowledgments.get(user_answer.lower().strip(), "")
+    return f"{ack}{response}" if ack else response
+
+
+# =============================================================================
 # RESPONSE STORAGE HOOKS
 # =============================================================================
 # NOTE: These are stub functions. In production, connect to your database.
@@ -680,10 +809,29 @@ def node_medicine_check(state: dict) -> dict:
         
         if state["medicine_started"] == "no":
             state["next_state"] = "END_NO_MEDICINE"
+            state["next_question"] = """📋 *Noted!*
+
+It's important to start taking your medicine as prescribed by your doctor.
+
+💊 Please start your medication when you can, and we'll follow up with you in a few days.
+
+🙏 Take care and stay healthy!
+
+If you have any concerns about starting your medication, please contact your healthcare provider."""
             state["conversation_complete"] = True
         elif state["medicine_started"] == "tomorrow":
             state["next_state"] = "SCHEDULE_REMINDER"
             schedule_followup(state["visit_id"], 2, "reminder")
+            state["next_question"] = """👍 *No problem!*
+
+We understand. We'll remind you in a couple of days to check in.
+
+📅 A follow-up reminder has been scheduled for you.
+
+💊 Please remember to start your medicine as prescribed by your doctor.
+
+🙏 Take care and we'll talk soon!"""
+            state["conversation_complete"] = True
         else:
             state["next_state"] = "ADHERENCE"
             state["next_question"] = QUESTIONS["ADHERENCE"]["text"]
@@ -880,6 +1028,16 @@ def node_safety_check(state: dict) -> dict:
         state["next_question"] = QUESTIONS["CALLBACK"]["text"]
     else:
         state["next_state"] = "END_COMPLETE"
+        state["next_question"] = """✅ *Thank you for completing this follow-up!*
+
+🌟 Your responses have been recorded and will help your healthcare team monitor your progress.
+
+💊 *Remember:*
+• Continue taking your medicine as prescribed
+• Contact your doctor if you experience any concerning symptoms
+• We're here to support you on your health journey
+
+🙏 Take care and stay healthy! We'll check in with you again soon."""
         state["conversation_complete"] = True
     
     state["current_state"] = state["next_state"]
@@ -1347,11 +1505,56 @@ class ConversationalAgent:
                     "is_data_query_response": True  # Flag to indicate this was a data query
                 }
         
+        # =====================================================================
+        # VALIDATE USER INPUT BEFORE PROCESSING
+        # =====================================================================
+        current = state.get("current_state", "START")
+        
+        # Map current state to question key for validation
+        state_to_question_key = {
+            "LANGUAGE_SELECT": "LANG_SELECT",
+            "MEDICINE_STARTED": "MEDICINE_STARTED",
+            "MEDICINE_CONTINUED": "MEDICINE_CONTINUED",
+            "ADHERENCE": "ADHERENCE",
+            "TIMING": "TIMING",
+            "PREVIOUS_SYMPTOMS": "PREVIOUS_SYMPTOMS",
+            "FEELING_CHECK": "FEELING_CHECK",
+            "NEW_SYMPTOMS": "NEW_SYMPTOMS",
+            "SYMPTOM_DESCRIBE": "SYMPTOM_DESCRIBE",  # Open text - no validation
+            "ONSET": "ONSET",
+            "SEVERITY": "SEVERITY",
+            "BODY_PARTS": "BODY_PARTS",
+            "SAFETY_CHECK": "SAFETY_CHECK",
+            "CALLBACK_REQUEST": "CALLBACK"
+        }
+        
+        question_key = state_to_question_key.get(current)
+        
+        # Validate input for MCQ questions
+        if question_key:
+            validation = validate_input(user_input, question_key)
+            if not validation.get("valid"):
+                # Invalid input - return error and repeat question
+                preferred_language = state.get("preferred_language", "English")
+                error_msg = validation.get("error_message", "Please enter a valid option.")
+                
+                # Translate error if needed
+                if preferred_language != "English":
+                    error_msg = adapt_language(error_msg, preferred_language)
+                
+                return {
+                    "visit_id": visit_id,
+                    "next_question": error_msg,
+                    "current_state": current,
+                    "safety_flag": state.get("safety_flag", False),
+                    "conversation_complete": False,
+                    "validation_error": True
+                }
+        
         # Update state with user input
         state["last_user_input"] = user_input.strip()
         
         # Get the appropriate node function for the current state
-        current = state.get("current_state", "START")
         node_func = self._node_map.get(current, node_end)
         
         # Process ONE step
@@ -1363,6 +1566,17 @@ class ConversationalAgent:
         # Get the next question and adapt to user's language
         next_question = result.get("next_question", "")
         preferred_language = result.get("preferred_language", "English")
+        
+        # =====================================================================
+        # ADD EMPATHETIC PREFIX (makes responses feel more human)
+        # =====================================================================
+        next_state = result.get("next_state", result.get("current_state", ""))
+        empathetic_prefix = get_empathetic_prefix(state, next_state)
+        
+        # Add empathetic prefix for a warmer response
+        if next_question and not result.get("conversation_complete"):
+            if empathetic_prefix and not next_question.startswith(empathetic_prefix):
+                next_question = empathetic_prefix + next_question
         
         # Translate the question if not English
         if next_question and preferred_language != "English":
