@@ -79,6 +79,18 @@ def pharma_drugs():
         return redirect(url_for('login_page'))
     return render_template('pharma/drugs.html')
 
+@app.route('/pharma/analysis')
+def pharma_analysis():
+    if 'user_id' not in session or session.get('role') != 'pharma':
+        return redirect(url_for('login_page'))
+    return render_template('pharma/analysis.html')
+
+@app.route('/doctor/analysis')
+def doctor_analysis():
+    if 'user_id' not in session or session.get('role') != 'doctor':
+        return redirect(url_for('login_page'))
+    return render_template('doctor/analysis.html')
+
 # --- API Endpoints ---
 
 @app.route('/api/auth/register', methods=['POST'])
@@ -134,12 +146,8 @@ def get_patients():
         role = session.get('role')
         user_id = session.get('user_id')
         
-        if role == 'pharma':
-            patients = Patient.query.all()
-        else:
-            # doctors = Patient.query.filter_by(doctor_id=user_id).all() # Old way
-            user = User.query.get(user_id)
-            patients = user.patients
+        # Both pharma and doctors can now see all patients
+        patients = Patient.query.all()
             
         print(f"DEBUG: Found {len(patients)} patients")
         return jsonify([p.to_dict() for p in patients])
@@ -261,6 +269,101 @@ def get_stats():
             'high': Patient.query.filter_by(risk_level='High').count()
         }
     })
+
+@app.route('/api/analytics/advanced', methods=['GET'])
+def get_advanced_analytics():
+    """Comprehensive analytics for the Analysis page"""
+    try:
+        patients = Patient.query.all()
+        drugs = Drug.query.all()
+        alerts = Alert.query.all()
+        
+        # Age distribution by ranges
+        age_ranges = {'18-30': 0, '31-40': 0, '41-50': 0, '51-60': 0, '61-70': 0, '71+': 0}
+        for p in patients:
+            if p.age <= 30:
+                age_ranges['18-30'] += 1
+            elif p.age <= 40:
+                age_ranges['31-40'] += 1
+            elif p.age <= 50:
+                age_ranges['41-50'] += 1
+            elif p.age <= 60:
+                age_ranges['51-60'] += 1
+            elif p.age <= 70:
+                age_ranges['61-70'] += 1
+            else:
+                age_ranges['71+'] += 1
+        
+        # Top drugs by adverse events
+        drug_counts = {}
+        for p in patients:
+            drug_counts[p.drug_name] = drug_counts.get(p.drug_name, 0) + 1
+        top_drugs = sorted(drug_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+        
+        # Risk by drug
+        risk_by_drug = {}
+        for p in patients:
+            if p.drug_name not in risk_by_drug:
+                risk_by_drug[p.drug_name] = {'Low': 0, 'Medium': 0, 'High': 0}
+            risk_by_drug[p.drug_name][p.risk_level] += 1
+        
+        # Gender vs Risk analysis
+        gender_risk = {
+            'Male': {'Low': 0, 'Medium': 0, 'High': 0},
+            'Female': {'Low': 0, 'Medium': 0, 'High': 0},
+            'Other': {'Low': 0, 'Medium': 0, 'High': 0}
+        }
+        for p in patients:
+            gender_risk[p.gender][p.risk_level] += 1
+        
+        # Age vs Risk analysis
+        age_risk = {'Low': [], 'Medium': [], 'High': []}
+        for p in patients:
+            age_risk[p.risk_level].append(p.age)
+        
+        age_risk_avg = {
+            'Low': round(sum(age_risk['Low']) / len(age_risk['Low'])) if age_risk['Low'] else 0,
+            'Medium': round(sum(age_risk['Medium']) / len(age_risk['Medium'])) if age_risk['Medium'] else 0,
+            'High': round(sum(age_risk['High']) / len(age_risk['High'])) if age_risk['High'] else 0
+        }
+        
+        # Alert severity distribution
+        alert_severity = {'Low': 0, 'Medium': 0, 'High': 0, 'Critical': 0}
+        for a in alerts:
+            alert_severity[a.severity] = alert_severity.get(a.severity, 0) + 1
+        
+        # Drug risk assessment distribution
+        drug_risk_dist = {'Low': 0, 'Medium': 0, 'High': 0}
+        for d in drugs:
+            drug_risk_dist[d.ai_risk_assessment] = drug_risk_dist.get(d.ai_risk_assessment, 0) + 1
+        
+        # Monthly trend (last 6 months)
+        from datetime import datetime, timedelta
+        monthly_reports = {}
+        for p in patients:
+            month_key = p.created_at.strftime('%Y-%m')
+            monthly_reports[month_key] = monthly_reports.get(month_key, 0) + 1
+        
+        # Sort by month
+        monthly_trend = sorted(monthly_reports.items())
+        
+        return jsonify({
+            'success': True,
+            'ageDistribution': age_ranges,
+            'topDrugsByReports': [{'drug': d[0], 'count': d[1]} for d in top_drugs],
+            'riskByDrug': risk_by_drug,
+            'genderRiskAnalysis': gender_risk,
+            'ageRiskAverage': age_risk_avg,
+            'alertSeverityDistribution': alert_severity,
+            'drugRiskDistribution': drug_risk_dist,
+            'monthlyTrend': [{'month': m[0], 'count': m[1]} for m in monthly_trend],
+            'totalPatients': len(patients),
+            'totalDrugs': len(drugs),
+            'totalAlerts': len(alerts)
+        })
+    except Exception as e:
+        print(f"ERROR in advanced analytics: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # --- Drug Management API ---
 

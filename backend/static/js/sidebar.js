@@ -29,12 +29,14 @@ export class Sidebar extends HTMLElement {
             { icon: 'file-plus-2', text: 'Report Experience', link: '/doctor/report' },
             { icon: 'alert-triangle', text: 'Alerts', link: '/doctor/alerts' },
             { icon: 'shield-alert', text: 'Drug Warnings', link: '/doctor/warnings' },
+            { icon: 'bar-chart-3', text: 'Analysis', link: '/doctor/analysis' },
         ];
 
         const pharmaItems = [
             { icon: 'activity', text: 'Overview', link: '/pharma/dashboard' },
             { icon: 'pill', text: 'Drug Portfolio', link: '/pharma/drugs' },
             { icon: 'file-text', text: 'Reports', link: '/pharma/reports' },
+            { icon: 'bar-chart-3', text: 'Analysis', link: '/pharma/analysis' },
         ];
 
         return this.role === 'pharma' ? pharmaItems : doctorItems;
