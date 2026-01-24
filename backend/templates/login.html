@@ -41,6 +41,10 @@ document.getElementById('login-form').addEventListener('submit', async (e)=> {
 
             else if (result.user.role==='pharma') {
                 window.location.href='/pharma/dashboard';
+            }
+            
+            else if (result.user.role==='pharmacy') {
+                window.location.href='/pharmacy/dashboard';
             }}
 
         else {

@@ -39,7 +39,16 @@ export class Sidebar extends HTMLElement {
             { icon: 'bar-chart-3', text: 'Analysis', link: '/pharma/analysis' },
         ];
 
-        return this.role === 'pharma' ? pharmaItems : doctorItems;
+        const pharmacyItems = [
+            { icon: 'home', text: 'Dashboard', link: '/pharmacy/dashboard' },
+            { icon: 'clipboard-list', text: 'ADR Reports', link: '/pharmacy/reports' },
+            { icon: 'file-plus', text: 'Report ADR', link: '/pharmacy/report' },
+            { icon: 'bell', text: 'Safety Alerts', link: '/pharmacy/alerts' },
+        ];
+
+        if (this.role === 'pharma') return pharmaItems;
+        if (this.role === 'pharmacy') return pharmacyItems;
+        return doctorItems;
     }
 
     render() {

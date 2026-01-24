@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Safety Alerts - Pharmacy</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script type="module" src="/static/js/sidebar.js"></script>
+</head>
+<body>
+    <div class="dashboard-layout">
+        <app-sidebar></app-sidebar>
+        
+        <main class="main-content">
+            <header style="margin-bottom: 2rem;">
+                <h1>Safety Alerts</h1>
+                <p>Real-time safety warnings from pharmaceutical companies</p>
+            </header>
+
+            <!-- Filter Tabs -->
+            <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; border-bottom: 2px solid #F1F5F9;">
+                <button class="tab-btn active" onclick="filterAlerts('all')">
+                    All Alerts <span id="count-all" class="badge">0</span>
+                </button>
+                <button class="tab-btn" onclick="filterAlerts('Critical')">
+                    Critical <span id="count-critical" class="badge badge-high">0</span>
+                </button>
+                <button class="tab-btn" onclick="filterAlerts('High')">
+                    High <span id="count-high" class="badge badge-medium">0</span>
+                </button>
+                <button class="tab-btn" onclick="filterAlerts('Medium')">
+                    Medium <span id="count-medium" class="badge">0</span>
+                </button>
+                <button class="tab-btn" onclick="filterAlerts('Low')">
+                    Low <span id="count-low" class="badge badge-low">0</span>
+                </button>
+            </div>
+
+            <!-- Alerts Container -->
+            <div id="alerts-container" style="display: grid; gap: 1rem;">
+                <div style="text-align: center; padding: 3rem;">
+                    <p>Loading alerts...</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <style>
+        .tab-btn {
+            padding: 0.75rem 1rem;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-weight: 500;
+            color: var(--text-muted);
+            transition: all 0.2s;
+        }
+        
+        .tab-btn:hover {
+            color: var(--primary-dark);
+        }
+        
+        .tab-btn.active {
+            color: var(--primary-dark);
+            border-bottom-color: var(--primary);
+        }
+        
+        .alert-card {
+            padding: 1.5rem;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border-left: 4px solid;
+        }
+        
+        .alert-card.Critical {
+            border-left-color: #DC2626;
+            background: #FEF2F2;
+        }
+        
+        .alert-card.High {
+            border-left-color: #EA580C;
+            background: #FFF7ED;
+        }
+        
+        .alert-card.Medium {
+            border-left-color: #F59E0B;
+            background: #FFFBEB;
+        }
+        
+        .alert-card.Low {
+            border-left-color: #10B981;
+            background: #F0FDF4;
+        }
+    </style>
+
+    <script type="module">
+        import { Auth } from '/static/js/auth.js';
+
+        const user = Auth.requireAuth();
+        if (user.role !== 'pharmacy') {
+            window.location.href = '/login';
+        }
+
+        lucide.createIcons();
+
+        let allAlerts = [];
+        let currentFilter = 'all';
+
+        async function loadAlerts() {
+            try {
+                const response = await fetch('/api/alerts');
+                const data = await response.json();
+                
+                if (data.success) {
+                    allAlerts = data.alerts;
+                    updateCounts();
+                    displayAlerts(allAlerts);
+                }
+            } catch (error) {
+                console.error('Error loading alerts:', error);
+                document.getElementById('alerts-container').innerHTML = 
+                    '<div class="card"><p style="text-align: center; color: red;">Error loading alerts</p></div>';
+            }
+        }
+
+        function updateCounts() {
+            document.getElementById('count-all').textContent = allAlerts.length;
+            document.getElementById('count-critical').textContent = 
+                allAlerts.filter(a => a.severity === 'Critical').length;
+            document.getElementById('count-high').textContent = 
+                allAlerts.filter(a => a.severity === 'High').length;
+            document.getElementById('count-medium').textContent = 
+                allAlerts.filter(a => a.severity === 'Medium').length;
+            document.getElementById('count-low').textContent = 
+                allAlerts.filter(a => a.severity === 'Low').length;
+        }
+
+        function displayAlerts(alerts) {
+            const container = document.getElementById('alerts-container');
+            
+            if (alerts.length === 0) {
+                container.innerHTML = '<div class="card"><p style="text-align: center;">No alerts found</p></div>';
+                return;
+            }
+            
+            container.innerHTML = alerts.map(alert => `
+                <div class="alert-card ${alert.severity}">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+                        <div>
+                            <span class="badge badge-${alert.severity.toLowerCase()}">${alert.severity}</span>
+                            <span style="margin-left: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">
+                                ${new Date(alert.created_at).toLocaleDateString()}
+                            </span>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                            ${alert.is_read ? 
+                                '<span style="color: var(--text-muted); font-size: 0.85rem;">Read</span>' : 
+                                '<button class="btn btn-sm btn-primary" onclick="markAsRead(' + alert.id + ')">Mark as Read</button>'
+                            }
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 0.5rem;">
+                        <strong style="font-size: 1.1rem; color: var(--primary-dark);">${alert.drug_name}</strong>
+                    </div>
+                    <p style="margin: 0; color: var(--text-primary); line-height: 1.6;">${alert.message}</p>
+                    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(0,0,0,0.1); color: var(--text-muted); font-size: 0.85rem;">
+                        Issued by: ${alert.sender_name || 'Pharmaceutical Company'}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window.filterAlerts = function(severity) {
+            currentFilter = severity;
+            
+            // Update tab styles
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.closest('.tab-btn').classList.add('active');
+            
+            // Filter and display
+            if (severity === 'all') {
+                displayAlerts(allAlerts);
+            } else {
+                const filtered = allAlerts.filter(a => a.severity === severity);
+                displayAlerts(filtered);
+            }
+        };
+
+        window.markAsRead = async function(alertId) {
+            try {
+                const response = await fetch(`/api/alerts/${alertId}/read`, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Reload alerts to update UI
+                    loadAlerts();
+                }
+            } catch (error) {
+                console.error('Error marking alert as read:', error);
+            }
+        };
+
+        loadAlerts();
+    </script>
+</body>
+</html>

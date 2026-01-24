@@ -91,6 +91,32 @@ def doctor_analysis():
         return redirect(url_for('login_page'))
     return render_template('doctor/analysis.html')
 
+# --- Pharmacy Routes ---
+
+@app.route('/pharmacy/dashboard')
+def pharmacy_dashboard():
+    if 'user_id' not in session or session.get('role') != 'pharmacy':
+        return redirect(url_for('login_page'))
+    return render_template('pharmacy/dashboard.html')
+
+@app.route('/pharmacy/reports')
+def pharmacy_reports():
+    if 'user_id' not in session or session.get('role') != 'pharmacy':
+        return redirect(url_for('login_page'))
+    return render_template('pharmacy/reports.html')
+
+@app.route('/pharmacy/report')
+def pharmacy_report_form():
+    if 'user_id' not in session or session.get('role') != 'pharmacy':
+        return redirect(url_for('login_page'))
+    return render_template('pharmacy/report.html')
+
+@app.route('/pharmacy/alerts')
+def pharmacy_alerts():
+    if 'user_id' not in session or session.get('role') != 'pharmacy':
+        return redirect(url_for('login_page'))
+    return render_template('pharmacy/alerts.html')
+
 # --- API Endpoints ---
 
 @app.route('/api/auth/register', methods=['POST'])
@@ -592,6 +618,127 @@ def get_excel_template():
     except Exception as e:
         print(f"ERROR generating template: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
+
+# --- Pharmacy API Endpoints ---
+
+@app.route('/api/pharmacy/stats', methods=['GET'])
+def get_pharmacy_stats():
+    """Get pharmacy dashboard statistics"""
+    try:
+        pharmacy_id = session.get('user_id')
+        
+        # Get all reports from this pharmacy (stored in created_by field)
+        all_reports = Patient.query.filter_by(created_by=pharmacy_id).all()
+        
+        # Today's reports
+        from datetime import date
+        today_reports = [r for r in all_reports if r.created_at.date() == date.today()]
+        
+        # Get alerts
+        high_alerts = Alert.query.filter(Alert.severity.in_(['High', 'Critical'])).filter_by(is_read=False).count()
+        
+        # Mock dispensing count (in production, this would come from a separate table)
+        dispensing_count = random.randint(150, 300)
+        
+        # Severity distribution
+        severity_counts = {
+            'low': len([r for r in all_reports if r.risk_level == 'Low']),
+            'medium': len([r for r in all_reports if r.risk_level == 'Medium']),
+            'high': len([r for r in all_reports if r.risk_level == 'High'])
+        }
+        
+        # Top drugs by reports
+        drug_counts = {}
+        for report in all_reports:
+            drug_counts[report.drug_name] = drug_counts.get(report.drug_name, 0) + 1
+        
+        top_drugs = sorted(drug_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+        top_drugs_list = [{'name': d[0], 'count': d[1]} for d in top_drugs]
+        
+        return jsonify({
+            'success': True,
+            'today': len(today_reports),
+            'total': len(all_reports),
+            'alerts': high_alerts,
+            'dispensing': dispensing_count,
+            'severity': severity_counts,
+            'topDrugs': top_drugs_list
+        })
+    except Exception as e:
+        print(f"ERROR getting pharmacy stats: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/pharmacy/reports', methods=['GET'])
+def get_pharmacy_reports():
+    """Get all ADR reports from this pharmacy"""
+    try:
+        pharmacy_id = session.get('user_id')
+        limit = request.args.get('limit', type=int)
+        
+        # Get reports created by this pharmacy
+        query = Patient.query.filter_by(created_by=pharmacy_id).order_by(Patient.created_at.desc())
+        
+        if limit:
+            query = query.limit(limit)
+        
+        reports = query.all()
+        
+        reports_data = [{
+            'id': r.id,
+            'date': r.created_at.isoformat(),
+            'patientName': r.name,
+            'age': r.age,
+            'gender': r.gender,
+            'drugName': r.drug_name,
+            'reaction': r.symptoms,
+            'severity': r.risk_level,
+            'status': 'Submitted',  # Could be enhanced with a status field
+            'notes': ''
+        } for r in reports]
+        
+        return jsonify({
+            'success': True,
+            'reports': reports_data
+        })
+    except Exception as e:
+        print(f"ERROR getting pharmacy reports: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/pharmacy/report', methods=['POST'])
+def submit_pharmacy_report():
+    """Submit a new ADR report from pharmacy"""
+    try:
+        pharmacy_id = session.get('user_id')
+        data = request.json
+        
+        # Determine risk level based on severity
+        risk_level = data.get('severity', 'Low')
+        
+        # Create new patient/report entry
+        patient = Patient(
+            id='PH-' + str(random.randint(1000, 9999)),
+            created_by=pharmacy_id,
+            name=data['patientName'],
+            phone=data.get('phone', ''),
+            age=data['age'],
+            gender=data['gender'],
+            drug_name=data['drugName'],
+            symptoms=data['reaction'],
+            risk_level=risk_level
+        )
+        
+        db.session.add(patient)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'ADR report submitted successfully',
+            'report_id': patient.id
+        })
+    except Exception as e:
+        print(f"ERROR submitting pharmacy report: {e}")
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
