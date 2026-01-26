@@ -131,6 +131,7 @@ class CaseLinkingService:
         )
         
         db.session.add(case)
+        db.session.flush()  # Flush to get the case.id immediately
         return case
     
     @classmethod

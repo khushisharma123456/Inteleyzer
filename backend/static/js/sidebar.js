@@ -29,26 +29,15 @@ export class Sidebar extends HTMLElement {
             { icon: 'file-plus-2', text: 'Report Experience', link: '/doctor/report' },
             { icon: 'alert-triangle', text: 'Alerts', link: '/doctor/alerts' },
             { icon: 'shield-alert', text: 'Drug Warnings', link: '/doctor/warnings' },
-            { icon: 'bar-chart-3', text: 'Analysis', link: '/doctor/analysis' },
         ];
 
         const pharmaItems = [
             { icon: 'activity', text: 'Overview', link: '/pharma/dashboard' },
             { icon: 'pill', text: 'Drug Portfolio', link: '/pharma/drugs' },
             { icon: 'file-text', text: 'Reports', link: '/pharma/reports' },
-            { icon: 'bar-chart-3', text: 'Analysis', link: '/pharma/analysis' },
         ];
 
-        const pharmacyItems = [
-            { icon: 'home', text: 'Dashboard', link: '/pharmacy/dashboard' },
-            { icon: 'clipboard-list', text: 'ADR Reports', link: '/pharmacy/reports' },
-            { icon: 'file-plus', text: 'Report ADR', link: '/pharmacy/report' },
-            { icon: 'bell', text: 'Safety Alerts', link: '/pharmacy/alerts' },
-        ];
-
-        if (this.role === 'pharma') return pharmaItems;
-        if (this.role === 'pharmacy') return pharmacyItems;
-        return doctorItems;
+        return this.role === 'pharma' ? pharmaItems : doctorItems;
     }
 
     render() {

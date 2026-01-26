@@ -2,7 +2,7 @@
 Authentication API routes.
 Handles user registration, login, token refresh, and pharmacy verification.
 """
-from flask import Blueprint, request, jsonify, g
+from flask import Blueprint, request, jsonify, g, session
 from datetime import datetime
 
 from pv_backend.models import db, User, UserRole, AuditLog, AuditAction
@@ -133,6 +133,11 @@ def login():
     # Update last login
     user.last_login_at = datetime.utcnow()
     
+    # Set Flask session for HTML route protection
+    session['user_id'] = user.id
+    session['role'] = user.role.value
+    session['user_name'] = user.full_name
+    
     # Generate tokens
     access_token = generate_token(user, 'access')
     refresh_token = generate_token(user, 'refresh')
@@ -198,6 +203,18 @@ def refresh_token():
     return jsonify({
         'success': True,
         'access_token': new_access_token
+    }), 200
+
+
+@auth_bp.route('/logout', methods=['POST'])
+def logout():
+    """
+    Logout user by clearing session.
+    """
+    session.clear()
+    return jsonify({
+        'success': True,
+        'message': 'Logged out successfully'
     }), 200
 
 
