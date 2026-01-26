@@ -6,17 +6,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Patient Data - Hospital Safety Dashboard</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root {
-            --hospital-blue: #1a5f7a;
-            --hospital-light-blue: #2a8bb3;
-            --pharma-green: #2d7d46;
-            --alert-red: #c53030;
-            --warning-orange: #dd6b20;
-            --safe-green: #38a169;
-            --neutral-gray: #718096;
-            --bg-light: #f7fafc;
-            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            /* Color Palette */
+            --primary: #8DA399;
+            /* Soft Sage Green */
+            --primary-dark: #2F4F4F;
+            /* Dark Slate */
+            --secondary: #F5F5F0;
+            /* Cream / Warm Beige */
+            --accent: #6B8E23;
+            /* Olive Green */
+
+            /* Risk Colors (Muted) */
+            --risk-low: #A3C9A8;
+            /* Muted Green */
+            --risk-medium: #E2C792;
+            /* Soft Amber */
+            --risk-high: #DCA5A5;
+            /* Muted Red */
+
+            /* Neutrals */
+            --white: #FFFFFF;
+            --text-main: #333333;
+            --text-muted: #666666;
+
+            /* Layout */
+            --sidebar-width: 250px;
+            --sidebar-collapsed-width: 80px;
+
+            /* Shadows */
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
 
         * {
@@ -27,8 +49,8 @@
         }
 
         body {
-            background-color: var(--bg-light);
-            color: #2d3748;
+            background-color: #FAFAF9;
+            color: var(--text-main);
             line-height: 1.6;
         }
 
@@ -39,233 +61,427 @@
 
         /* Sidebar Styles */
         .sidebar {
-            width: 280px;
-            background: linear-gradient(to bottom, #1a5f7a, #1a4a5f);
-            color: white;
-            padding: 25px 20px;
-            box-shadow: var(--card-shadow);
+            width: var(--sidebar-width);
+            height: 100vh;
+            background-color: var(--secondary);
+            border-right: 1px solid #E2E8F0;
+            position: fixed;
+            left: 0;
+            top: 0;
+            display: flex;
+            flex-direction: column;
+            transition: width 0.3s ease;
             z-index: 100;
-            flex-shrink: 0;
-            display: block;
-            min-height: 100vh;
-            overflow-y: auto;
-            position: relative;
-            transition: width 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+            padding: 0;
         }
 
         .sidebar.collapsed {
-            width: 0;
-            padding-left: 0;
-            padding-right: 0;
-            opacity: 0;
+            width: 80px;
         }
 
         .sidebar .logo {
+            padding: 1.5rem;
             display: flex;
             align-items: center;
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            gap: 1rem;
+            border-bottom: 1px solid #F1F5F9;
+            margin: 0;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background-color: var(--primary);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .sidebar .logo-text {
+            display: flex;
+            flex-direction: column;
         }
 
         .sidebar .logo-text h1 {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 700;
             margin: 0;
+            color: var(--primary-dark);
+            white-space: nowrap;
+            overflow: hidden;
         }
 
         .sidebar .logo-text span {
             font-size: 12px;
-            opacity: 0.8;
+            opacity: 1;
             font-weight: 400;
+            color: var(--text-muted);
+            margin: 0;
+        }
+
+        .sidebar.collapsed .logo-text {
+            display: none;
         }
 
         .sidebar .nav-menu {
+            flex: 1;
             list-style: none;
-            margin-top: 30px;
-            padding: 0;
+            padding: 1rem 0;
+            margin: 0;
         }
 
         .sidebar .nav-item {
-            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            margin-bottom: 0;
         }
 
         .sidebar .nav-link {
             display: flex;
             align-items: center;
-            padding: 14px 16px;
-            color: #e2e8f0;
+            padding: 0.75rem 1.5rem;
+            color: var(--text-muted);
             text-decoration: none;
-            border-radius: 8px;
-            transition: all 0.3s;
-            font-weight: 500;
+            transition: all 0.2s;
+            gap: 1rem;
+            width: 100%;
         }
 
-        .sidebar .nav-link i {
-            margin-right: 12px;
-            font-size: 18px;
-            width: 24px;
-            text-align: center;
-        }
-
-        .sidebar .nav-link:hover,
+        .sidebar .nav-item:hover .nav-link,
         .sidebar .nav-link.active {
-            background-color: rgba(79, 209, 199, 0.15);
-            color: white;
+            background-color: var(--secondary);
+            color: var(--primary-dark);
+            border-right: 3px solid var(--primary);
+        }
+
+        .sidebar .nav-link span {
+            white-space: nowrap;
+        }
+
+        .sidebar.collapsed .nav-link span {
+            display: none;
         }
 
         .sidebar .nav-divider {
             height: 1px;
-            background: rgba(255, 255, 255, 0.1);
-            margin: 20px 0;
+            background-color: #F1F5F9;
+            margin: 1rem 0;
         }
 
-        .sidebar .data-separation {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
-            padding: 15px;
-            margin-top: 30px;
-            font-size: 13px;
+        .sidebar-footer {
+            padding: 1rem;
+            border-top: 1px solid #F1F5F9;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
         }
 
-        .sidebar .data-separation h4 {
-            font-size: 14px;
-            margin-bottom: 10px;
-            color: #4fd1c7;
+        .footer-link {
             display: flex;
             align-items: center;
-            margin: 0 0 10px 0;
-        }
-
-        .sidebar .data-separation h4 i {
-            margin-right: 8px;
-        }
-
-        .sidebar .sidebar-toggle-btn {
-            background: rgba(255, 255, 255, 0.1);
-            border: none;
-            color: white;
+            padding: 0.75rem 1.5rem;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: all 0.2s;
+            gap: 1rem;
             cursor: pointer;
-            padding: 5px 10px;
-            border-radius: 4px;
-            position: absolute;
-            top: 20px;
-            right: 10px;
-            z-index: 10;
-        }
-
-        .sidebar .sidebar-toggle-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        .sidebar-toggle-btn-main {
-            position: absolute;
-            left: 30px;
+            border: none;
             background: none;
-            border: none;
-            font-size: 24px;
-            color: var(--hospital-blue);
-            cursor: pointer;
-            z-index: 50;
         }
 
-        .sidebar-toggle-btn-main:hover {
-            opacity: 0.7;
+        .footer-link:hover {
+            background-color: var(--secondary);
+            color: var(--primary-dark);
+            border-right: 3px solid var(--primary);
         }
 
-        /* Sidebar Styles */
+        .footer-link span {
+            white-space: nowrap;
+        }
 
+        .sidebar.collapsed .footer-link span {
+            display: none;
+        }
+
+        .logout-btn {
+            color: var(--risk-high);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        {% include 'hospital/sidebar.html' %}
+        <main class="main-content">
+            <div class="content-wrapper">
+                <h1 style="margin-bottom: 30px; color: #1a5f7a;">{{ session.get('hospital_name', 'General Hospital') }}</h1>
+
+                <!-- Patient Data - With Identity Box -->
+                <section class="data-box identity-box">
+                    <div class="box-header">
+                        <h2><i class="fas fa-user-shield"></i> Patient Data - With Identity</h2>
+                        <p class="box-description">Manage patient records with full identity information</p>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" onclick="openAddManuallyModal('identity')">
+                            <i class="fas fa-plus"></i> Add Manually
+                        </button>
+                        <button class="btn btn-secondary" onclick="openUploadModal('identity')">
+                            <i class="fas fa-file-upload"></i> Upload Excel File
+                        </button>
+                    </div>
+
+                    <div class="table-wrapper">
+                        <table class="data-table" id="identity-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Phone Number</th>
+                                    <th>Address</th>
+                                    <th>State</th>
+                                    <th>District</th>
+                                    <th>Patient ID</th>
+                                    <th>Age</th>
+                                    <th>Gender</th>
+                                    <th>Drug Name</th>
+                                    <th>Adverse Event</th>
+                                    <th>Outcome</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Rajesh Kumar</td>
+                                    <td>9876543210</td>
+                                    <td>123 Main Street</td>
+                                    <td>Maharashtra</td>
+                                    <td>Mumbai</td>
+                                    <td>P001</td>
+                                    <td>45</td>
+                                    <td>Male</td>
+                                    <td>Aspirin</td>
+                                    <td>Nausea</td>
+                                    <td>Recovered</td>
+                                    <td>
+                                        <button class="btn-action view-btn" onclick="viewPatient(this, 'identity')">View</button>
+                                        <button class="btn-action change-btn" onclick="changeOutcome(this, 'identity')">Change</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Priya Sharma</td>
+                                    <td>9123456789</td>
+                                    <td>456 Oak Avenue</td>
+                                    <td>Delhi</td>
+                                    <td>Central Delhi</td>
+                                    <td>P002</td>
+                                    <td>32</td>
+                                    <td>Female</td>
+                                    <td>Ibuprofen</td>
+                                    <td>Headache</td>
+                                    <td>Under Treatment</td>
+                                    <td>
+                                        <button class="btn-action view-btn" onclick="viewPatient(this, 'identity')">View</button>
+                                        <button class="btn-action change-btn" onclick="changeOutcome(this, 'identity')">Change</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Amit Patel</td>
+                                    <td>9234567890</td>
+                                    <td>789 Pine Road</td>
+                                    <td>Gujarat</td>
+                                    <td>Ahmedabad</td>
+                                    <td>P003</td>
+                                    <td>58</td>
+                                    <td>Male</td>
+                                    <td>Metformin</td>
+                                    <td>Dizziness</td>
+                                    <td>Recovered</td>
+                                    <td>
+                                        <button class="btn-action view-btn" onclick="viewPatient(this, 'identity')">View</button>
+                                        <button class="btn-action change-btn" onclick="changeOutcome(this, 'identity')">Change</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Patient Data - Anonymous Box -->
+                <section class="data-box anonymous-box">
+                    <div class="box-header">
+                        <h2><i class="fas fa-user-secret"></i> Patient Data - Anonymous</h2>
+                        <p class="box-description">Manage anonymized patient records for pharma sharing</p>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" onclick="openAddManuallyModal('anonymous')">
+                            <i class="fas fa-plus"></i> Add Manually
+                        </button>
+                        <button class="btn btn-secondary" onclick="openUploadModal('anonymous')">
+                            <i class="fas fa-file-upload"></i> Upload Excel File
+                        </button>
+                    </div>
+
+                    <div class="table-wrapper">
+                        <table class="data-table" id="anonymous-table">
+                            <thead>
+                                <tr>
+                                    <th>Patient ID</th>
+                                    <th>Age</th>
+                                    <th>Gender</th>
+                                    <th>Drug Name</th>
+                                    <th>Adverse Event</th>
+                                    <th>Outcome</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>P001</td>
+                                    <td>45</td>
+                                    <td>Male</td>
+                                    <td>Aspirin</td>
+                                    <td>Nausea</td>
+                                    <td>Recovered</td>
+                                    <td>
+                                        <button class="btn-action view-btn" onclick="viewPatient(this, 'anonymous')">View</button>
+                                        <button class="btn-action change-btn" onclick="changeOutcome(this, 'anonymous')">Change</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>P002</td>
+                                    <td>32</td>
+                                    <td>Female</td>
+                                    <td>Ibuprofen</td>
+                                    <td>Headache</td>
+                                    <td>Under Treatment</td>
+                                    <td>
+                                        <button class="btn-action view-btn" onclick="viewPatient(this, 'anonymous')">View</button>
+                                        <button class="btn-action change-btn" onclick="changeOutcome(this, 'anonymous')">Change</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add Manually Modal -->
+    <div id="addManuallyModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('addManuallyModal')">&times;</span>
+            <h2>Add Patient Record</h2>
+            <form id="addManuallyForm">
+                <div id="formFields"></div>
+                <button type="submit" class="btn btn-primary">Add Record</button>
+                <button type="button" class="btn btn-cancel" onclick="closeModal('addManuallyModal')">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Upload Excel Modal -->
+    <div id="uploadModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('uploadModal')">&times;</span>
+            <h2>Upload Excel File</h2>
+            <div id="instructionsContainer"></div>
+            <input type="file" id="excelFile" accept=".xlsx,.xls" style="margin: 20px 0; display: block;">
+            <button class="btn btn-primary" onclick="uploadExcelFile()">Upload</button>
+            <button type="button" class="btn btn-cancel" onclick="closeModal('uploadModal')">Cancel</button>
+        </div>
+    </div>
+
+    <!-- View Patient Modal -->
+    <div id="viewPatientModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('viewPatientModal')">&times;</span>
+            <h2>Patient Details</h2>
+            <div id="patientDetails"></div>
+            <button type="button" class="btn btn-cancel" onclick="closeModal('viewPatientModal')">Close</button>
+        </div>
+    </div>
+
+    <!-- Edit Row Modal -->
+    <div id="editRowModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('editRowModal')">&times;</span>
+            <h2>Edit Patient Record</h2>
+            <form id="editRowForm">
+                <div id="editFormFields"></div>
+                <button type="submit" class="btn btn-primary">Update</button>
+                <button type="button" class="btn btn-cancel" onclick="closeModal('editRowModal')">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <style>
         /* Main Content */
         .main-content {
             flex: 1;
-            padding: 25px 30px;
+            margin-left: var(--sidebar-width);
+            padding: 2rem;
+            background-color: #FAFAF9;
+            transition: margin-left 0.3s ease;
             overflow-y: auto;
         }
 
-        .header {
-            display: flex;
-            justify-content: center;
-            align-items: center;
+        body.sidebar-collapsed .main-content {
+            margin-left: 80px;
+        }
+
+        .content-wrapper {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .content-wrapper h1 {
+            color: var(--primary-dark);
             margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid #e2e8f0;
         }
 
-        .header-title h2 {
-            color: var(--hospital-blue);
-            font-weight: 700;
-            font-size: 28px;
-        }
-
-        /* Section */
-        .section {
-            background-color: white;
+        /* Data Boxes */
+        .data-box {
+            background: white;
             border-radius: 12px;
             padding: 30px;
-            box-shadow: var(--card-shadow);
-            margin-bottom: 30px;
+            margin-bottom: 40px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid #E2E8F0;
+            border-left: 6px solid;
         }
 
-        .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        .identity-box {
+            border-left-color: var(--primary);
+        }
+
+        .anonymous-box {
+            border-left-color: var(--accent);
+        }
+
+        .box-header {
             margin-bottom: 25px;
+            border-bottom: 2px solid #e2e8f0;
             padding-bottom: 15px;
-            border-bottom: 1px solid #e2e8f0;
         }
 
-        .section-title {
+        .box-header h2 {
             font-size: 22px;
-            font-weight: 700;
-            color: var(--hospital-blue);
-            display: flex;
-            align-items: center;
-        }
-
-        .section-title i {
-            margin-right: 12px;
-            font-size: 24px;
-        }
-
-        .section-subtitle {
-            color: var(--neutral-gray);
-            font-size: 15px;
-            margin-top: 5px;
-        }
-
-        .btn {
-            padding: 12px 24px;
-            border-radius: 8px;
-            border: none;
             font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-size: 15px;
-            display: inline-flex;
-            align-items: center;
+            margin-bottom: 8px;
+            color: var(--primary-dark);
         }
 
-        .btn i {
-            margin-right: 8px;
-        }
-
-        .btn-primary {
-            background-color: var(--hospital-light-blue);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background-color: #237299;
-        }
-
-        .btn-secondary {
-            background-color: #edf2f7;
-            color: #4a5568;
-        }
-
-        .btn-secondary:hover {
-            background-color: #e2e8f0;
+        .box-description {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin: 0;
         }
 
         /* Action Buttons */
@@ -273,240 +489,583 @@
             display: flex;
             gap: 15px;
             margin-bottom: 25px;
+            flex-wrap: wrap;
         }
 
-        /* Tables */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--accent);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-secondary {
+            background-color: var(--accent);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-cancel {
+            background-color: #cbd5e0;
+            color: var(--text-main);
+        }
+
+        .btn-cancel:hover {
+            background-color: #a0aec0;
+        }
+
+        /* Table Styles */
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
         .data-table {
             width: 100%;
             border-collapse: collapse;
-        }
-
-        .data-table th {
-            background-color: #f7fafc;
-            padding: 16px 20px;
-            text-align: left;
-            font-weight: 600;
-            color: var(--hospital-blue);
-            border-bottom: 2px solid #e2e8f0;
             font-size: 14px;
         }
 
+        .data-table thead {
+            background-color: var(--secondary);
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .data-table th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--primary-dark);
+        }
+
         .data-table td {
-            padding: 16px 20px;
-            border-bottom: 1px solid #f0f0f0;
+            padding: 15px;
+            border-bottom: 1px solid #e2e8f0;
         }
 
-        .data-table tr:hover {
-            background-color: #f7fafc;
+        .data-table tbody tr:hover {
+            background-color: var(--secondary);
         }
 
-        .status-badge {
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 600;
-            display: inline-block;
+        /* Action Buttons in Table */
+        .btn-action {
+            padding: 6px 12px;
+            margin-right: 8px;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
         }
 
-        .status-internal {
-            background-color: #bee3f8;
-            color: #2b6cb0;
-        }
-
-        /* Alert Banner */
-        .alert-banner {
-            background: linear-gradient(to right, #ebf8ff, #bee3f8);
-            border-left: 6px solid #4299e1;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 25px;
-            display: flex;
-            align-items: center;
-        }
-
-        .alert-icon {
-            background-color: #4299e1;
+        .view-btn {
+            background-color: var(--primary);
             color: white;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
+        }
+
+        .view-btn:hover {
+            background-color: var(--accent);
+        }
+
+        .change-btn {
+            background-color: var(--accent);
+            color: white;
+        }
+
+        .change-btn:hover {
+            background-color: var(--primary);
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: var(--shadow-md);
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .close {
+            color: #a0aec0;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .close:hover {
+            color: var(--text-main);
+        }
+
+        .modal h2 {
+            margin-bottom: 20px;
+            color: var(--primary-dark);
+        }
+
+        /* Form Styles */
+        form {
             display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 22px;
-            margin-right: 20px;
-            flex-shrink: 0;
+            flex-direction: column;
+            gap: 15px;
         }
 
-        .alert-content h4 {
-            color: #2b6cb0;
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: var(--text-main);
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="tel"],
+        input[type="number"],
+        select {
+            padding: 10px;
+            border: 1px solid #cbd5e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="text"]:focus,
+        input[type="email"]:focus,
+        input[type="tel"]:focus,
+        input[type="number"]:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(141, 163, 153, 0.2);
+        }
+
+        /* Instructions */
+        .instructions {
+            background-color: var(--secondary);
+            border-left: 4px solid var(--primary);
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+
+        .instructions h3 {
+            margin-bottom: 10px;
+            color: var(--primary-dark);
+            font-size: 14px;
+        }
+
+        .instructions ul {
+            margin-left: 20px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .instructions li {
             margin-bottom: 5px;
+        }
+
+        /* Error Message */
+        .error-message {
+            background-color: #FEE2E2;
+            color: #991B1B;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        /* Success Message */
+        .success-message {
+            background-color: #E6F4EA;
+            color: #166534;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        /* Patient Details */
+        .patient-detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .patient-detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .patient-detail-label {
             font-weight: 600;
+            color: var(--text-main);
         }
 
-        .alert-content p {
-            color: #2c5282;
-        }
-
-        /* Sidebar toggle styles are defined in sidebar.html */
-
-        @media (max-width: 768px) {
-            .sidebar {
-                position: absolute;
-                height: 100vh;
-            }
-
-            .action-buttons {
-                flex-direction: column;
-            }
-
-            .data-table {
-                font-size: 12px;
-            }
-
-            .data-table th,
-            .data-table td {
-                padding: 10px;
-            }
+        .patient-detail-value {
+            color: var(--text-muted);
         }
     </style>
-</head>
-
-<body>
-    <div class="container">
-        <!-- Sidebar -->
-        {% include 'hospital/sidebar.html' %}
-
-        <!-- Main Content -->
-        <main class="main-content">
-            <div class="header">
-                <button id="sidebar-open-btn" class="sidebar-toggle-btn-main" title="Show Sidebar"><i
-                        class="fas fa-bars"></i></button>
-                <div class="header-title">
-                    <h2>Patient Data</h2>
-                </div>
-            </div>
-
-            <!-- Patient Data Section -->
-            <section class="section">
-                <div class="section-header">
-                    <div>
-                        <h3 class="section-title"><i class="fas fa-user-shield"></i> Patient Data</h3>
-                        <p class="section-subtitle">Stays within hospital - never shared externally</p>
-                    </div>
-                </div>
-
-                <!-- Action Buttons -->
-                <div class="action-buttons">
-                    <button class="btn btn-primary" id="add-patient-manually-btn">
-                        <i class="fas fa-plus"></i> Add Manually
-                    </button>
-                    <button class="btn btn-secondary" id="upload-excel-btn">
-                        <i class="fas fa-file-excel"></i> Upload Excel File
-                    </button>
-                    <input type="file" id="excel-file-input" accept=".xlsx,.xls,.csv" style="display: none;">
-                </div>
-
-                <!-- Alert Banner -->
-                <div class="alert-banner">
-                    <div class="alert-icon">
-                        <i class="fas fa-lock"></i>
-                    </div>
-                    <div class="alert-content">
-                        <h4>Internal Use Only</h4>
-                        <p>This data contains patient identifiers and is stored exclusively in your hospital system.
-                            It is never transmitted to pharmaceutical companies or external parties.</p>
-                    </div>
-                </div>
-
-                <!-- Patient Data Table -->
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Patient ID</th>
-                            <th>Age Band</th>
-                            <th>Gender</th>
-                            <th>Diagnosis (ICD)</th>
-                            <th>Medicine</th>
-                            <th>Dosage</th>
-                            <th>Outcome</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="patient-data-table">
-                        <tr>
-                            <td><span class="status-badge status-internal">P-001</span></td>
-                            <td>45-55</td>
-                            <td>Male</td>
-                            <td>I10 (Hypertension)</td>
-                            <td>Cardiostat</td>
-                            <td>10mg daily</td>
-                            <td>Improved</td>
-                            <td><button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">View</button></td>
-                        </tr>
-                        <tr>
-                            <td><span class="status-badge status-internal">P-002</span></td>
-                            <td>35-45</td>
-                            <td>Female</td>
-                            <td>M79.3 (Myalgia)</td>
-                            <td>PainAway</td>
-                            <td>500mg twice daily</td>
-                            <td>Stable</td>
-                            <td><button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">View</button></td>
-                        </tr>
-                        <tr>
-                            <td><span class="status-badge status-internal">P-003</span></td>
-                            <td>55-65</td>
-                            <td>Male</td>
-                            <td>G89.29 (Chronic pain)</td>
-                            <td>Neurocalm</td>
-                            <td>75mg at night</td>
-                            <td>Improved</td>
-                            <td><button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">View</button></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </section>
-        </main>
-    </div>
 
     <script>
-        // Sidebar Toggle
-        document.addEventListener('DOMContentLoaded', function() {
-            const sidebar = document.getElementById('sidebar');
-            const closeBtn = document.getElementById('sidebar-close-btn');
-            const openBtn = document.getElementById('sidebar-open-btn');
+        // Define column structures for each table type
+        const columnStructures = {
+            identity: ['Name', 'Phone Number', 'Address', 'State', 'District', 'Patient ID', 'Age', 'Gender', 'Drug Name', 'Adverse Event', 'Outcome'],
+            anonymous: ['Patient ID', 'Age', 'Gender', 'Drug Name', 'Adverse Event', 'Outcome']
+        };
 
-            if (closeBtn) {
-                closeBtn.addEventListener('click', () => {
-                    sidebar.classList.add('collapsed');
-                });
+        const columnPlaceholders = {
+            identity: {
+                'Name': 'e.g., Rajesh Kumar',
+                'Phone Number': 'e.g., 9876543210',
+                'Address': 'e.g., 123 Main Street',
+                'State': 'e.g., Maharashtra',
+                'District': 'e.g., Mumbai',
+                'Patient ID': 'e.g., P001',
+                'Age': 'e.g., 45',
+                'Gender': 'e.g., Male',
+                'Drug Name': 'e.g., Aspirin',
+                'Adverse Event': 'e.g., Nausea',
+                'Outcome': 'e.g., Recovered'
+            },
+            anonymous: {
+                'Patient ID': 'e.g., P001',
+                'Age': 'e.g., 45',
+                'Gender': 'e.g., Male',
+                'Drug Name': 'e.g., Aspirin',
+                'Adverse Event': 'e.g., Nausea',
+                'Outcome': 'e.g., Recovered'
             }
+        };
 
-            if (openBtn) {
-                openBtn.addEventListener('click', () => {
-                    sidebar.classList.remove('collapsed');
-                });
-            }
+        let currentTableType = '';
+        let currentRowIndex = -1;
 
-            // Add Patient Manually Button
-            document.getElementById('add-patient-manually-btn')?.addEventListener('click', function () {
-                alert('This would open a form to add a new patient record manually. The data would stay within the hospital system.');
+        // Open Add Manually Modal
+        function openAddManuallyModal(tableType) {
+            currentTableType = tableType;
+            const formFields = document.getElementById('formFields');
+            formFields.innerHTML = '';
+
+            const columns = columnStructures[tableType];
+            columns.forEach(column => {
+                const formGroup = document.createElement('div');
+                formGroup.className = 'form-group';
+                formGroup.innerHTML = `
+                    <label for="${column}">${column}:</label>
+                    <input type="text" id="${column}" name="${column}" placeholder="${columnPlaceholders[tableType][column]}" required>
+                `;
+                formFields.appendChild(formGroup);
             });
 
-            // Upload Excel Button
-            document.getElementById('upload-excel-btn')?.addEventListener('click', function () {
-                document.getElementById('excel-file-input').click();
+            document.getElementById('addManuallyForm').onsubmit = function(e) {
+                e.preventDefault();
+                addRecordManually(tableType);
+            };
+
+            document.getElementById('addManuallyModal').style.display = 'block';
+        }
+
+        // Open Upload Modal
+        function openUploadModal(tableType) {
+            currentTableType = tableType;
+            const instructionsContainer = document.getElementById('instructionsContainer');
+            const columns = columnStructures[tableType];
+
+            instructionsContainer.innerHTML = `
+                <div class="instructions">
+                    <h3>Required Excel Columns:</h3>
+                    <ul>
+                        ${columns.map(col => `<li>${col}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+
+            document.getElementById('excelFile').value = '';
+            document.getElementById('uploadModal').style.display = 'block';
+        }
+
+        // Add Record Manually
+        function addRecordManually(tableType) {
+            const columns = columnStructures[tableType];
+            const tableId = tableType === 'identity' ? 'identity-table' : 'anonymous-table';
+            const table = document.getElementById(tableId);
+            const tbody = table.querySelector('tbody');
+
+            const newRow = tbody.insertRow();
+            const rowData = [];
+
+            columns.forEach(column => {
+                const value = document.getElementById(column).value;
+                rowData.push(value);
+                const cell = newRow.insertCell();
+                cell.textContent = value;
             });
 
-            // Excel File Input Handler
-            document.getElementById('excel-file-input')?.addEventListener('change', function (e) {
-                const file = e.target.files[0];
-                if (file) {
-                    alert(`File selected: ${file.name}\n\nThis would upload and process the Excel file to add patient records to the system.`);
-                    e.target.value = '';
+            // Add Actions cell
+            const actionsCell = newRow.insertCell();
+            actionsCell.innerHTML = `
+                <button class="btn-action view-btn" onclick="viewPatient(this, '${tableType}')">View</button>
+                <button class="btn-action change-btn" onclick="changeOutcome(this, '${tableType}')">Change</button>
+            `;
+
+            closeModal('addManuallyModal');
+            showSuccessMessage('Record added successfully!');
+        }
+
+        // Upload Excel File
+        function uploadExcelFile() {
+            const fileInput = document.getElementById('excelFile');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert('Please select a file');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                    if (jsonData.length === 0) {
+                        showErrorMessage('Excel file is empty');
+                        return;
+                    }
+
+                    const requiredColumns = columnStructures[currentTableType];
+                    const excelColumns = Object.keys(jsonData[0]);
+
+                    // Check if all required columns exist
+                    const missingColumns = requiredColumns.filter(col => !excelColumns.includes(col));
+                    if (missingColumns.length > 0) {
+                        showErrorMessage(`Missing columns: ${missingColumns.join(', ')}`);
+                        return;
+                    }
+
+                    // Add rows to table
+                    const tableId = currentTableType === 'identity' ? 'identity-table' : 'anonymous-table';
+                    const table = document.getElementById(tableId);
+                    const tbody = table.querySelector('tbody');
+
+                    jsonData.forEach(row => {
+                        const newRow = tbody.insertRow();
+                        requiredColumns.forEach(column => {
+                            const cell = newRow.insertCell();
+                            cell.textContent = row[column] || '';
+                        });
+
+                        // Add Actions cell
+                        const actionsCell = newRow.insertCell();
+                        actionsCell.innerHTML = `
+                            <button class="btn-action view-btn" onclick="viewPatient(this, '${currentTableType}')">View</button>
+                            <button class="btn-action change-btn" onclick="changeOutcome(this, '${currentTableType}')">Change</button>
+                        `;
+                    });
+
+                    closeModal('uploadModal');
+                    showSuccessMessage(`${jsonData.length} records added successfully!`);
+                } catch (error) {
+                    showErrorMessage('Error reading Excel file: ' + error.message);
+                }
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
+        // View Patient Details
+        function viewPatient(button, tableType) {
+            const row = button.closest('tr');
+            const cells = row.querySelectorAll('td');
+            const columns = columnStructures[tableType];
+
+            let detailsHTML = '';
+            for (let i = 0; i < columns.length; i++) {
+                detailsHTML += `
+                    <div class="patient-detail-row">
+                        <span class="patient-detail-label">${columns[i]}:</span>
+                        <span class="patient-detail-value">${cells[i].textContent}</span>
+                    </div>
+                `;
+            }
+
+            document.getElementById('patientDetails').innerHTML = detailsHTML;
+            document.getElementById('viewPatientModal').style.display = 'block';
+        }
+
+        // Change Outcome
+        function changeOutcome(button, tableType) {
+            currentRowIndex = button.closest('tr').rowIndex - 1;
+            currentTableType = tableType;
+            
+            const row = button.closest('tr');
+            const cells = row.querySelectorAll('td');
+            const columns = columnStructures[tableType];
+            
+            const editFormFields = document.getElementById('editFormFields');
+            editFormFields.innerHTML = '';
+            
+            // Create form fields for each column (excluding Actions column)
+            columns.forEach((column, index) => {
+                const formGroup = document.createElement('div');
+                formGroup.className = 'form-group';
+                
+                let inputHTML = '';
+                if (column === 'Outcome') {
+                    inputHTML = `
+                        <label for="edit_${column}">${column}:</label>
+                        <select id="edit_${column}" name="${column}" required>
+                            <option value="">-- Select ${column} --</option>
+                            <option value="Recovered">Recovered</option>
+                            <option value="Under Treatment">Under Treatment</option>
+                            <option value="Hospitalized">Hospitalized</option>
+                            <option value="Critical">Critical</option>
+                        </select>
+                    `;
+                } else if (column === 'Age') {
+                    inputHTML = `
+                        <label for="edit_${column}">${column}:</label>
+                        <input type="number" id="edit_${column}" name="${column}" value="${cells[index].textContent}" required>
+                    `;
+                } else {
+                    inputHTML = `
+                        <label for="edit_${column}">${column}:</label>
+                        <input type="text" id="edit_${column}" name="${column}" value="${cells[index].textContent}" required>
+                    `;
+                }
+                
+                formGroup.innerHTML = inputHTML;
+                editFormFields.appendChild(formGroup);
+                
+                // Set the current value for select fields
+                if (column === 'Outcome') {
+                    document.getElementById(`edit_${column}`).value = cells[index].textContent;
                 }
             });
+            
+            document.getElementById('editRowModal').style.display = 'block';
+        }
+
+        // Handle Edit Row Form Submission
+        document.getElementById('editRowForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const tableId = currentTableType === 'identity' ? 'identity-table' : 'anonymous-table';
+            const table = document.getElementById(tableId);
+            const row = table.querySelector('tbody').rows[currentRowIndex];
+            const columns = columnStructures[currentTableType];
+            
+            // Update all cells in the row
+            columns.forEach((column, index) => {
+                const newValue = document.getElementById(`edit_${column}`).value;
+                row.cells[index].textContent = newValue;
+            });
+            
+            closeModal('editRowModal');
+            showSuccessMessage('Record updated successfully!');
+        });
+
+        // Close Modal
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modals = document.querySelectorAll('.modal');
+            modals.forEach(modal => {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        };
+
+        // Show Success Message
+        function showSuccessMessage(message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'success-message';
+            messageDiv.textContent = message;
+            document.querySelector('.content-wrapper').insertBefore(messageDiv, document.querySelector('.content-wrapper').firstChild);
+            setTimeout(() => messageDiv.remove(), 3000);
+        }
+
+        // Show Error Message
+        function showErrorMessage(message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'error-message';
+            messageDiv.textContent = message;
+            document.querySelector('.content-wrapper').insertBefore(messageDiv, document.querySelector('.content-wrapper').firstChild);
+            setTimeout(() => messageDiv.remove(), 3000);
+        }
+
+        // Sidebar Toggle
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebarCloseBtn = document.getElementById('sidebar-close-btn');
+            const sidebar = document.getElementById('sidebar');
+
+            if (sidebarCloseBtn) {
+                sidebarCloseBtn.addEventListener('click', function() {
+                    sidebar.classList.toggle('collapsed');
+                });
+            }
         });
     </script>
 </body>

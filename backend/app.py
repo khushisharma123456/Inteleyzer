@@ -109,6 +109,12 @@ def hospital_patient_recall():
         return redirect(url_for('login_page'))
     return render_template('hospital/patient-recall.html', active_page='patient-recall')
 
+@app.route('/hospital/settings')
+def hospital_settings():
+    if 'user_id' not in session or session.get('role') != 'hospital':
+        return redirect(url_for('login_page'))
+    return render_template('hospital/settings.html', active_page='settings')
+
 # --- API Endpoints ---
 
 @app.route('/api/auth/register', methods=['POST'])

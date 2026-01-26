@@ -8,15 +8,36 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --hospital-blue: #1a5f7a;
-            --hospital-light-blue: #2a8bb3;
-            --pharma-green: #2d7d46;
-            --alert-red: #c53030;
-            --warning-orange: #dd6b20;
-            --safe-green: #38a169;
-            --neutral-gray: #718096;
-            --bg-light: #f7fafc;
-            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            /* Color Palette */
+            --primary: #8DA399;
+            /* Soft Sage Green */
+            --primary-dark: #2F4F4F;
+            /* Dark Slate */
+            --secondary: #F5F5F0;
+            /* Cream / Warm Beige */
+            --accent: #6B8E23;
+            /* Olive Green */
+
+            /* Risk Colors (Muted) */
+            --risk-low: #A3C9A8;
+            /* Muted Green */
+            --risk-medium: #E2C792;
+            /* Soft Amber */
+            --risk-high: #DCA5A5;
+            /* Muted Red */
+
+            /* Neutrals */
+            --white: #FFFFFF;
+            --text-main: #333333;
+            --text-muted: #666666;
+
+            /* Layout */
+            --sidebar-width: 250px;
+            --sidebar-collapsed-width: 80px;
+
+            /* Shadows */
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
 
         * {
@@ -27,8 +48,8 @@
         }
 
         body {
-            background-color: var(--bg-light);
-            color: #2d3748;
+            background-color: #FAFAF9;
+            color: var(--text-main);
             line-height: 1.6;
         }
 
@@ -39,93 +60,158 @@
 
         /* Sidebar Styles */
         .sidebar {
-            width: 280px;
-            background: linear-gradient(to bottom, #1a5f7a, #1a4a5f);
-            color: white;
-            padding: 25px 20px;
-            box-shadow: var(--card-shadow);
+            width: var(--sidebar-width);
+            height: 100vh;
+            background-color: var(--secondary);
+            border-right: 1px solid #E2E8F0;
+            position: fixed;
+            left: 0;
+            top: 0;
+            display: flex;
+            flex-direction: column;
+            transition: width 0.3s ease;
             z-index: 100;
-            flex-shrink: 0;
-            display: block;
-            min-height: 100vh;
-            overflow-y: auto;
-            position: relative;
-            transition: width 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+            padding: 0;
         }
 
         .sidebar.collapsed {
-            width: 0;
-            padding-left: 0;
-            padding-right: 0;
-            opacity: 0;
+            width: 80px;
         }
 
         .sidebar .logo {
+            padding: 1.5rem;
             display: flex;
             align-items: center;
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            gap: 1rem;
+            border-bottom: 1px solid #F1F5F9;
+            margin: 0;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background-color: var(--primary);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .sidebar .logo-text {
+            display: flex;
+            flex-direction: column;
         }
 
         .sidebar .logo-text h1 {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 700;
             margin: 0;
+            color: var(--primary-dark);
+            white-space: nowrap;
+            overflow: hidden;
         }
 
         .sidebar .logo-text span {
             font-size: 12px;
-            opacity: 0.8;
+            opacity: 1;
             font-weight: 400;
+            color: var(--text-muted);
+            margin: 0;
+        }
+
+        .sidebar.collapsed .logo-text {
+            display: none;
         }
 
         .sidebar .nav-menu {
+            flex: 1;
             list-style: none;
-            margin-top: 30px;
-            padding: 0;
+            padding: 1rem 0;
+            margin: 0;
         }
 
         .sidebar .nav-item {
-            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            margin-bottom: 0;
         }
 
         .sidebar .nav-link {
             display: flex;
             align-items: center;
-            padding: 14px 16px;
-            color: #e2e8f0;
+            padding: 0.75rem 1.5rem;
+            color: var(--text-muted);
             text-decoration: none;
-            border-radius: 8px;
-            transition: all 0.3s;
-            font-weight: 500;
+            transition: all 0.2s;
+            gap: 1rem;
+            width: 100%;
         }
 
-        .sidebar .nav-link i {
-            margin-right: 12px;
-            font-size: 18px;
-            width: 24px;
-            text-align: center;
-        }
-
-        .sidebar .nav-link:hover,
+        .sidebar .nav-item:hover .nav-link,
         .sidebar .nav-link.active {
-            background-color: rgba(79, 209, 199, 0.15);
-            color: white;
+            background-color: var(--secondary);
+            color: var(--primary-dark);
+            border-right: 3px solid var(--primary);
+        }
+
+        .sidebar .nav-link span {
+            white-space: nowrap;
+        }
+
+        .sidebar.collapsed .nav-link span {
+            display: none;
         }
 
         .sidebar .nav-divider {
             height: 1px;
-            background: rgba(255, 255, 255, 0.1);
-            margin: 20px 0;
+            background-color: #F1F5F9;
+            margin: 1rem 0;
+        }
+
+        .sidebar-footer {
+            padding: 1rem;
+            border-top: 1px solid #F1F5F9;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .footer-link {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1.5rem;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: all 0.2s;
+            gap: 1rem;
+            cursor: pointer;
+            border: none;
+            background: none;
+        }
+
+        .footer-link:hover {
+            background-color: var(--secondary);
+            color: var(--primary-dark);
+            border-right: 3px solid var(--primary);
+        }
+
+        .footer-link span {
+            white-space: nowrap;
+        }
+
+        .sidebar.collapsed .footer-link span {
+            display: none;
+        }
+
+        .logout-btn {
+            color: var(--risk-high);
         }
 
         .sidebar .data-separation {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
-            padding: 15px;
-            margin-top: 30px;
-            font-size: 13px;
+            display: none;
         }
 
         .sidebar .data-separation h4 {
@@ -268,6 +354,138 @@
             background-color: #e2e8f0;
         }
 
+        .btn-success {
+            background-color: #38a169;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background-color: #2f855a;
+        }
+
+        .btn-danger {
+            background-color: #c53030;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: #9b2c2c;
+        }
+
+        /* Modal Styles */
+        .modal {
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-content h2 {
+            color: var(--hospital-blue);
+            margin-bottom: 20px;
+            font-size: 22px;
+        }
+
+        .close {
+            color: #a0aec0;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .close:hover {
+            color: #2d3748;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2d3748;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #cbd5e0;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--hospital-blue);
+            box-shadow: 0 0 0 3px rgba(26, 95, 122, 0.1);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .button-group .btn {
+            flex: 1;
+            text-align: center;
+            padding: 10px 15px;
+        }
+
+        .success-message {
+            background-color: #c6f6d5;
+            color: #22543d;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 500;
+        }
+
         /* Tables */
         .data-table {
             width: 100%;
@@ -291,6 +509,31 @@
 
         .data-table tr:hover {
             background-color: #f7fafc;
+        }
+
+        .sponsorship-details {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .detail-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #2d3748;
+            background-color: #f0f7ff;
+            padding: 6px 10px;
+            border-radius: 6px;
+            border-left: 3px solid var(--hospital-blue);
+        }
+
+        .detail-item i {
+            color: var(--hospital-blue);
+            font-size: 14px;
+            width: 16px;
+            text-align: center;
         }
 
         .status-badge {
@@ -423,7 +666,7 @@
                 <button id="sidebar-open-btn" class="sidebar-toggle-btn-main" title="Show Sidebar"><i
                         class="fas fa-bars"></i></button>
                 <div class="header-title">
-                    <h2>Patient Recall & Follow-up</h2>
+                    <h2 id="hospitalName">{{ session.get('hospital_name', 'General Hospital') }}</h2>
                 </div>
             </div>
 
@@ -433,18 +676,6 @@
                     <div>
                         <h3 class="section-title"><i class="fas fa-user-injured"></i> Patient Recall & Follow-up</h3>
                         <p class="section-subtitle">Hospital-controlled patient outreach based on safety signals</p>
-                    </div>
-                </div>
-
-                <!-- Alert Banner -->
-                <div class="alert-banner">
-                    <div class="alert-icon">
-                        <i class="fas fa-handshake"></i>
-                    </div>
-                    <div class="alert-content">
-                        <h4>Hospital-Controlled Process</h4>
-                        <p>Pharma sponsors testing/travel, but patient identification and communication are handled
-                            exclusively by your hospital to maintain privacy.</p>
                     </div>
                 </div>
 
@@ -458,6 +689,7 @@
                             <th>Exposure Period</th>
                             <th>Reason</th>
                             <th>Sponsor</th>
+                            <th>Sponsorship Details</th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -468,7 +700,17 @@
                             <td>May–June 2023</td>
                             <td>Post-market safety monitoring</td>
                             <td>PharmaCorp Inc.</td>
-                            <td><button class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;">Initiate Recall</button></td>
+                            <td>
+                                <div class="sponsorship-details">
+                                    <span class="detail-item"><i class="fas fa-heartbeat"></i> Free Treatment</span>
+                                    <span class="detail-item"><i class="fas fa-plane"></i> Free Travel</span>
+                                    <span class="detail-item"><i class="fas fa-hotel"></i> Hostel Accommodation</span>
+                                </div>
+                            </td>
+                            <td>
+                                <button class="btn btn-success" style="padding: 6px 12px; font-size: 12px; margin-right: 5px;" onclick="handleRecallAction('REC-001', 'yes')">Yes</button>
+                                <button class="btn btn-danger" style="padding: 6px 12px; font-size: 12px;" onclick="handleRecallAction('REC-001', 'no')">No</button>
+                            </td>
                         </tr>
                         <tr>
                             <td><strong>REC-002</strong></td>
@@ -476,7 +718,18 @@
                             <td>August–September 2023</td>
                             <td>Adverse event follow-up</td>
                             <td>NeuroPharm Ltd.</td>
-                            <td><button class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;">Initiate Recall</button></td>
+                            <td>
+                                <div class="sponsorship-details">
+                                    <span class="detail-item"><i class="fas fa-heartbeat"></i> Free Treatment</span>
+                                    <span class="detail-item"><i class="fas fa-plane"></i> Free Travel</span>
+                                    <span class="detail-item"><i class="fas fa-hotel"></i> Hostel Accommodation</span>
+                                    <span class="detail-item"><i class="fas fa-money-bill"></i> Daily Allowance</span>
+                                </div>
+                            </td>
+                            <td>
+                                <button class="btn btn-success" style="padding: 6px 12px; font-size: 12px; margin-right: 5px;" onclick="handleRecallAction('REC-002', 'yes')">Yes</button>
+                                <button class="btn btn-danger" style="padding: 6px 12px; font-size: 12px;" onclick="handleRecallAction('REC-002', 'no')">No</button>
+                            </td>
                         </tr>
                         <tr>
                             <td><strong>REC-003</strong></td>
@@ -484,31 +737,50 @@
                             <td>October–November 2023</td>
                             <td>Long-term efficacy study</td>
                             <td>CardioHealth Pharma</td>
-                            <td><button class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;">Initiate Recall</button></td>
+                            <td>
+                                <div class="sponsorship-details">
+                                    <span class="detail-item"><i class="fas fa-heartbeat"></i> Free Treatment</span>
+                                    <span class="detail-item"><i class="fas fa-plane"></i> Free Travel</span>
+                                    <span class="detail-item"><i class="fas fa-hotel"></i> Hostel Accommodation</span>
+                                </div>
+                            </td>
+                            <td>
+                                <button class="btn btn-success" style="padding: 6px 12px; font-size: 12px; margin-right: 5px;" onclick="handleRecallAction('REC-003', 'yes')">Yes</button>
+                                <button class="btn btn-danger" style="padding: 6px 12px; font-size: 12px;" onclick="handleRecallAction('REC-003', 'no')">No</button>
+                            </td>
                         </tr>
                     </tbody>
                 </table>
 
-                <!-- Hospital Internal Process -->
-                <h4 style="margin-top: 30px; margin-bottom: 15px; color: var(--hospital-blue); font-weight: 600;">Hospital Internal Process</h4>
-                <div class="chart-row" style="grid-template-columns: 1fr 1fr;">
-                    <div>
-                        <div class="process-box">
-                            <ol>
-                                <li>Pharma sends recall request for "patients exposed to Drug X between May–June"</li>
-                                <li>Hospital internally identifies matching patients <strong>(pharma never sees this list)</strong></li>
-                                <li>Hospital contacts patients for follow-up testing</li>
-                                <li>Pharma sponsors travel & test costs via hospital</li>
-                                <li>Aggregated outcomes shared anonymously with pharma</li>
-                            </ol>
-                        </div>
+                <!-- Rejection Modal -->
+                <div id="rejectionModal" class="modal" style="display: none;">
+                    <div class="modal-content">
+                        <span class="close" onclick="closeRejectionModal()">&times;</span>
+                        <h2>Decline Recall Request</h2>
+                        <form id="rejectionForm">
+                            <div class="form-group">
+                                <label for="requestId">Request ID:</label>
+                                <input type="text" id="requestId" readonly style="background-color: #f0f0f0;">
+                            </div>
+                            <div class="form-group">
+                                <label for="pharmaCompany">Pharmaceutical Company:</label>
+                                <input type="text" id="pharmaCompany" readonly style="background-color: #f0f0f0;">
+                            </div>
+                            <div class="form-group">
+                                <label for="rejectionReason">Reason for Declining:</label>
+                                <textarea id="rejectionReason" rows="4" placeholder="Please provide the reason for declining this recall request..." required></textarea>
+                            </div>
+                            <div class="button-group">
+                                <button type="submit" class="btn btn-primary">Submit Decline</button>
+                                <button type="button" class="btn btn-secondary" onclick="closeRejectionModal()">Cancel</button>
+                            </div>
+                        </form>
                     </div>
-                    <div>
-                        <div class="sponsorship-box">
-                            <h5><i class="fas fa-dollar-sign"></i> Sponsorship Details</h5>
-                            <p>Pharma covers: Travel expenses, test costs, compensation for time</p>
-                        </div>
-                    </div>
+                </div>
+
+                <!-- Success Message -->
+                <div id="successMessage" class="success-message" style="display: none;">
+                    <i class="fas fa-check-circle"></i> <span id="successText"></span>
                 </div>
             </section>
         </main>
@@ -533,6 +805,69 @@
                 });
             }
         });
+
+        // Recall Action Handler
+        function handleRecallAction(requestId, action) {
+            if (action === 'yes') {
+                showSuccessMessage(`Recall request ${requestId} has been accepted.`);
+            } else if (action === 'no') {
+                openRejectionModal(requestId);
+            }
+        }
+
+        // Open Rejection Modal
+        function openRejectionModal(requestId) {
+            const modal = document.getElementById('rejectionModal');
+            const table = document.querySelector('.data-table tbody');
+            const row = Array.from(table.querySelectorAll('tr')).find(r => r.querySelector('td').textContent.includes(requestId));
+            
+            if (row) {
+                const cells = row.querySelectorAll('td');
+                document.getElementById('requestId').value = requestId;
+                document.getElementById('pharmaCompany').value = cells[4].textContent;
+            }
+            
+            modal.style.display = 'block';
+        }
+
+        // Close Rejection Modal
+        function closeRejectionModal() {
+            const modal = document.getElementById('rejectionModal');
+            modal.style.display = 'none';
+            document.getElementById('rejectionForm').reset();
+        }
+
+        // Handle Form Submission
+        document.getElementById('rejectionForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const requestId = document.getElementById('requestId').value;
+            const reason = document.getElementById('rejectionReason').value;
+            
+            if (reason.trim()) {
+                showSuccessMessage(`Recall request ${requestId} has been declined. Reason recorded.`);
+                closeRejectionModal();
+            } else {
+                alert('Please provide a reason for declining.');
+            }
+        });
+
+        // Show Success Message
+        function showSuccessMessage(message) {
+            const msgElement = document.getElementById('successMessage');
+            document.getElementById('successText').textContent = message;
+            msgElement.style.display = 'flex';
+            setTimeout(() => {
+                msgElement.style.display = 'none';
+            }, 3000);
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('rejectionModal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        };
     </script>
 </body>
 
