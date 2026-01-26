@@ -9,6 +9,7 @@ class User(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False) # In real app, hash this!
     role = db.Column(db.String(20), nullable=False) # 'doctor' or 'pharma'
+    hospital_name = db.Column(db.String(200), nullable=True) # Hospital name for hospital users
 
 # Association Table
 doctor_patient = db.Table('doctor_patient',

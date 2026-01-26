@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Data - Hospital Safety Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --hospital-blue: #1a5f7a;
+            --hospital-light-blue: #2a8bb3;
+            --pharma-green: #2d7d46;
+            --alert-red: #c53030;
+            --warning-orange: #dd6b20;
+            --safe-green: #38a169;
+            --neutral-gray: #718096;
+            --bg-light: #f7fafc;
+            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-light);
+            color: #2d3748;
+            line-height: 1.6;
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: 280px;
+            background: linear-gradient(to bottom, #1a5f7a, #1a4a5f);
+            color: white;
+            padding: 25px 20px;
+            box-shadow: var(--card-shadow);
+            z-index: 100;
+            flex-shrink: 0;
+            display: block;
+            min-height: 100vh;
+            overflow-y: auto;
+            position: relative;
+            transition: width 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+        }
+
+        .sidebar.collapsed {
+            width: 0;
+            padding-left: 0;
+            padding-right: 0;
+            opacity: 0;
+        }
+
+        .sidebar .logo {
+            display: flex;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar .logo-text h1 {
+            font-size: 20px;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .sidebar .logo-text span {
+            font-size: 12px;
+            opacity: 0.8;
+            font-weight: 400;
+        }
+
+        .sidebar .nav-menu {
+            list-style: none;
+            margin-top: 30px;
+            padding: 0;
+        }
+
+        .sidebar .nav-item {
+            margin-bottom: 8px;
+        }
+
+        .sidebar .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 14px 16px;
+            color: #e2e8f0;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        .sidebar .nav-link i {
+            margin-right: 12px;
+            font-size: 18px;
+            width: 24px;
+            text-align: center;
+        }
+
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            background-color: rgba(79, 209, 199, 0.15);
+            color: white;
+        }
+
+        .sidebar .nav-divider {
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+            margin: 20px 0;
+        }
+
+        .sidebar .data-separation {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 30px;
+            font-size: 13px;
+        }
+
+        .sidebar .data-separation h4 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: #4fd1c7;
+            display: flex;
+            align-items: center;
+            margin: 0 0 10px 0;
+        }
+
+        .sidebar .data-separation h4 i {
+            margin-right: 8px;
+        }
+
+        .sidebar .sidebar-toggle-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 4px;
+            position: absolute;
+            top: 20px;
+            right: 10px;
+            z-index: 10;
+        }
+
+        .sidebar .sidebar-toggle-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .sidebar-toggle-btn-main {
+            position: absolute;
+            left: 30px;
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: var(--hospital-blue);
+            cursor: pointer;
+            z-index: 50;
+        }
+
+        .sidebar-toggle-btn-main:hover {
+            opacity: 0.7;
+        }
+
+        /* Sidebar Styles */
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            padding: 25px 30px;
+            overflow-y: auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .header-title h2 {
+            color: var(--hospital-blue);
+            font-weight: 700;
+            font-size: 28px;
+        }
+
+        /* Section */
+        .section {
+            background-color: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 30px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .section-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--hospital-blue);
+            display: flex;
+            align-items: center;
+        }
+
+        .section-title i {
+            margin-right: 12px;
+            font-size: 24px;
+        }
+
+        .section-subtitle {
+            color: var(--neutral-gray);
+            font-size: 15px;
+            margin-top: 5px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 15px;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .btn i {
+            margin-right: 8px;
+        }
+
+        .btn-primary {
+            background-color: var(--hospital-light-blue);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #237299;
+        }
+
+        .btn-secondary {
+            background-color: #edf2f7;
+            color: #4a5568;
+        }
+
+        .btn-secondary:hover {
+            background-color: #e2e8f0;
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        /* Tables */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th {
+            background-color: #f7fafc;
+            padding: 16px 20px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--hospital-blue);
+            border-bottom: 2px solid #e2e8f0;
+            font-size: 14px;
+        }
+
+        .data-table td {
+            padding: 16px 20px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .data-table tr:hover {
+            background-color: #f7fafc;
+        }
+
+        .status-badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .status-internal {
+            background-color: #bee3f8;
+            color: #2b6cb0;
+        }
+
+        /* Alert Banner */
+        .alert-banner {
+            background: linear-gradient(to right, #ebf8ff, #bee3f8);
+            border-left: 6px solid #4299e1;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+        }
+
+        .alert-icon {
+            background-color: #4299e1;
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            margin-right: 20px;
+            flex-shrink: 0;
+        }
+
+        .alert-content h4 {
+            color: #2b6cb0;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .alert-content p {
+            color: #2c5282;
+        }
+
+        /* Sidebar toggle styles are defined in sidebar.html */
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: absolute;
+                height: 100vh;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+
+            .data-table {
+                font-size: 12px;
+            }
+
+            .data-table th,
+            .data-table td {
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        {% include 'hospital/sidebar.html' %}
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="header">
+                <button id="sidebar-open-btn" class="sidebar-toggle-btn-main" title="Show Sidebar"><i
+                        class="fas fa-bars"></i></button>
+                <div class="header-title">
+                    <h2>Patient Data</h2>
+                </div>
+            </div>
+
+            <!-- Patient Data Section -->
+            <section class="section">
+                <div class="section-header">
+                    <div>
+                        <h3 class="section-title"><i class="fas fa-user-shield"></i> Patient Data</h3>
+                        <p class="section-subtitle">Stays within hospital - never shared externally</p>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons">
+                    <button class="btn btn-primary" id="add-patient-manually-btn">
+                        <i class="fas fa-plus"></i> Add Manually
+                    </button>
+                    <button class="btn btn-secondary" id="upload-excel-btn">
+                        <i class="fas fa-file-excel"></i> Upload Excel File
+                    </button>
+                    <input type="file" id="excel-file-input" accept=".xlsx,.xls,.csv" style="display: none;">
+                </div>
+
+                <!-- Alert Banner -->
+                <div class="alert-banner">
+                    <div class="alert-icon">
+                        <i class="fas fa-lock"></i>
+                    </div>
+                    <div class="alert-content">
+                        <h4>Internal Use Only</h4>
+                        <p>This data contains patient identifiers and is stored exclusively in your hospital system.
+                            It is never transmitted to pharmaceutical companies or external parties.</p>
+                    </div>
+                </div>
+
+                <!-- Patient Data Table -->
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Patient ID</th>
+                            <th>Age Band</th>
+                            <th>Gender</th>
+                            <th>Diagnosis (ICD)</th>
+                            <th>Medicine</th>
+                            <th>Dosage</th>
+                            <th>Outcome</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="patient-data-table">
+                        <tr>
+                            <td><span class="status-badge status-internal">P-001</span></td>
+                            <td>45-55</td>
+                            <td>Male</td>
+                            <td>I10 (Hypertension)</td>
+                            <td>Cardiostat</td>
+                            <td>10mg daily</td>
+                            <td>Improved</td>
+                            <td><button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">View</button></td>
+                        </tr>
+                        <tr>
+                            <td><span class="status-badge status-internal">P-002</span></td>
+                            <td>35-45</td>
+                            <td>Female</td>
+                            <td>M79.3 (Myalgia)</td>
+                            <td>PainAway</td>
+                            <td>500mg twice daily</td>
+                            <td>Stable</td>
+                            <td><button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">View</button></td>
+                        </tr>
+                        <tr>
+                            <td><span class="status-badge status-internal">P-003</span></td>
+                            <td>55-65</td>
+                            <td>Male</td>
+                            <td>G89.29 (Chronic pain)</td>
+                            <td>Neurocalm</td>
+                            <td>75mg at night</td>
+                            <td>Improved</td>
+                            <td><button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">View</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // Sidebar Toggle
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebar = document.getElementById('sidebar');
+            const closeBtn = document.getElementById('sidebar-close-btn');
+            const openBtn = document.getElementById('sidebar-open-btn');
+
+            if (closeBtn) {
+                closeBtn.addEventListener('click', () => {
+                    sidebar.classList.add('collapsed');
+                });
+            }
+
+            if (openBtn) {
+                openBtn.addEventListener('click', () => {
+                    sidebar.classList.remove('collapsed');
+                });
+            }
+
+            // Add Patient Manually Button
+            document.getElementById('add-patient-manually-btn')?.addEventListener('click', function () {
+                alert('This would open a form to add a new patient record manually. The data would stay within the hospital system.');
+            });
+
+            // Upload Excel Button
+            document.getElementById('upload-excel-btn')?.addEventListener('click', function () {
+                document.getElementById('excel-file-input').click();
+            });
+
+            // Excel File Input Handler
+            document.getElementById('excel-file-input')?.addEventListener('change', function (e) {
+                const file = e.target.files[0];
+                if (file) {
+                    alert(`File selected: ${file.name}\n\nThis would upload and process the Excel file to add patient records to the system.`);
+                    e.target.value = '';
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

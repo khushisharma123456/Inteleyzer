@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Recall - Hospital Safety Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --hospital-blue: #1a5f7a;
+            --hospital-light-blue: #2a8bb3;
+            --pharma-green: #2d7d46;
+            --alert-red: #c53030;
+            --warning-orange: #dd6b20;
+            --safe-green: #38a169;
+            --neutral-gray: #718096;
+            --bg-light: #f7fafc;
+            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-light);
+            color: #2d3748;
+            line-height: 1.6;
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: 280px;
+            background: linear-gradient(to bottom, #1a5f7a, #1a4a5f);
+            color: white;
+            padding: 25px 20px;
+            box-shadow: var(--card-shadow);
+            z-index: 100;
+            flex-shrink: 0;
+            display: block;
+            min-height: 100vh;
+            overflow-y: auto;
+            position: relative;
+            transition: width 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+        }
+
+        .sidebar.collapsed {
+            width: 0;
+            padding-left: 0;
+            padding-right: 0;
+            opacity: 0;
+        }
+
+        .sidebar .logo {
+            display: flex;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar .logo-text h1 {
+            font-size: 20px;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .sidebar .logo-text span {
+            font-size: 12px;
+            opacity: 0.8;
+            font-weight: 400;
+        }
+
+        .sidebar .nav-menu {
+            list-style: none;
+            margin-top: 30px;
+            padding: 0;
+        }
+
+        .sidebar .nav-item {
+            margin-bottom: 8px;
+        }
+
+        .sidebar .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 14px 16px;
+            color: #e2e8f0;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        .sidebar .nav-link i {
+            margin-right: 12px;
+            font-size: 18px;
+            width: 24px;
+            text-align: center;
+        }
+
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            background-color: rgba(79, 209, 199, 0.15);
+            color: white;
+        }
+
+        .sidebar .nav-divider {
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+            margin: 20px 0;
+        }
+
+        .sidebar .data-separation {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 30px;
+            font-size: 13px;
+        }
+
+        .sidebar .data-separation h4 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: #4fd1c7;
+            display: flex;
+            align-items: center;
+            margin: 0 0 10px 0;
+        }
+
+        .sidebar .data-separation h4 i {
+            margin-right: 8px;
+        }
+
+        .sidebar .sidebar-toggle-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 4px;
+            position: absolute;
+            top: 20px;
+            right: 10px;
+            z-index: 10;
+        }
+
+        .sidebar .sidebar-toggle-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .sidebar-toggle-btn-main {
+            position: absolute;
+            left: 30px;
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: var(--hospital-blue);
+            cursor: pointer;
+            z-index: 50;
+        }
+
+        .sidebar-toggle-btn-main:hover {
+            opacity: 0.7;
+        }
+
+        /* Sidebar Styles */
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            padding: 25px 30px;
+            overflow-y: auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .header-title h2 {
+            color: var(--hospital-blue);
+            font-weight: 700;
+            font-size: 28px;
+        }
+
+        /* Section */
+        .section {
+            background-color: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 30px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .section-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--hospital-blue);
+            display: flex;
+            align-items: center;
+        }
+
+        .section-title i {
+            margin-right: 12px;
+            font-size: 24px;
+        }
+
+        .section-subtitle {
+            color: var(--neutral-gray);
+            font-size: 15px;
+            margin-top: 5px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 15px;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .btn i {
+            margin-right: 8px;
+        }
+
+        .btn-primary {
+            background-color: var(--hospital-light-blue);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #237299;
+        }
+
+        .btn-secondary {
+            background-color: #edf2f7;
+            color: #4a5568;
+        }
+
+        .btn-secondary:hover {
+            background-color: #e2e8f0;
+        }
+
+        /* Tables */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th {
+            background-color: #f7fafc;
+            padding: 16px 20px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--hospital-blue);
+            border-bottom: 2px solid #e2e8f0;
+            font-size: 14px;
+        }
+
+        .data-table td {
+            padding: 16px 20px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .data-table tr:hover {
+            background-color: #f7fafc;
+        }
+
+        .status-badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .status-monitoring {
+            background-color: #feebc8;
+            color: var(--warning-orange);
+        }
+
+        .status-safe {
+            background-color: #c6f6d5;
+            color: var(--safe-green);
+        }
+
+        /* Alert Banner */
+        .alert-banner {
+            background: linear-gradient(to right, #f0fff4, #c6f6d5);
+            border-left: 6px solid var(--safe-green);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+        }
+
+        .alert-icon {
+            background-color: var(--safe-green);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            margin-right: 20px;
+            flex-shrink: 0;
+        }
+
+        .alert-content h4 {
+            color: #22543d;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .alert-content p {
+            color: #276749;
+        }
+
+        /* Sidebar toggle styles are defined in sidebar.html */
+
+        .chart-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .process-box {
+            background: #f7fafc;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        .process-box ol {
+            padding-left: 20px;
+        }
+
+        .process-box li {
+            margin-bottom: 10px;
+            color: #2d3748;
+        }
+
+        .sponsorship-box {
+            margin-top: 20px;
+            padding: 15px;
+            background: #ebf8ff;
+            border-radius: 8px;
+        }
+
+        .sponsorship-box h5 {
+            color: var(--hospital-blue);
+            margin-bottom: 8px;
+        }
+
+        .sponsorship-box p {
+            color: #2c5282;
+            font-size: 14px;
+        }
+
+        @media (max-width: 1200px) {
+            .chart-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: absolute;
+                height: 100vh;
+            }
+
+            .data-table {
+                font-size: 12px;
+            }
+
+            .data-table th,
+            .data-table td {
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        {% include 'hospital/sidebar.html' %}
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="header">
+                <button id="sidebar-open-btn" class="sidebar-toggle-btn-main" title="Show Sidebar"><i
+                        class="fas fa-bars"></i></button>
+                <div class="header-title">
+                    <h2>Patient Recall & Follow-up</h2>
+                </div>
+            </div>
+
+            <!-- Patient Recall Section -->
+            <section class="section">
+                <div class="section-header">
+                    <div>
+                        <h3 class="section-title"><i class="fas fa-user-injured"></i> Patient Recall & Follow-up</h3>
+                        <p class="section-subtitle">Hospital-controlled patient outreach based on safety signals</p>
+                    </div>
+                </div>
+
+                <!-- Alert Banner -->
+                <div class="alert-banner">
+                    <div class="alert-icon">
+                        <i class="fas fa-handshake"></i>
+                    </div>
+                    <div class="alert-content">
+                        <h4>Hospital-Controlled Process</h4>
+                        <p>Pharma sponsors testing/travel, but patient identification and communication are handled
+                            exclusively by your hospital to maintain privacy.</p>
+                    </div>
+                </div>
+
+                <!-- Active Recall Requests Table -->
+                <h4 style="margin-top: 30px; margin-bottom: 15px; color: var(--hospital-blue); font-weight: 600;">Active Recall Requests</h4>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Request ID</th>
+                            <th>Drug</th>
+                            <th>Exposure Period</th>
+                            <th>Reason</th>
+                            <th>Sponsor</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>REC-001</strong></td>
+                            <td>PainAway</td>
+                            <td>May–June 2023</td>
+                            <td>Post-market safety monitoring</td>
+                            <td>PharmaCorp Inc.</td>
+                            <td><button class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;">Initiate Recall</button></td>
+                        </tr>
+                        <tr>
+                            <td><strong>REC-002</strong></td>
+                            <td>Neurocalm</td>
+                            <td>August–September 2023</td>
+                            <td>Adverse event follow-up</td>
+                            <td>NeuroPharm Ltd.</td>
+                            <td><button class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;">Initiate Recall</button></td>
+                        </tr>
+                        <tr>
+                            <td><strong>REC-003</strong></td>
+                            <td>Cardiostat</td>
+                            <td>October–November 2023</td>
+                            <td>Long-term efficacy study</td>
+                            <td>CardioHealth Pharma</td>
+                            <td><button class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;">Initiate Recall</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Hospital Internal Process -->
+                <h4 style="margin-top: 30px; margin-bottom: 15px; color: var(--hospital-blue); font-weight: 600;">Hospital Internal Process</h4>
+                <div class="chart-row" style="grid-template-columns: 1fr 1fr;">
+                    <div>
+                        <div class="process-box">
+                            <ol>
+                                <li>Pharma sends recall request for "patients exposed to Drug X between May–June"</li>
+                                <li>Hospital internally identifies matching patients <strong>(pharma never sees this list)</strong></li>
+                                <li>Hospital contacts patients for follow-up testing</li>
+                                <li>Pharma sponsors travel & test costs via hospital</li>
+                                <li>Aggregated outcomes shared anonymously with pharma</li>
+                            </ol>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="sponsorship-box">
+                            <h5><i class="fas fa-dollar-sign"></i> Sponsorship Details</h5>
+                            <p>Pharma covers: Travel expenses, test costs, compensation for time</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // Sidebar Toggle
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebar = document.getElementById('sidebar');
+            const closeBtn = document.getElementById('sidebar-close-btn');
+            const openBtn = document.getElementById('sidebar-open-btn');
+
+            if (closeBtn) {
+                closeBtn.addEventListener('click', () => {
+                    sidebar.classList.add('collapsed');
+                });
+            }
+
+            if (openBtn) {
+                openBtn.addEventListener('click', () => {
+                    sidebar.classList.remove('collapsed');
+                });
+            }
+        });
+    </script>
+</body>
+
+</html>

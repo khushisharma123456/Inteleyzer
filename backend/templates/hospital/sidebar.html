@@ -1,0 +1,48 @@
+<!-- Shared Sidebar Component -->
+<aside class="sidebar" id="sidebar">
+    <div class="logo">
+        <div class="logo-text">
+            <h1>Inteleyzer</h1>
+            <span>Hospital Safety</span>
+        </div>
+    </div>
+    <button id="sidebar-close-btn" class="sidebar-toggle-btn" title="Close Sidebar"><i
+            class="fas fa-chevron-left"></i></button>
+
+    <ul class="nav-menu">
+        <li class="nav-item">
+            <a href="{{ url_for('hospital_dashboard') }}" class="nav-link {% if active_page == 'overview' %}active{% endif %}" data-tab="overview">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>Dashboard Overview</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="{{ url_for('hospital_patient_data') }}" class="nav-link {% if active_page == 'patient-data' %}active{% endif %}" data-tab="internal-data">
+                <i class="fas fa-user-shield"></i>
+                <span>Patient Data</span>
+            </a>
+        </li>
+
+        <li class="nav-item">
+            <a href="{{ url_for('hospital_pharma_alerts') }}" class="nav-link {% if active_page == 'pharma-alerts' %}active{% endif %}" data-tab="pharma-alerts">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>Pharma Safety Alerts</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="{{ url_for('hospital_patient_recall') }}" class="nav-link {% if active_page == 'patient-recall' %}active{% endif %}" data-tab="patient-recall">
+                <i class="fas fa-user-injured"></i>
+                <span>Patient Recall</span>
+            </a>
+        </li>
+    </ul>
+
+    <div class="nav-divider"></div>
+
+    <div class="data-separation">
+        <h4><i class="fas fa-shield-alt"></i> Data Privacy</h4>
+        <p style="font-size: 12px; margin-top: 8px; opacity: 0.9;">
+            Patient data stays internal. Pharma receives only anonymized safety signals.
+        </p>
+    </div>
+</aside>
