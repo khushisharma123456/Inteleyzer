@@ -5,6 +5,10 @@ Post-Marketing Surveillance (PMS) / Pharmacovigilance system.
 import os
 from flask import Flask
 from flask_cors import CORS
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 from pv_backend.config import config
 from pv_backend.models import db
@@ -41,11 +45,13 @@ def create_app(config_name=None):
     from pv_backend.routes.submission_routes import submission_bp
     from pv_backend.routes.case_routes import case_bp
     from pv_backend.routes.followup_routes import followup_bp
+    from pv_backend.routes.excel_routes import excel_upload_bp
     
     app.register_blueprint(auth_bp)
     app.register_blueprint(submission_bp)
     app.register_blueprint(case_bp)
     app.register_blueprint(followup_bp)
+    app.register_blueprint(excel_upload_bp)
     
     # Create tables
     with app.app_context():
@@ -67,6 +73,7 @@ def create_app(config_name=None):
                 'submissions': '/api/submit',
                 'cases': '/api/cases',
                 'followups': '/api/followups',
+                'excel': '/api/excel',
                 'health': '/health'
             }
         }, 200
