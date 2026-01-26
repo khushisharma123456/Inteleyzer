@@ -4,6 +4,10 @@ Includes: Pharma Companies, Doctors, Pharmacies, Drugs, Patients, Alerts
 Generates comprehensive Excel export
 """
 
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from app import app, db
 from models import User, Drug, Patient, Alert
 from datetime import datetime, timedelta
@@ -393,7 +397,7 @@ def export_to_excel(companies, doctors, pharmacies, drugs, patients, alerts):
     """Export all data to Excel"""
     print("\n=== Exporting Data to Excel ===")
     
-    excel_file = 'C:\\Users\\SONUR\\projects\\Novartis\\backend\\complete_database.xlsx'
+    excel_file = 'C:\\Users\\SONUR\\projects\\Novartis\\docs\\complete_database.xlsx'
     
     with pd.ExcelWriter(excel_file, engine='openpyxl') as writer:
         # Sheet 1: Pharma Companies
