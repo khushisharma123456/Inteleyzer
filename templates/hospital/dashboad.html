@@ -1,0 +1,2619 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital–Pharma Safety Intelligence Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            /* Color Palette */
+            --primary: #8DA399;
+            /* Soft Sage Green */
+            --primary-dark: #2F4F4F;
+            /* Dark Slate */
+            --secondary: #F5F5F0;
+            /* Cream / Warm Beige */
+            --accent: #6B8E23;
+            /* Olive Green */
+
+            /* Risk Colors (Muted) */
+            --risk-low: #A3C9A8;
+            /* Muted Green */
+            --risk-medium: #E2C792;
+            /* Soft Amber */
+            --risk-high: #DCA5A5;
+            /* Muted Red */
+
+            /* Neutrals */
+            --white: #FFFFFF;
+            --text-main: #333333;
+            --text-muted: #666666;
+
+            /* Layout */
+            --sidebar-width: 250px;
+            --sidebar-collapsed-width: 80px;
+
+            /* Shadows */
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+
+            /* Hospital-specific colors */
+            --hospital-blue: #1a5f7a;
+            --hospital-light-blue: #4299e1;
+            --neutral-gray: #718096;
+            --pharma-green: #38a169;
+            --warning-orange: #dd6b20;
+            --alert-red: #c53030;
+            --safe-green: #38a169;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+        }
+
+        body {
+            background-color: #FAFAF9;
+            color: var(--text-main);
+            line-height: 1.6;
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: var(--sidebar-width);
+            height: 100vh;
+            background-color: var(--secondary);
+            border-right: 1px solid #E2E8F0;
+            position: fixed;
+            left: 0;
+            top: 0;
+            display: flex;
+            flex-direction: column;
+            transition: width 0.3s ease;
+            z-index: 100;
+            padding: 0;
+        }
+
+        .sidebar.collapsed {
+            width: 80px;
+        }
+
+        .sidebar .logo {
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            border-bottom: 1px solid #F1F5F9;
+            margin: 0;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background-color: var(--primary);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .sidebar .logo-text {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar .logo-text h1 {
+            font-size: 18px;
+            font-weight: 700;
+            margin: 0;
+            color: var(--primary-dark);
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        .sidebar .logo-text span {
+            font-size: 12px;
+            opacity: 1;
+            font-weight: 400;
+            color: var(--text-muted);
+            margin: 0;
+        }
+
+        .sidebar.collapsed .logo-text {
+            display: none;
+        }
+
+        .sidebar .nav-menu {
+            flex: 1;
+            list-style: none;
+            padding: 1rem 0;
+            margin: 0;
+        }
+
+        .sidebar .nav-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0;
+        }
+
+        .sidebar .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1.5rem;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: all 0.2s;
+            gap: 1rem;
+            width: 100%;
+        }
+
+        .sidebar .nav-item:hover .nav-link,
+        .sidebar .nav-link.active {
+            background-color: var(--secondary);
+            color: var(--primary-dark);
+            border-right: 3px solid var(--primary);
+        }
+
+        .sidebar .nav-link span {
+            white-space: nowrap;
+        }
+
+        .sidebar.collapsed .nav-link span {
+            display: none;
+        }
+
+        .sidebar .nav-divider {
+            height: 1px;
+            background-color: #F1F5F9;
+            margin: 1rem 0;
+        }
+
+        .sidebar-footer {
+            padding: 1rem;
+            border-top: 1px solid #F1F5F9;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .footer-link {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1.5rem;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: all 0.2s;
+            gap: 1rem;
+            cursor: pointer;
+            border: none;
+            background: none;
+        }
+
+        .footer-link:hover {
+            background-color: var(--secondary);
+            color: var(--primary-dark);
+            border-right: 3px solid var(--primary);
+        }
+
+        .footer-link span {
+            white-space: nowrap;
+        }
+
+        .sidebar.collapsed .footer-link span {
+            display: none;
+        }
+
+        .logout-btn {
+            color: var(--risk-high);
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: var(--sidebar-width);
+            padding: 2rem;
+            background-color: #FAFAF9;
+            transition: margin-left 0.3s ease;
+        }
+
+        body.sidebar-collapsed .main-content {
+            margin-left: 80px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .header-title h2 {
+            color: var(--hospital-blue);
+            font-weight: 700;
+            font-size: 28px;
+        }
+
+        .header-title p {
+            color: var(--neutral-gray);
+            margin-top: 5px;
+            font-size: 15px;
+        }
+
+        .hospital-info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .hospital-badge {
+            background-color: #ebf8ff;
+            color: var(--hospital-blue);
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            border-left: 4px solid var(--hospital-light-blue);
+        }
+
+        /* Dashboard Cards */
+        .dashboard-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background-color: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: var(--card-shadow);
+            transition: transform 0.3s, box-shadow 0.3s;
+            border-top: 4px solid var(--hospital-blue);
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--hospital-blue);
+        }
+
+        .card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            color: white;
+        }
+
+        .card-icon.internal {
+            background: linear-gradient(135deg, #4299e1, #3182ce);
+        }
+
+        .card-icon.shared {
+            background: linear-gradient(135deg, #38b2ac, #319795);
+        }
+
+        .card-icon.alert {
+            background: linear-gradient(135deg, #f56565, #e53e3e);
+        }
+
+        .card-value {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: #2d3748;
+        }
+
+        .card-footer {
+            margin-top: 15px;
+            color: var(--neutral-gray);
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+        }
+
+        .card-footer i {
+            margin-right: 8px;
+        }
+
+        /* Data Separation Visual */
+        .data-flow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 30px 0;
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: var(--card-shadow);
+        }
+
+        .data-node {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            padding: 15px;
+            position: relative;
+        }
+
+        .node-icon {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            color: white;
+            margin-bottom: 10px;
+        }
+
+        .node-hospital {
+            background: linear-gradient(135deg, #4299e1, #3182ce);
+        }
+
+        .node-anon {
+            background: linear-gradient(135deg, #38b2ac, #319795);
+        }
+
+        .node-pharma {
+            background: linear-gradient(135deg, var(--pharma-green), #2a6e3d);
+        }
+
+        .node-label {
+            font-weight: 600;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        .node-desc {
+            font-size: 12px;
+            color: var(--neutral-gray);
+            max-width: 120px;
+            margin-top: 5px;
+        }
+
+        .arrow {
+            font-size: 24px;
+            color: var(--neutral-gray);
+            margin: 0 15px;
+        }
+
+        /* Sections */
+        .section {
+            background-color: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 30px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .section-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--hospital-blue);
+            display: flex;
+            align-items: center;
+        }
+
+        .section-title i {
+            margin-right: 12px;
+            font-size: 24px;
+        }
+
+        .section-subtitle {
+            color: var(--neutral-gray);
+            font-size: 15px;
+            margin-top: 5px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 15px;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .btn i {
+            margin-right: 8px;
+        }
+
+        .btn-primary {
+            background-color: var(--hospital-light-blue);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #237299;
+        }
+
+        .btn-secondary {
+            background-color: #edf2f7;
+            color: #4a5568;
+        }
+
+        .btn-secondary:hover {
+            background-color: #e2e8f0;
+        }
+
+        /* Tables */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th {
+            background-color: #f7fafc;
+            padding: 16px 20px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--hospital-blue);
+            border-bottom: 2px solid #e2e8f0;
+            font-size: 14px;
+        }
+
+        .data-table td {
+            padding: 16px 20px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .data-table tr:hover {
+            background-color: #f7fafc;
+        }
+
+        .status-badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .status-flagged {
+            background-color: #fed7d7;
+            color: var(--alert-red);
+        }
+
+        .status-monitoring {
+            background-color: #feebc8;
+            color: var(--warning-orange);
+        }
+
+        .status-safe {
+            background-color: #c6f6d5;
+            color: var(--safe-green);
+        }
+
+        .status-internal {
+            background-color: #bee3f8;
+            color: #2b6cb0;
+        }
+
+        /* Charts */
+        .chart-container {
+            height: 300px;
+            margin-top: 20px;
+            position: relative;
+        }
+
+        .chart-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        @media (max-width: 1200px) {
+            .chart-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Restriction Warning */
+        .restriction-warning {
+            background-color: #fffaf0;
+            border: 1px solid #feebc8;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 30px;
+        }
+
+        .restriction-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            color: var(--warning-orange);
+        }
+
+        .restriction-header i {
+            font-size: 22px;
+            margin-right: 12px;
+        }
+
+        .restriction-list {
+            list-style: none;
+        }
+
+        .restriction-list li {
+            padding: 8px 0;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .restriction-list li i {
+            color: var(--warning-orange);
+            margin-right: 10px;
+            margin-top: 3px;
+        }
+
+        /* Patient Recall Section */
+        .recall-card {
+            background: linear-gradient(to right, #f0fff4, #c6f6d5);
+            border-left: 6px solid var(--safe-green);
+            border-radius: 8px;
+            padding: 25px;
+            margin-top: 25px;
+        }
+
+        .recall-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .recall-icon {
+            background-color: var(--safe-green);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            margin-right: 20px;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #e2e8f0;
+            margin-bottom: 25px;
+        }
+
+        .tab {
+            padding: 15px 25px;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            color: var(--primary);
+            border-bottom: 3px solid var(--primary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Responsive */
+        @media (max-width: 1100px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                padding: 20px;
+            }
+
+            .nav-menu {
+                display: flex;
+                overflow-x: auto;
+                padding-bottom: 10px;
+            }
+
+            .nav-item {
+                margin-bottom: 0;
+                margin-right: 10px;
+            }
+
+            .data-flow {
+                flex-direction: column;
+            }
+
+            .arrow {
+                transform: rotate(90deg);
+                margin: 15px 0;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-cards {
+                grid-template-columns: 1fr;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .hospital-info {
+                margin-top: 15px;
+            }
+
+            .section-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .section-header .btn {
+                margin-top: 15px;
+            }
+        }
+
+        /* Sidebar Toggle styles */
+        .sidebar {
+            position: relative;
+            transition: width 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+            overflow: hidden;
+            /* Ensure content doesn't overflow when collapsing */
+            white-space: nowrap;
+            /* Prevent text wrapping when shrinking */
+        }
+
+        /* Sidebar toggle styles are defined in sidebar.html */
+
+        /* Pharma Alert Banner Animations */
+        @keyframes slideInFromLeft {
+            from {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOutToRight {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+
+        .pharma-alert-banner {
+            background: linear-gradient(to right, #fff5f5, #fed7d7);
+            border-left: 6px solid var(--alert-red);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            animation: slideInFromLeft 0.6s ease-out;
+            box-shadow: 0 4px 12px rgba(197, 48, 48, 0.15);
+        }
+
+        .pharma-alert-banner.closing {
+            animation: slideOutToRight 0.6s ease-in forwards;
+        }
+
+        .pharma-alert-content {
+            display: flex;
+            align-items: center;
+            flex: 1;
+        }
+
+        .pharma-alert-icon {
+            background-color: var(--alert-red);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            margin-right: 20px;
+            flex-shrink: 0;
+        }
+
+        .pharma-alert-text h4 {
+            color: var(--alert-red);
+            margin-bottom: 5px;
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .pharma-alert-text p {
+            color: #744242;
+            margin: 0;
+            font-size: 14px;
+        }
+
+        .pharma-alert-close {
+            background: none;
+            border: none;
+            color: var(--alert-red);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 10px;
+            margin-left: 20px;
+            flex-shrink: 0;
+            transition: transform 0.2s;
+        }
+
+        .pharma-alert-close:hover {
+            transform: scale(1.2);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        {% include 'hospital/sidebar.html' %}
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="header" style="justify-content: center;">
+                <button id="sidebar-open-btn" class="sidebar-toggle-btn-main"
+                    style="position: absolute; left: 30px; background: none; border: none; font-size: 24px; color: #1a5f7a; cursor: pointer;"
+                    title="Show Sidebar"><i class="fas fa-bars"></i></button>
+                <div class="header-title" style="text-align: center;">
+                    <h2 id="page-subtitle" style="color: #1a5f7a; font-weight: 700; font-size: 28px;">{{ session.get('hospital_name', 'General Hospital') }}</h2>
+                </div>
+            </div>
+
+            <!-- Pharma Alert Banner (Animated) -->
+            <div id="pharma-alert-banner" class="pharma-alert-banner" style="display: none;">
+                <div class="pharma-alert-content">
+                    <div class="pharma-alert-icon">
+                        <i class="fas fa-exclamation"></i>
+                    </div>
+                    <div class="pharma-alert-text">
+                        <h4 id="pharma-alert-title">Active Safety Alert from Pharma</h4>
+                        <p id="pharma-alert-message">Review the alert details in Pharma Safety Alerts section</p>
+                    </div>
+                </div>
+                <button class="pharma-alert-close" id="pharma-alert-close-btn" title="Dismiss alert">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+
+
+            <!-- Safety Alerts Banner -->
+            <div style="background-color: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); margin-bottom: 30px;">
+                <div style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #e2e8f0;">
+                    <h3 style="font-size: 18px; font-weight: 700; color: #1a5f7a; display: flex; align-items: center;">
+                        <i class="fas fa-exclamation-triangle" style="margin-right: 12px; font-size: 20px;"></i> Active Safety Alerts
+                    </h3>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Alert Type</th>
+                            <th>Drug</th>
+                            <th>Issue</th>
+                            <th>Action Required</th>
+                            <th>Alternatives</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="safety-alerts-table">
+                        <!-- Populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Dashboard Cards and Controls Container -->
+            <div style="display: flex; gap: 25px; margin-bottom: 30px; align-items: flex-start;">
+                <!-- Dashboard Cards -->
+                <div class="dashboard-cards" id="dashboard-cards" style="flex: 1;">
+                    <!-- Cards populated by JavaScript -->
+                </div>
+                
+                <!-- Right Side Controls (Dropdown + Buttons) -->
+                <div style="display: flex; flex-direction: column; gap: 15px; min-width: 250px;">
+                    <!-- Drug Dropdown -->
+                    <div style="position: relative; display: flex; flex-direction: column; gap: 5px;">
+                        <label for="drug-dropdown-btn" style="font-size: 12px; color: var(--neutral-gray); font-weight: 600;">Select Drug</label>
+                        <button id="drug-dropdown-btn" style="padding: 10px 15px; border: 1px solid #cbd5e0; border-radius: 8px; font-size: 14px; width: 100%; cursor: pointer; background: white; text-align: left; display: flex; justify-content: space-between; align-items: center;">
+                            <span id="selected-drug-text">-- Select a drug --</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div id="drug-dropdown-menu" style="display: none; position: absolute; top: 100%; left: 0; background: white; border: 1px solid #cbd5e0; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 1000; width: 100%; max-height: 350px; margin-top: 5px;">
+                            <div style="padding: 10px; border-bottom: 1px solid #e2e8f0;">
+                                <input type="text" id="drug-search" placeholder="Search drugs..." style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 14px;">
+                            </div>
+                            <div id="drug-list" style="max-height: 280px; overflow-y: auto;">
+                                <!-- Drug options will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <button id="export-report-btn" class="btn btn-secondary" style="padding: 15px 20px; display: flex; align-items: center; justify-content: center; gap: 10px; white-space: nowrap; width: 100%;">
+                        <i class="fas fa-download"></i> Export Report
+                    </button>
+                </div>
+            </div>
+
+            <!-- Content Sections -->
+            <div id="content-sections">
+                <!-- Overview Section -->
+                <section class="section" id="overview-section">
+                    <div class="section-header">
+                        <div>
+                            <h3 class="section-title"><i class="fas fa-chart-bar"></i> Drug Utilization & Safety Analytics</h3>
+                            <p class="section-subtitle">Insights based on medicine-level prescription and usage data</p>
+                        </div>
+                        <div class="tabs">
+                            <div class="tab active" data-tab="drug-usage">Drug Usage</div>
+                            <div class="tab" data-tab="adverse-effects">Adverse Effects</div>
+                            <div class="tab" data-tab="safety-scorecard">Safety Scorecard</div>
+                        </div>
+                    </div>
+
+                    <!-- Drug Usage Tab -->
+                    <div class="tab-content active" id="drug-usage-tab">
+                        <div class="chart-row">
+                            <div>
+                                <h4>Top Medicines Prescribed (Last 90 Days)</h4>
+                                <div class="chart-container">
+                                    <canvas id="topMedsChart"></canvas>
+                                </div>
+                            </div>
+                            <div>
+                                <h4>Dosage Distribution</h4>
+                                <div class="chart-container">
+                                    <canvas id="dosageChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="chart-row">
+                            <div>
+                                <h4>Medicine by Department</h4>
+                                <div class="chart-container">
+                                    <canvas id="deptChart"></canvas>
+                                </div>
+                            </div>
+                            <div>
+                                <h4>Generic vs Branded Ratio</h4>
+                                <div class="chart-container">
+                                    <canvas id="genericChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Adverse Effects Tab -->
+                    <div class="tab-content" id="adverse-effects-tab">
+                        <!-- Top Row: 3 White Boxes with Key Metrics -->
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px;">
+                            
+                            <!-- Total Adverse Events -->
+                            <div style="background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border-top: 4px solid #e53e3e;">
+                                <h4 style="font-size: 14px; font-weight: 600; color: #718096; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px;">Total Adverse Events</h4>
+                                <div style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 15px;">
+                                    <div style="font-size: 48px; font-weight: 700; color: #e53e3e;" id="total-adverse-events">42</div>
+                                    <div style="font-size: 18px; color: #718096;">events</div>
+                                </div>
+                                <div style="padding: 10px; border-radius: 6px; background: #fed7d7; color: #742a2a; font-size: 12px; font-weight: 600; margin-bottom: 10px; text-align: center;">
+                                    📊 Reported this period
+                                </div>
+                                <div style="font-size: 11px; color: #718096; margin-top: 10px; padding-top: 10px; border-top: 1px solid #e2e8f0;">
+                                    Total adverse reactions documented
+                                </div>
+                            </div>
+
+                            <!-- Severe Events Rate -->
+                            <div style="background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border-top: 4px solid #c53030;">
+                                <h4 style="font-size: 14px; font-weight: 600; color: #718096; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px;">Severe Events Rate</h4>
+                                <div style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 15px;">
+                                    <div style="font-size: 48px; font-weight: 700; color: #c53030;" id="severe-rate">8.5</div>
+                                    <div style="font-size: 18px; color: #718096;">%</div>
+                                </div>
+                                <div style="padding: 10px; border-radius: 6px; background: #fed7d7; color: #742a2a; font-size: 12px; font-weight: 600; margin-bottom: 10px; text-align: center;">
+                                    🔴 Critical
+                                </div>
+                                <div style="font-size: 11px; color: #718096; margin-top: 10px; padding-top: 10px; border-top: 1px solid #e2e8f0;">
+                                    % of severe adverse reactions
+                                </div>
+                            </div>
+
+                            <!-- Average Time to Onset -->
+                            <div style="background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border-top: 4px solid #dd6b20;">
+                                <h4 style="font-size: 14px; font-weight: 600; color: #718096; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px;">Avg Time to Onset</h4>
+                                <div style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 15px;">
+                                    <div style="font-size: 48px; font-weight: 700; color: #dd6b20;" id="avg-onset-time">2.4</div>
+                                    <div style="font-size: 18px; color: #718096;">days</div>
+                                </div>
+                                <div style="padding: 10px; border-radius: 6px; background: #feebc8; color: #7c2d12; font-size: 12px; font-weight: 600; margin-bottom: 10px; text-align: center;">
+                                    ⏱️ Average detection time
+                                </div>
+                                <div style="font-size: 11px; color: #718096; margin-top: 10px; padding-top: 10px; border-top: 1px solid #e2e8f0;">
+                                    Time from administration to event
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Charts Row 1 - 3 Charts in One Row -->
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; margin-bottom: 30px;">
+                            <div style="background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                                <h4 style="font-size: 16px; font-weight: 600; color: #2d3748; margin-bottom: 20px;">Adverse Reactions by Drug</h4>
+                                <div style="height: 300px; position: relative; margin-bottom: 20px;">
+                                    <canvas id="adverseByDrugChart"></canvas>
+                                </div>
+                                <div style="padding: 15px; background: #f7fafc; border-radius: 8px; border-left: 4px solid #e53e3e;">
+                                    <h5 style="font-size: 12px; font-weight: 600; color: #2d3748; margin-bottom: 8px;">Key Insight</h5>
+                                    <p style="font-size: 12px; color: #718096; margin: 0;">PainAway shows highest adverse reaction rate with 18 total reports. Consider monitoring closely.</p>
+                                </div>
+                            </div>
+
+                            <div style="background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                                <h4 style="font-size: 16px; font-weight: 600; color: #2d3748; margin-bottom: 20px;">Severity Distribution</h4>
+                                <div style="height: 300px; position: relative; margin-bottom: 20px;">
+                                    <canvas id="severityChart"></canvas>
+                                </div>
+                                <div style="padding: 15px; background: #f7fafc; border-radius: 8px; border-left: 4px solid #dd6b20;">
+                                    <h5 style="font-size: 12px; font-weight: 600; color: #2d3748; margin-bottom: 8px;">Key Insight</h5>
+                                    <p style="font-size: 12px; color: #718096; margin: 0;">40% mild, 45% moderate, 15% severe. Most reactions are manageable with intervention.</p>
+                                </div>
+                            </div>
+
+                            <div style="background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                                <h4 style="font-size: 16px; font-weight: 600; color: #2d3748; margin-bottom: 20px;">Time to Effect Onset</h4>
+                                <div style="height: 300px; position: relative; margin-bottom: 20px;">
+                                    <canvas id="onsetChart"></canvas>
+                                </div>
+                                <div style="padding: 15px; background: #f7fafc; border-radius: 8px; border-left: 4px solid #667eea;">
+                                    <h5 style="font-size: 12px; font-weight: 600; color: #2d3748; margin-bottom: 8px;">Key Insight</h5>
+                                    <p style="font-size: 12px; color: #718096; margin: 0;">Average onset time is 2.4 days. Early monitoring recommended within first 48 hours.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Charts Row 2 -->
+                        <div style="background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); margin-bottom: 30px;">
+                            <h4 style="font-size: 16px; font-weight: 600; color: #2d3748; margin-bottom: 20px;">Department-wise Adverse Events</h4>
+                            <div style="height: 300px; position: relative; margin-bottom: 20px;">
+                                <canvas id="deptAdverseChart"></canvas>
+                            </div>
+                            <div style="padding: 15px; background: #f7fafc; border-radius: 8px; border-left: 4px solid #38a169;">
+                                <h5 style="font-size: 12px; font-weight: 600; color: #2d3748; margin-bottom: 8px;">Key Insight</h5>
+                                <p style="font-size: 12px; color: #718096; margin: 0;">Cardiology and Neurology departments report higher adverse event rates. Enhanced protocols recommended.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Safety Scorecard Tab -->
+                    <div class="tab-content" id="safety-scorecard-tab">
+                        <!-- Charts Row 1 - 3 Charts with Info Cards Below -->
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; margin-bottom: 30px;">
+                            <!-- Safety Score Trend -->
+                            <div style="background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                                <h4 style="font-size: 16px; font-weight: 600; color: #2d3748; margin-bottom: 20px;">Safety Score Trend</h4>
+                                <div style="height: 300px; width: 100%; position: relative; margin-bottom: 20px;">
+                                    <canvas id="safetyTrendLineChart" style="max-height: 300px;"></canvas>
+                                </div>
+                                <div style="padding: 15px; background: #f7fafc; border-radius: 8px; border-left: 4px solid #667eea;">
+                                    <h5 style="font-size: 12px; font-weight: 600; color: #2d3748; margin-bottom: 8px;">Overall Drug Safety Score</h5>
+                                    <div style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px;">
+                                        <div style="font-size: 32px; font-weight: 700; color: #667eea;" id="safety-score">82</div>
+                                        <div style="font-size: 14px; color: #718096;">/ 100</div>
+                                    </div>
+                                    <div style="font-size: 11px; color: #718096;">Based on: dosage adherence, adverse effect frequency, alert triggers</div>
+                                </div>
+                            </div>
+
+                            <!-- Adverse Effects Distribution -->
+                            <div style="background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                                <h4 style="font-size: 16px; font-weight: 600; color: #2d3748; margin-bottom: 20px;">Adverse Effects Distribution</h4>
+                                <div style="height: 300px; position: relative; margin-bottom: 20px;">
+                                    <canvas id="adverseEffectsPieChart"></canvas>
+                                </div>
+                                <div style="padding: 15px; background: #f7fafc; border-radius: 8px; border-left: 4px solid #e53e3e;">
+                                    <h5 style="font-size: 12px; font-weight: 600; color: #2d3748; margin-bottom: 8px;">Adverse Effect Reporting Rate</h5>
+                                    <div style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px;">
+                                        <div style="font-size: 32px; font-weight: 700; color: #e53e3e;" id="adverse-rate">3.2</div>
+                                        <div style="font-size: 14px; color: #718096;">/ 100 Rx</div>
+                                    </div>
+                                    <div style="font-size: 11px; color: #718096;">Reported side-effects per 100 prescriptions</div>
+                                </div>
+                            </div>
+
+                            <!-- Alert Types Breakdown -->
+                            <div style="background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                                <h4 style="font-size: 16px; font-weight: 600; color: #2d3748; margin-bottom: 20px;">Alert Types Breakdown</h4>
+                                <div style="height: 300px; position: relative; margin-bottom: 20px;">
+                                    <canvas id="alertTypesBarChart"></canvas>
+                                </div>
+                                <div style="padding: 15px; background: #f7fafc; border-radius: 8px; border-left: 4px solid #dd6b20;">
+                                    <h5 style="font-size: 12px; font-weight: 600; color: #2d3748; margin-bottom: 8px;">High-Risk Dosage Rate</h5>
+                                    <div style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px;">
+                                        <div style="font-size: 32px; font-weight: 700; color: #dd6b20;" id="dosage-rate">8.6</div>
+                                        <div style="font-size: 14px; color: #718096;">%</div>
+                                    </div>
+                                    <div style="font-size: 11px; color: #718096;">% of prescriptions exceeding recommended dosage</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Charts Row 2 - Remaining Charts -->
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; margin-bottom: 30px;">
+                            <!-- Dosage Compliance -->
+                            <div style="background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                                <h4 style="font-size: 16px; font-weight: 600; color: #2d3748; margin-bottom: 20px;">Dosage Compliance Status</h4>
+                                <div style="height: 300px; position: relative; margin-bottom: 20px;">
+                                    <canvas id="dosageComplianceChart"></canvas>
+                                </div>
+                                <div style="padding: 15px; background: #f7fafc; border-radius: 8px; border-left: 4px solid #38a169;">
+                                    <h5 style="font-size: 12px; font-weight: 600; color: #2d3748; margin-bottom: 8px;">Alert-Triggered Prescriptions</h5>
+                                    <div style="font-size: 32px; font-weight: 700; color: #2d3748; margin-bottom: 10px;" id="alert-count">14</div>
+                                    <div style="font-size: 11px; color: #718096;">Prescriptions that generated safety alerts</div>
+                                </div>
+                            </div>
+
+                            <!-- Department Safety Scores -->
+                            <div style="background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                                <h4 style="font-size: 16px; font-weight: 600; color: #2d3748; margin-bottom: 20px;">Department Safety Scores</h4>
+                                <div style="height: 300px; position: relative; margin-bottom: 20px;">
+                                    <canvas id="deptSafetyBarChart"></canvas>
+                                </div>
+                                <div style="padding: 15px; background: #f7fafc; border-radius: 8px; border-left: 4px solid #4299e1;">
+                                    <h5 style="font-size: 12px; font-weight: 600; color: #2d3748; margin-bottom: 8px;">Departmental Safety Index</h5>
+                                    <div id="dept-safety" style="font-size: 11px; color: #718096; line-height: 1.8;">
+                                        <div>Cardiology: <span style="font-weight: 700; color: #38a169;">88</span></div>
+                                        <div>Neurology: <span style="font-weight: 700; color: #dd6b20;">74</span></div>
+                                        <div>Pediatrics: <span style="font-weight: 700; color: #38a169;">91</span></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Risk Level Distribution -->
+                            <div style="background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                                <h4 style="font-size: 16px; font-weight: 600; color: #2d3748; margin-bottom: 20px;">Risk Level Distribution</h4>
+                                <div style="height: 300px; position: relative; margin-bottom: 20px;">
+                                    <canvas id="riskLevelDoughnutChart"></canvas>
+                                </div>
+                                <div style="padding: 15px; background: #f7fafc; border-radius: 8px; border-left: 4px solid #c53030;">
+                                    <h5 style="font-size: 12px; font-weight: 600; color: #2d3748; margin-bottom: 8px;">High-Risk Drug Count</h5>
+                                    <div style="font-size: 32px; font-weight: 700; color: #c53030; margin-bottom: 10px;" id="high-risk-count">3</div>
+                                    <div style="font-size: 11px; color: #718096;">Medicines currently flagged</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Safety Scorecard Section (hidden) -->
+                <section class="section" id="safety-scorecard-section" style="display: none;">
+                    <div class="section-header">
+                        <div>
+                            <h3 class="section-title"><i class="fas fa-chart-line"></i> Hospital Safety Scorecard</h3>
+                            <p class="section-subtitle">Internal quality metrics for accreditation & improvement</p>
+                        </div>
+                        <div class="btn btn-secondary">
+                            <i class="fas fa-file-pdf"></i> Accreditation Report
+                        </div>
+                    </div>
+
+                    <div class="dashboard-cards">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4 class="card-title">Adverse Event Detection Rate</h4>
+                                <div class="card-icon internal">
+                                    <i class="fas fa-search"></i>
+                                </div>
+                            </div>
+                            <div class="card-value">94%</div>
+                            <div class="card-footer">
+                                <i class="fas fa-trend-up"></i> +3% from last quarter
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h4 class="card-title">Alert Response Time</h4>
+                                <div class="card-icon internal">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                            </div>
+                            <div class="card-value">2.4 hrs</div>
+                            <div class="card-footer">
+                                <i class="fas fa-trend-down"></i> Faster than avg 4.1 hrs
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h4 class="card-title">Alternative Adoption Rate</h4>
+                                <div class="card-icon internal">
+                                    <i class="fas fa-exchange-alt"></i>
+                                </div>
+                            </div>
+                            <div class="card-value">87%</div>
+                            <div class="card-footer">
+                                <i class="fas fa-trend-up"></i> +12% from last quarter
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h4 class="card-title">Patient Recovery Outcomes</h4>
+                                <div class="card-icon internal">
+                                    <i class="fas fa-user-check"></i>
+                                </div>
+                            </div>
+                            <div class="card-value">96%</div>
+                            <div class="card-footer">
+                                <i class="fas fa-check-circle"></i> Meeting quality targets
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chart-row">
+                        <div>
+                            <h4>Safety Metrics Trend</h4>
+                            <div class="chart-container">
+                                <canvas id="safetyTrendChart"></canvas>
+                            </div>
+                        </div>
+                        <div>
+                            <h4>Department Performance</h4>
+                            <div class="chart-container">
+                                <canvas id="deptPerformanceChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="restriction-warning">
+                        <div class="restriction-header">
+                            <i class="fas fa-award"></i>
+                            <h4>Internal Quality Improvement</h4>
+                        </div>
+                        <p>This scorecard helps with hospital accreditation, insurance audits, and internal quality
+                            improvement. It is based solely on your hospital's data and is not shared with
+                            pharmaceutical companies.</p>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Dashboard State
+        const dashboardState = {
+            activeTab: 'overview',
+            activeSubTab: 'drug-usage',
+            userType: 'hospital',
+            selectedDrug: null,
+            hospitalName: 'General Hospital',
+            alerts: [
+                {
+                    id: 1,
+                    type: '🚨 Safety Warning',
+                    drug: 'PainAway',
+                    issue: 'Severe allergic reactions reported',
+                    action: 'Consider alternative for new patients',
+                    alternatives: 'PainRelief, Analgex, Comfortol',
+                    status: 'active',
+                    date: '2023-10-15',
+                    issuedBy: 'MediPharm Inc.'
+                },
+                {
+                    id: 2,
+                    type: '⚠️ Usage Restriction',
+                    drug: 'Neurocalm',
+                    issue: 'Interaction with blood thinners',
+                    action: 'Avoid in patients on anticoagulants',
+                    alternatives: 'CalmMind, NeuroSoothe',
+                    status: 'active',
+                    date: '2023-10-10',
+                    issuedBy: 'NeuroHealth Pharma'
+                },
+                {
+                    id: 3,
+                    type: '🔍 Monitoring',
+                    drug: 'Cardiostat',
+                    issue: 'Batch quality concerns',
+                    action: 'Monitor patients on batches #CS-2234 to #CS-2240',
+                    alternatives: 'CardioSafe, HeartGuard',
+                    status: 'resolved',
+                    date: '2023-09-28',
+                    issuedBy: 'HeartCare Corp'
+                }
+            ],
+            patientData: [
+                {
+                    id: 'PT-001',
+                    age: '45-55',
+                    gender: 'Male',
+                    diagnosis: 'I10 (Hypertension)',
+                    medicine: 'Cardiostat',
+                    dosage: '100mg daily',
+                    outcome: 'Stable, minor dizziness'
+                },
+                {
+                    id: 'PT-002',
+                    age: '30-40',
+                    gender: 'Female',
+                    diagnosis: 'M54.5 (Low back pain)',
+                    medicine: 'PainAway',
+                    dosage: '500mg twice daily',
+                    outcome: 'Severe allergic reaction - switched'
+                },
+                {
+                    id: 'PT-003',
+                    age: '60-70',
+                    gender: 'Male',
+                    diagnosis: 'F41.1 (Generalized anxiety)',
+                    medicine: 'Neurocalm',
+                    dosage: '50mg daily',
+                    outcome: 'Effective, no side effects'
+                },
+                {
+                    id: 'PT-004',
+                    age: '50-60',
+                    gender: 'Female',
+                    diagnosis: 'I10 (Hypertension)',
+                    medicine: 'Cardiostat',
+                    dosage: '50mg daily',
+                    outcome: 'Nausea reported, dosage reduced'
+                }
+            ],
+
+            recallRequests: [
+                {
+                    id: 'REC-001',
+                    drug: 'PainAway',
+                    period: 'May 2023 - June 2023',
+                    reason: 'Severe adverse pattern detected',
+                    sponsor: 'MediPharm Inc.',
+                    status: 'pending'
+                },
+                {
+                    id: 'REC-002',
+                    drug: 'Cardiostat',
+                    period: 'April 2023 - May 2023',
+                    reason: 'Batch quality investigation',
+                    sponsor: 'HeartCare Corp',
+                    status: 'in-progress'
+                }
+            ],
+            stats: {
+                totalPatients: 0,
+                mildlyAffected: 0,
+                adverselyAffected: 0,
+                pharmaCalls: 0
+            }
+        };
+
+        // Initialize Dashboard
+        document.addEventListener('DOMContentLoaded', function () {
+            setupEventListeners();
+            initDashboard();
+            updateDashboardCards();
+            updateTables();
+            
+            // Initialize charts after a short delay to ensure DOM is ready
+            setTimeout(() => {
+                setupCharts();
+            }, 500);
+
+            // Demo: Show pharma alert (remove this in production or trigger from backend)
+            setTimeout(() => {
+                showPharmaAlert(
+                    '⚠️ Critical Safety Alert from Pharma',
+                    'PainAway (Ibuprofen 500mg) - Immediate action required. Review details in Pharma Safety Alerts section.'
+                );
+            }, 1000);
+        });
+
+        function initDashboard() {
+            loadHospitalInfo();
+            loadDrugs();
+            showSection('overview');
+        }
+
+        function loadHospitalInfo() {
+            fetch('/api/hospital/info')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        dashboardState.hospitalName = data.hospitalName;
+                        document.getElementById('page-subtitle').textContent = `Welcome, ${data.hospitalName}`;
+                    }
+                })
+                .catch(error => console.error('Error loading hospital info:', error));
+        }
+
+        let allDrugs = [];
+        let chartInstances = {};
+        
+        // Common drugs/medicines list as fallback
+        const commonDrugs = [
+            'Aspirin',
+            'Ibuprofen',
+            'Paracetamol',
+            'Amoxicillin',
+            'Metformin',
+            'Lisinopril',
+            'Atorvastatin',
+            'Omeprazole',
+            'Sertraline',
+            'Levothyroxine',
+            'Amlodipine',
+            'Metoprolol',
+            'Ciprofloxacin',
+            'Azithromycin',
+            'Cephalexin',
+            'Fluconazole',
+            'Loratadine',
+            'Cetirizine',
+            'Ranitidine',
+            'Diclofenac',
+            'Naproxen',
+            'Tramadol',
+            'Codeine',
+            'Morphine',
+            'Insulin',
+            'Glucagon',
+            'Warfarin',
+            'Heparin',
+            'Clopidogrel',
+            'Simvastatin',
+            'Pravastatin',
+            'Rosuvastatin',
+            'Valsartan',
+            'Losartan',
+            'Enalapril',
+            'Ramipril',
+            'Diltiazem',
+            'Verapamil',
+            'Nifedipine',
+            'Hydralazine',
+            'Furosemide',
+            'Spironolactone',
+            'Hydrochlorothiazide',
+            'Albuterol',
+            'Salbutamol',
+            'Fluticasone',
+            'Montelukast',
+            'Theophylline',
+            'Prednisone',
+            'Dexamethasone',
+            'Methylprednisolone'
+        ];
+
+        function loadDrugs() {
+            fetch('/api/hospital/drugs')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.drugs.length > 0) {
+                        allDrugs = data.drugs;
+                    } else {
+                        // Use common drugs as fallback
+                        allDrugs = commonDrugs.map((name, index) => ({
+                            id: index + 1,
+                            name: name
+                        }));
+                    }
+                    console.log('Drugs loaded:', allDrugs.length);
+
+                    // Set first drug as default if available
+                    if (allDrugs.length > 0) {
+                        selectDrug(allDrugs[0].name);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading drugs:', error);
+                    // Use common drugs as fallback on error
+                    allDrugs = commonDrugs.map((name, index) => ({
+                        id: index + 1,
+                        name: name
+                    }));
+                    if (allDrugs.length > 0) {
+                        selectDrug(allDrugs[0].name);
+                    }
+                });
+        }
+
+        function populateDrugList(drugs) {
+            const drugList = document.getElementById('drug-list');
+            drugList.innerHTML = '';
+            
+            if (drugs.length === 0) {
+                drugList.innerHTML = '<div style="padding: 15px; text-align: center; color: #718096; font-size: 14px;">No drugs found</div>';
+                return;
+            }
+
+            drugs.forEach(drug => {
+                const option = document.createElement('div');
+                option.className = 'drug-option';
+                option.textContent = drug.name;
+                option.style.cssText = 'padding: 12px 15px; cursor: pointer; transition: background 0.2s; border-bottom: 1px solid #f0f0f0; font-size: 14px;';
+                option.addEventListener('mouseenter', function() {
+                    this.style.background = '#ebf8ff';
+                });
+                option.addEventListener('mouseleave', function() {
+                    this.style.background = 'white';
+                });
+                option.addEventListener('click', function() {
+                    selectDrug(drug.name);
+                    closeDrugDropdown();
+                });
+                drugList.appendChild(option);
+            });
+        }
+
+        function selectDrug(drugName) {
+            document.getElementById('selected-drug-text').textContent = drugName;
+            dashboardState.selectedDrug = drugName;
+            loadDrugStats(drugName);
+            updateDashboardCards();
+            
+            // Reinitialize charts for the currently active tab
+            setTimeout(() => {
+                const activeTab = document.querySelector('.tab.active')?.getAttribute('data-tab');
+                if (activeTab === 'safety-scorecard') {
+                    setupScorecardCharts();
+                } else if (activeTab === 'adverse-effects') {
+                    setupAdverseEffectsCharts();
+                } else if (activeTab === 'drug-usage') {
+                    setupCharts();
+                }
+                window.dispatchEvent(new Event('resize'));
+            }, 100);
+        }
+
+        function filterDrugs(searchTerm) {
+            const filtered = allDrugs.filter(drug => 
+                drug.name.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+            populateDrugList(filtered);
+        }
+
+        function toggleDrugDropdown() {
+            const menu = document.getElementById('drug-dropdown-menu');
+            if (!menu) {
+                console.error('Drug dropdown menu not found');
+                return;
+            }
+            
+            const isVisible = menu.style.display === 'block';
+            
+            if (isVisible) {
+                closeDrugDropdown();
+            } else {
+                menu.style.display = 'block';
+                // Show all drugs when dropdown opens
+                if (allDrugs.length > 0) {
+                    populateDrugList(allDrugs);
+                } else {
+                    console.warn('No drugs loaded yet');
+                }
+                const searchInput = document.getElementById('drug-search');
+                if (searchInput) {
+                    searchInput.focus();
+                    searchInput.value = '';
+                }
+            }
+        }
+
+        function closeDrugDropdown() {
+            const menu = document.getElementById('drug-dropdown-menu');
+            if (menu) {
+                menu.style.display = 'none';
+            }
+            const searchInput = document.getElementById('drug-search');
+            if (searchInput) {
+                searchInput.value = '';
+            }
+        }
+
+        function loadDrugStats(drugName) {
+            if (!drugName) {
+                dashboardState.stats = {
+                    totalPatients: 0,
+                    mildlyAffected: 0,
+                    adverselyAffected: 0,
+                    pharmaCalls: 0
+                };
+                updateDashboardCards();
+                updateSafetyScorecard(null);
+                return;
+            }
+
+            fetch(`/api/hospital/drug-stats/${encodeURIComponent(drugName)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        dashboardState.stats = {
+                            totalPatients: data.totalPatients,
+                            mildlyAffected: data.mildlyAffected,
+                            adverselyAffected: data.adverselyAffected,
+                            pharmaCalls: data.pharmaCalls
+                        };
+                        dashboardState.selectedDrug = drugName;
+                        console.log('Drug stats loaded for', drugName, ':', dashboardState.stats);
+                        updateDashboardCards();
+                        updateSafetyScorecard(data);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading drug stats:', error);
+                    // Generate random demo data if API fails
+                    dashboardState.stats = {
+                        totalPatients: Math.floor(Math.random() * 100) + 10,
+                        mildlyAffected: Math.floor(Math.random() * 30) + 5,
+                        adverselyAffected: Math.floor(Math.random() * 20) + 2,
+                        pharmaCalls: Math.floor(Math.random() * 15) + 1
+                    };
+                    dashboardState.selectedDrug = drugName;
+                    console.log('Using demo data for', drugName, ':', dashboardState.stats);
+                    updateDashboardCards();
+                    updateSafetyScorecard(dashboardState.stats);
+                });
+        }
+
+        function updateSafetyScorecard(data) {
+            // Generate safety metrics based on drug data
+            if (!data) {
+                data = dashboardState.stats;
+            }
+
+            // Calculate Overall Safety Score (0-100)
+            const totalPatients = data.totalPatients || 0;
+            const adverseRate = totalPatients > 0 ? (data.adverselyAffected / totalPatients) * 100 : 0;
+            const safetyScore = Math.max(0, Math.min(100, 100 - (adverseRate * 2) - Math.random() * 10));
+            
+            // High-Risk Dosage Rate (random between 2-15%)
+            const dosageRate = (Math.random() * 13 + 2).toFixed(1);
+            
+            // Adverse Effect Rate per 100 prescriptions
+            const adverseEffectRate = (Math.random() * 5 + 1).toFixed(1);
+            const mildRate = (adverseEffectRate * 0.4).toFixed(1);
+            const moderateRate = (adverseEffectRate * 0.45).toFixed(1);
+            const severeRate = (adverseEffectRate * 0.15).toFixed(1);
+            
+            // Alert-triggered prescriptions
+            const alertCount = Math.floor(Math.random() * 20) + 5;
+            
+            // High-risk drug count
+            const highRiskCount = Math.floor(Math.random() * 5) + 1;
+            
+            // Update DOM
+            document.getElementById('safety-score').textContent = Math.round(safetyScore);
+            
+            // Trend indicator
+            const trend = Math.random() > 0.5 ? '↑' : '↓';
+            const status = trend === '↑' ? 'Improving' : 'Declining';
+            document.getElementById('safety-trend').textContent = trend;
+            document.getElementById('safety-status').textContent = status;
+            
+            // Dosage rate with color coding
+            document.getElementById('dosage-rate').textContent = dosageRate;
+            const dosageElement = document.getElementById('dosage-status');
+            if (dosageRate < 5) {
+                dosageElement.textContent = '🟢 Safe (< 5%)';
+                dosageElement.style.background = '#c6f6d5';
+                dosageElement.style.color = '#22543d';
+            } else if (dosageRate < 10) {
+                dosageElement.textContent = '🟡 Monitor (5–10%)';
+                dosageElement.style.background = '#feebc8';
+                dosageElement.style.color = '#7c2d12';
+            } else {
+                dosageElement.textContent = '🔴 Action Needed (> 10%)';
+                dosageElement.style.background = '#fed7d7';
+                dosageElement.style.color = '#742a2a';
+            }
+            
+            // Adverse effect rates
+            document.getElementById('adverse-rate').textContent = adverseEffectRate;
+            document.getElementById('adverse-mild').textContent = mildRate;
+            document.getElementById('adverse-moderate').textContent = moderateRate;
+            document.getElementById('adverse-severe').textContent = severeRate;
+            
+            // Alert count
+            document.getElementById('alert-count').textContent = alertCount;
+            
+            // High-risk drug count
+            document.getElementById('high-risk-count').textContent = highRiskCount;
+            
+            // Departmental safety index (random scores)
+            const cardiology = Math.floor(Math.random() * 20) + 75;
+            const neurology = Math.floor(Math.random() * 30) + 60;
+            const pediatrics = Math.floor(Math.random() * 15) + 80;
+            
+            document.getElementById('dept-safety').innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span>Cardiology</span>
+                    <span style="font-weight: 700; color: ${cardiology >= 80 ? '#38a169' : '#dd6b20'};">${cardiology}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span>Neurology</span>
+                    <span style="font-weight: 700; color: ${neurology >= 80 ? '#38a169' : '#dd6b20'};">${neurology}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>Pediatrics</span>
+                    <span style="font-weight: 700; color: ${pediatrics >= 80 ? '#38a169' : '#dd6b20'};">${pediatrics}</span>
+                </div>
+            `;
+        }
+
+        function showSection(sectionId) {
+            // Update active nav link
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('data-tab') === sectionId) {
+                    link.classList.add('active');
+                }
+            });
+
+            // Hide all sections
+            document.querySelectorAll('.section').forEach(section => {
+                section.style.display = 'none';
+            });
+
+            // Show selected section
+            document.getElementById(`${sectionId}-section`).style.display = 'block';
+
+            // Update page title
+            const subtitles = {
+                overview: `Welcome, ${dashboardState.hospitalName}`,
+                'internal-data': 'Patient Data',
+                'pharma-alerts': 'Pharma Safety Alerts',
+                'patient-recall': 'Patient Recall & Follow-up',
+                'safety-scorecard': 'Hospital Safety Scorecard'
+            };
+
+            document.getElementById('page-subtitle').textContent = subtitles[sectionId];
+
+            dashboardState.activeTab = sectionId;
+        }
+
+        function updateDashboardCards() {
+            const cardsContainer = document.getElementById('dashboard-cards');
+
+            const cards = [
+                {
+                    title: "Total Patients",
+                    value: dashboardState.stats.totalPatients,
+                    icon: "fas fa-user-injured",
+                    footer: "Patients prescribed this drug",
+                    type: "internal",
+                    color: "internal"
+                },
+                {
+                    title: "Mildly Affected",
+                    value: dashboardState.stats.mildlyAffected,
+                    icon: "fas fa-exclamation-circle",
+                    footer: "Minor side effects reported",
+                    type: "internal",
+                    color: "alert"
+                },
+
+                {
+                    title: "Adversely Affected",
+                    value: dashboardState.stats.adverselyAffected,
+                    icon: "fas fa-exclamation-triangle",
+                    footer: "Severe adverse reactions",
+                    type: "alert",
+                    color: "alert"
+                },
+                {
+                    title: "Patients Called by Pharma",
+                    value: dashboardState.stats.pharmaCalls,
+                    icon: "fas fa-phone",
+                    footer: "Follow-up calls initiated",
+                    type: "alert",
+                    color: "shared"
+                }
+            ];
+
+            cardsContainer.innerHTML = '';
+
+            cards.forEach(card => {
+                const cardElement = document.createElement('div');
+                cardElement.className = 'card';
+                cardElement.innerHTML = `
+                    <div class="card-header">
+                        <h4 class="card-title">${card.title}</h4>
+                        <div class="card-icon ${card.color}">
+                            <i class="${card.icon}"></i>
+                        </div>
+                    </div>
+                    <div class="card-value">${card.value}</div>
+                    <div class="card-footer">
+                        <i class="fas fa-info-circle"></i> ${card.footer}
+                    </div>
+                `;
+                cardsContainer.appendChild(cardElement);
+            });
+        }
+
+        function showPharmaAlert(title, message) {
+            const banner = document.getElementById('pharma-alert-banner');
+            const titleEl = document.getElementById('pharma-alert-title');
+            const messageEl = document.getElementById('pharma-alert-message');
+            
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+            
+            banner.style.display = 'flex';
+            banner.classList.remove('closing');
+        }
+
+        function dismissPharmaAlert() {
+            const banner = document.getElementById('pharma-alert-banner');
+            banner.classList.add('closing');
+            
+            setTimeout(() => {
+                banner.style.display = 'none';
+                banner.classList.remove('closing');
+            }, 600);
+        }
+
+        function updateTables() {
+            // Safety Alerts Table
+            const alertsTable = document.getElementById('safety-alerts-table');
+            alertsTable.innerHTML = '';
+
+            dashboardState.alerts.forEach(alert => {
+                const statusClass = alert.status === 'active' ? 'status-flagged' : 'status-safe';
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><strong>${alert.type}</strong></td>
+                    <td>${alert.drug}</td>
+                    <td>${alert.issue}</td>
+                    <td>${alert.action}</td>
+                    <td>${alert.alternatives}</td>
+                    <td><span class="status-badge ${statusClass}">${alert.status === 'active' ? 'Active' : 'Resolved'}</span></td>
+                `;
+                alertsTable.appendChild(row);
+            });
+
+            // Patient Data Table
+            const patientTable = document.getElementById('patient-data-table');
+            patientTable.innerHTML = '';
+
+            dashboardState.patientData.forEach(patient => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><span class="status-badge status-internal">${patient.id}</span></td>
+                    <td>${patient.age}</td>
+                    <td>${patient.gender}</td>
+                    <td>${patient.diagnosis}</td>
+                    <td>${patient.medicine}</td>
+                    <td>${patient.dosage}</td>
+                    <td>${patient.outcome}</td>
+                    <td><button class="btn btn-secondary btn-sm">View Details</button></td>
+                `;
+                patientTable.appendChild(row);
+            });
+        }
+
+        function generateDrugChartData() {
+            // Generate dynamic chart data based on selected drug
+            const selectedDrug = dashboardState.selectedDrug || 'All Drugs';
+            const stats = dashboardState.stats;
+            
+            // Generate variation based on drug name hash
+            const hash = selectedDrug.split('').reduce((a, b) => {a = ((a << 5) - a) + b.charCodeAt(0); return a & a}, 0);
+            const seed = Math.abs(hash) % 100;
+            
+            return {
+                seed: seed,
+                topMeds: [
+                    selectedDrug,
+                    'Cardiostat',
+                    'Neurocalm',
+                    'Immunoboost',
+                    'AntibioX'
+                ].map((drug, idx) => ({
+                    name: drug,
+                    value: Math.max(20, 150 - (idx * 25) - seed)
+                })),
+                dosageDistribution: {
+                    low: Math.max(10, 35 - seed / 10),
+                    standard: Math.max(30, 55 - seed / 15),
+                    high: Math.max(5, 10 + seed / 20)
+                },
+                deptUsage: {
+                    cardiology: Math.max(40, 85 - seed / 5),
+                    neurology: Math.max(30, 70 - seed / 8),
+                    orthopedics: Math.max(20, 65 - seed / 10),
+                    general: Math.max(50, 90 - seed / 6),
+                    pediatrics: Math.max(15, 40 + seed / 10)
+                },
+                genericRatio: {
+                    generic: Math.max(30, 65 - seed / 10),
+                    branded: Math.max(20, 35 + seed / 10)
+                },
+                adverseByDrug: [
+                    { name: selectedDrug, total: Math.max(5, 18 - seed / 10), severe: Math.max(2, 6 - seed / 15) },
+                    { name: 'Cardiostat', total: Math.max(3, 12 - seed / 15), severe: Math.max(1, 3 - seed / 20) },
+                    { name: 'Neurocalm', total: Math.max(2, 8 - seed / 20), severe: Math.max(1, 2 - seed / 25) },
+                    { name: 'Immunoboost', total: Math.max(1, 4 - seed / 30), severe: Math.max(0, 1 - seed / 40) }
+                ],
+                severityDistribution: {
+                    mild: Math.max(20, 40 - seed / 10),
+                    moderate: Math.max(25, 45 - seed / 15),
+                    severe: Math.max(5, 15 + seed / 20)
+                },
+                onsetDays: [
+                    Math.max(2, 8 - seed / 20),
+                    Math.max(3, 12 - seed / 15),
+                    Math.max(4, 15 - seed / 12),
+                    Math.max(5, 18 - seed / 10),
+                    Math.max(6, 22 - seed / 8),
+                    Math.max(8, 28 - seed / 6),
+                    Math.max(10, 42 - seed / 4)
+                ],
+                deptAdverse: {
+                    cardiology: Math.max(5, 18 - seed / 10),
+                    neurology: Math.max(4, 16 - seed / 12),
+                    orthopedics: Math.max(2, 8 - seed / 20),
+                    general: Math.max(3, 12 - seed / 15),
+                    pediatrics: Math.max(1, 6 + seed / 30)
+                }
+            };
+        }
+
+        function setupCharts() {
+            // Get dynamic data for selected drug
+            const chartData = generateDrugChartData();
+            
+            // Destroy existing charts to prevent duplicates
+            Object.values(chartInstances).forEach(chart => {
+                if (chart) chart.destroy();
+            });
+            chartInstances = {};
+
+            // Top Medicines Chart
+            const topMedsCtx = document.getElementById('topMedsChart')?.getContext('2d');
+            if (topMedsCtx) {
+                const topMedsData = chartData.topMeds;
+                chartInstances.topMeds = new Chart(topMedsCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: topMedsData.map(m => m.name),
+                        datasets: [{
+                            label: 'Prescriptions',
+                            data: topMedsData.map(m => m.value),
+                            backgroundColor: '#4299e1',
+                            borderColor: '#3182ce',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        }
+                    }
+                });
+            }
+
+            // Dosage Distribution Chart
+            const dosageCtx = document.getElementById('dosageChart')?.getContext('2d');
+            if (dosageCtx) {
+                const dosageData = chartData.dosageDistribution;
+                chartInstances.dosage = new Chart(dosageCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Low Dose', 'Standard Dose', 'High Dose'],
+                        datasets: [{
+                            data: [dosageData.low, dosageData.standard, dosageData.high],
+                            backgroundColor: ['#38b2ac', '#4299e1', '#e53e3e']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom' }
+                        }
+                    }
+                });
+            }
+
+            // Department Chart
+            const deptCtx = document.getElementById('deptChart')?.getContext('2d');
+            if (deptCtx) {
+                const deptData = chartData.deptUsage;
+                chartInstances.dept = new Chart(deptCtx, {
+                    type: 'radar',
+                    data: {
+                        labels: ['Cardiology', 'Neurology', 'Orthopedics', 'General', 'Pediatrics'],
+                        datasets: [{
+                            label: 'Medicine Usage',
+                            data: [deptData.cardiology, deptData.neurology, deptData.orthopedics, deptData.general, deptData.pediatrics],
+                            backgroundColor: 'rgba(66, 153, 225, 0.2)',
+                            borderColor: '#4299e1',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            r: {
+                                beginAtZero: true,
+                                max: 100
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Generic vs Branded Chart
+            const genericCtx = document.getElementById('genericChart')?.getContext('2d');
+            if (genericCtx) {
+                const genericData = chartData.genericRatio;
+                chartInstances.generic = new Chart(genericCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Generic', 'Branded'],
+                        datasets: [{
+                            data: [genericData.generic, genericData.branded],
+                            backgroundColor: ['#38a169', '#dd6b20']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom' }
+                        }
+                    }
+                });
+            }
+        }
+
+        function setupAdverseEffectsCharts() {
+            // Get dynamic data for selected drug
+            const chartData = generateDrugChartData();
+            
+            // Destroy existing charts to prevent duplicates
+            Object.values(chartInstances).forEach(chart => {
+                if (chart) chart.destroy();
+            });
+            chartInstances = {};
+
+            // Adverse by Drug Chart
+            const adverseByDrugCtx = document.getElementById('adverseByDrugChart')?.getContext('2d');
+            if (adverseByDrugCtx) {
+                const adverseData = chartData.adverseByDrug;
+                chartInstances.adverseByDrug = new Chart(adverseByDrugCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: adverseData.map(d => d.name),
+                        datasets: [
+                            {
+                                label: 'Total Reports',
+                                data: adverseData.map(d => d.total),
+                                backgroundColor: '#e53e3e'
+                            },
+                            {
+                                label: 'Severe Cases',
+                                data: adverseData.map(d => d.severe),
+                                backgroundColor: '#c53030'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'top' }
+                        }
+                    }
+                });
+            }
+
+            // Severity Distribution Chart
+            const severityCtx = document.getElementById('severityChart')?.getContext('2d');
+            if (severityCtx) {
+                const severityData = chartData.severityDistribution;
+                chartInstances.severity = new Chart(severityCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Mild', 'Moderate', 'Severe'],
+                        datasets: [{
+                            data: [severityData.mild, severityData.moderate, severityData.severe],
+                            backgroundColor: ['#c6f6d5', '#feebc8', '#fed7d7'],
+                            borderColor: ['#22543d', '#7c2d12', '#742a2a'],
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom' }
+                        }
+                    }
+                });
+            }
+
+            // Time to Effect Onset Chart
+            const onsetCtx = document.getElementById('onsetChart')?.getContext('2d');
+            if (onsetCtx) {
+                const onsetData = chartData.onsetDays;
+                chartInstances.onset = new Chart(onsetCtx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Day 1', 'Day 15', 'Day 30', 'Day 45', 'Day 60', 'Day 75', 'Day 90'],
+                        datasets: [{
+                            label: 'Adverse Events',
+                            data: onsetData,
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            borderWidth: 3,
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 5,
+                            pointBackgroundColor: '#667eea'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: true, position: 'top' }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Department-wise Adverse Events Chart
+            const deptAdverseCtx = document.getElementById('deptAdverseChart')?.getContext('2d');
+            if (deptAdverseCtx) {
+                const deptAdverseData = chartData.deptAdverse;
+                chartInstances.deptAdverse = new Chart(deptAdverseCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Cardiology', 'Neurology', 'Orthopedics', 'General', 'Pediatrics'],
+                        datasets: [{
+                            label: 'Adverse Events',
+                            data: [deptAdverseData.cardiology, deptAdverseData.neurology, deptAdverseData.orthopedics, deptAdverseData.general, deptAdverseData.pediatrics],
+                            backgroundColor: '#e53e3e',
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        function setupScorecardCharts() {
+            // Get dynamic data for selected drug
+            const chartData = generateDrugChartData();
+            
+            // Destroy existing charts to prevent duplicates
+            Object.values(chartInstances).forEach(chart => {
+                if (chart) chart.destroy();
+            });
+            chartInstances = {};
+
+            // Safety Score Trend Line Chart
+            const safetyTrendLineCtx = document.getElementById('safetyTrendLineChart')?.getContext('2d');
+            if (safetyTrendLineCtx) {
+                const trendData = [75, 78, 80, 82, 81, 83, 85].map(v => Math.max(50, v - chartData.seed / 10));
+                chartInstances.safetyTrendLine = new Chart(safetyTrendLineCtx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Day 1', 'Day 15', 'Day 30', 'Day 45', 'Day 60', 'Day 75', 'Day 90'],
+                        datasets: [{
+                            label: 'Safety Score',
+                            data: trendData,
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            borderWidth: 3,
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 5,
+                            pointBackgroundColor: '#667eea'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: true, position: 'top' }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: false,
+                                min: 0,
+                                max: 100
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Adverse Effects Distribution Pie Chart
+            const adverseEffectsPieCtx = document.getElementById('adverseEffectsPieChart')?.getContext('2d');
+            if (adverseEffectsPieCtx) {
+                const severityData = chartData.severityDistribution;
+                chartInstances.adverseEffectsPie = new Chart(adverseEffectsPieCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Mild', 'Moderate', 'Severe'],
+                        datasets: [{
+                            data: [severityData.mild, severityData.moderate, severityData.severe],
+                            backgroundColor: ['#c6f6d5', '#feebc8', '#fed7d7'],
+                            borderColor: ['#22543d', '#7c2d12', '#742a2a'],
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom' }
+                        }
+                    }
+                });
+            }
+
+            // Alert Types Bar Chart
+            const alertTypesBarCtx = document.getElementById('alertTypesBarChart')?.getContext('2d');
+            if (alertTypesBarCtx) {
+                const alertData = [8, 14, 6, 3].map(v => Math.max(1, v - chartData.seed / 20));
+                chartInstances.alertTypesBar = new Chart(alertTypesBarCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Drug-Drug\nInteraction', 'High\nDosage', 'Repeat\nAdverse', 'Contraindicated\nCombination'],
+                        datasets: [{
+                            label: 'Alert Count',
+                            data: alertData,
+                            backgroundColor: ['#4299e1', '#e53e3e', '#dd6b20', '#c53030'],
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Dosage Compliance Bar Chart
+            const dosageComplianceCtx = document.getElementById('dosageComplianceChart')?.getContext('2d');
+            if (dosageComplianceCtx) {
+                const dosageData = chartData.dosageDistribution;
+                const total = dosageData.low + dosageData.standard + dosageData.high;
+                chartInstances.dosageCompliance = new Chart(dosageComplianceCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Safe\n(< 5%)', 'Monitor\n(5-10%)', 'Action\nNeeded\n(> 10%)'],
+                        datasets: [{
+                            label: 'Prescriptions %',
+                            data: [
+                                Math.round((dosageData.low / total) * 100),
+                                Math.round((dosageData.standard / total) * 100),
+                                Math.round((dosageData.high / total) * 100)
+                            ],
+                            backgroundColor: ['#38a169', '#dd6b20', '#e53e3e'],
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Department Safety Comparison Bar Chart
+            const deptSafetyBarCtx = document.getElementById('deptSafetyBarChart')?.getContext('2d');
+            if (deptSafetyBarCtx) {
+                const deptData = chartData.deptUsage;
+                chartInstances.deptSafetyBar = new Chart(deptSafetyBarCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Cardiology', 'Neurology', 'Pediatrics', 'General', 'Orthopedics'],
+                        datasets: [{
+                            label: 'Safety Score',
+                            data: [deptData.cardiology, deptData.neurology, deptData.pediatrics, deptData.general, deptData.orthopedics],
+                            backgroundColor: ['#38a169', '#dd6b20', '#38a169', '#4299e1', '#dd6b20'],
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: false,
+                                min: 0,
+                                max: 100
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Risk Level Distribution Doughnut Chart
+            const riskLevelDoughnutCtx = document.getElementById('riskLevelDoughnutChart')?.getContext('2d');
+            if (riskLevelDoughnutCtx) {
+                chartInstances.riskLevelDoughnut = new Chart(riskLevelDoughnutCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Low Risk', 'Medium Risk', 'High Risk'],
+                        datasets: [{
+                            data: [65, 25, 10],
+                            backgroundColor: ['#38a169', '#dd6b20', '#e53e3e'],
+                            borderColor: ['#22543d', '#7c2d12', '#742a2a'],
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom' }
+                        }
+                    }
+                });
+            }
+        }
+
+        function setupEventListeners() {
+            // Sidebar Toggle
+            const sidebar = document.getElementById('sidebar');
+            const closeBtn = document.getElementById('sidebar-close-btn');
+            const openBtn = document.getElementById('sidebar-open-btn');
+
+            if (closeBtn) {
+                closeBtn.addEventListener('click', () => {
+                    sidebar.classList.add('collapsed');
+                });
+            }
+
+            if (openBtn) {
+                openBtn.addEventListener('click', () => {
+                    sidebar.classList.remove('collapsed');
+                });
+            }
+
+            // Pharma Alert Close Button
+            const pharmaAlertCloseBtn = document.getElementById('pharma-alert-close-btn');
+            if (pharmaAlertCloseBtn) {
+                pharmaAlertCloseBtn.addEventListener('click', function() {
+                    dismissPharmaAlert();
+                });
+            }
+
+            // Navigation links
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const sectionId = this.getAttribute('data-tab');
+                    showSection(sectionId);
+                });
+            });
+
+            // Tab switching in overview
+            const tabs = document.querySelectorAll('.tab');
+            console.log('Found tabs:', tabs.length);
+            
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function () {
+                    console.log('Tab clicked:', this.getAttribute('data-tab'));
+                    
+                    // Remove active class from all tabs
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+
+                    // Hide all tab content
+                    document.querySelectorAll('.tab-content').forEach(content => {
+                        content.classList.remove('active');
+                    });
+
+                    const tabId = this.getAttribute('data-tab');
+                    const tabContentElement = document.getElementById(`${tabId}-tab`);
+                    
+                    if (tabContentElement) {
+                        tabContentElement.classList.add('active');
+                        dashboardState.activeSubTab = tabId;
+                        console.log('Switched to tab:', tabId);
+                        
+                        // Reinitialize charts for the active tab
+                        setTimeout(() => {
+                            if (tabId === 'safety-scorecard') {
+                                console.log('Setting up scorecard charts');
+                                setupScorecardCharts();
+                            } else if (tabId === 'adverse-effects') {
+                                console.log('Setting up adverse effects charts');
+                                setupAdverseEffectsCharts();
+                            } else if (tabId === 'drug-usage') {
+                                console.log('Setting up drug usage charts');
+                                setupCharts();
+                            }
+                            window.dispatchEvent(new Event('resize'));
+                        }, 100);
+                    } else {
+                        console.error('Tab content not found:', `${tabId}-tab`);
+                    }
+                });
+            });
+
+            // View Signals Button
+            document.getElementById('view-signals-btn')?.addEventListener('click', function () {
+                alert('Showing exactly what pharmaceutical companies receive: anonymized safety signals without any patient identifiers.');
+            });
+
+            // Drug dropdown functionality
+            const drugDropdownBtn = document.getElementById('drug-dropdown-btn');
+            const drugSearch = document.getElementById('drug-search');
+
+            if (drugDropdownBtn) {
+                drugDropdownBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    toggleDrugDropdown();
+                });
+            }
+
+            if (drugSearch) {
+                drugSearch.addEventListener('input', function(e) {
+                    filterDrugs(e.target.value);
+                });
+
+                drugSearch.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                });
+            }
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                const menu = document.getElementById('drug-dropdown-menu');
+                const btn = document.getElementById('drug-dropdown-btn');
+                if (menu && btn && !menu.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+                    closeDrugDropdown();
+                }
+            });
+
+            // Export Report Button
+            const exportBtn = document.getElementById('export-report-btn');
+            if (exportBtn) {
+                exportBtn.addEventListener('click', async function() {
+                    await exportDashboardToPDF();
+                });
+            }
+
+        }
+
+        async function exportDashboardToPDF() {
+            try {
+                if (!window.jspdf) {
+                    alert('PDF library not loaded. Please refresh the page and try again.');
+                    return;
+                }
+                
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                
+                const hospitalName = dashboardState.hospitalName || 'General Hospital';
+                const selectedDrug = dashboardState.selectedDrug || 'All Drugs';
+                const currentDate = new Date().toLocaleDateString();
+                
+                let yPosition = 20;
+                
+                // Title
+                pdf.setFontSize(20);
+                pdf.setTextColor(26, 95, 122);
+                pdf.text('Drug Safety Analytics Report', 105, yPosition, { align: 'center' });
+                
+                yPosition += 10;
+                pdf.setFontSize(12);
+                pdf.setTextColor(100, 100, 100);
+                pdf.text(`${hospitalName} - ${currentDate}`, 105, yPosition, { align: 'center' });
+                
+                yPosition += 8;
+                pdf.setFontSize(11);
+                pdf.text(`Selected Drug: ${selectedDrug}`, 105, yPosition, { align: 'center' });
+                
+                yPosition += 15;
+                
+                // Dashboard Cards Data
+                pdf.setFontSize(14);
+                pdf.setTextColor(26, 95, 122);
+                pdf.text('Key Metrics', 20, yPosition);
+                yPosition += 10;
+                
+                pdf.setFontSize(10);
+                pdf.setTextColor(0, 0, 0);
+                
+                const stats = dashboardState.stats;
+                const metrics = [
+                    { label: 'Total Patients', value: stats.totalPatients },
+                    { label: 'Mildly Affected', value: stats.mildlyAffected },
+                    { label: 'Adversely Affected', value: stats.adverselyAffected },
+                    { label: 'Patients Called by Pharma', value: stats.pharmaCalls }
+                ];
+                
+                metrics.forEach((metric, index) => {
+                    pdf.text(`${metric.label}: ${metric.value}`, 20, yPosition);
+                    yPosition += 7;
+                });
+                
+                yPosition += 10;
+                
+                // Safety Scorecard Metrics
+                pdf.setFontSize(14);
+                pdf.setTextColor(26, 95, 122);
+                pdf.text('Safety Scorecard', 20, yPosition);
+                yPosition += 10;
+                
+                pdf.setFontSize(10);
+                pdf.setTextColor(0, 0, 0);
+                
+                const safetyScore = document.getElementById('safety-score')?.textContent || 'N/A';
+                const dosageRate = document.getElementById('dosage-rate')?.textContent || 'N/A';
+                const adverseRate = document.getElementById('adverse-rate')?.textContent || 'N/A';
+                const alertCount = document.getElementById('alert-count')?.textContent || 'N/A';
+                const highRiskCount = document.getElementById('high-risk-count')?.textContent || 'N/A';
+                
+                const scorecardMetrics = [
+                    { label: 'Overall Safety Score', value: `${safetyScore}/100` },
+                    { label: 'High-Risk Dosage Rate', value: `${dosageRate}%` },
+                    { label: 'Adverse Effect Rate', value: `${adverseRate}/100 Rx` },
+                    { label: 'Alert-Triggered Prescriptions', value: alertCount },
+                    { label: 'High-Risk Drug Count', value: highRiskCount }
+                ];
+                
+                scorecardMetrics.forEach((metric) => {
+                    pdf.text(`${metric.label}: ${metric.value}`, 20, yPosition);
+                    yPosition += 7;
+                });
+                
+                yPosition += 10;
+                
+                // Safety Alerts Table
+                if (dashboardState.alerts && dashboardState.alerts.length > 0) {
+                    pdf.setFontSize(14);
+                    pdf.setTextColor(26, 95, 122);
+                    pdf.text('Active Safety Alerts', 20, yPosition);
+                    yPosition += 10;
+                    
+                    pdf.setFontSize(9);
+                    pdf.setTextColor(0, 0, 0);
+                    
+                    dashboardState.alerts.forEach((alert, index) => {
+                        if (yPosition > 270) {
+                            pdf.addPage();
+                            yPosition = 20;
+                        }
+                        
+                        pdf.text(`${index + 1}. ${alert.type} - ${alert.drug}`, 20, yPosition);
+                        yPosition += 5;
+                        pdf.text(`   Issue: ${alert.issue}`, 20, yPosition);
+                        yPosition += 5;
+                        pdf.text(`   Action: ${alert.action}`, 20, yPosition);
+                        yPosition += 8;
+                    });
+                }
+                
+                // Save PDF
+                const filename = `Drug_Safety_Report_${selectedDrug.replace(/\s+/g, '_')}_${currentDate.replace(/\//g, '-')}.pdf`;
+                pdf.save(filename);
+                
+                // Show success message
+                alert('Report exported successfully!');
+                console.log('PDF exported:', filename);
+            } catch (error) {
+                console.error('Error exporting PDF:', error);
+                alert('Error exporting report. Please check the console for details.');
+            }
+        }
+    </script>
+</body>
+
+</html>

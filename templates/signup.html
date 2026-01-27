@@ -1,0 +1,109 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Sign Up - Inteleyzer</title><link rel="stylesheet" href="/static/css/style.css"><script src="https://unpkg.com/lucide@latest"></script><style>
+
+/* ... style omitted for brevity, keeping existing ... */
+body {
+    display: flex;
+    min-height: 100vh;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--secondary) 0%, #E2E8F0 100%);
+    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800"><defs><filter id="blur"><feGaussianBlur in="SourceGraphic" stdDeviation="8"/></filter></defs><g filter="url(%23blur)" opacity="0.15"><rect x="50" y="100" width="80" height="200" fill="%238DA399" rx="10"/><circle cx="150" cy="150" r="40" fill="%232F4F4F"/><rect x="250" y="80" width="60" height="180" fill="%236B8E23" rx="5"/><circle cx="350" cy="120" r="35" fill="%238DA399"/><path d="M 450 100 L 480 200 L 420 200 Z" fill="%232F4F4F"/><rect x="550" y="90" width="70" height="190" fill="%238DA399" rx="8"/><circle cx="680" cy="140" r="45" fill="%236B8E23"/><rect x="750" y="110" width="55" height="170" fill="%232F4F4F" rx="6"/><circle cx="850" cy="130" r="38" fill="%238DA399"/><path d="M 950 100 L 990 210 L 910 210 Z" fill="%236B8E23"/><rect x="1050" y="95" width="75" height="185" fill="%232F4F4F" rx="9"/><circle cx="100" cy="350" r="50" fill="%238DA399"/><rect x="200" y="300" width="65" height="200" fill="%236B8E23" rx="7"/><circle cx="320" cy="380" r="42" fill="%232F4F4F"/><path d="M 420 320 L 460 450 L 380 450 Z" fill="%238DA399"/><rect x="520" y="310" width="70" height="210" fill="%236B8E23" rx="8"/><circle cx="650" cy="360" r="48" fill="%232F4F4F"/><rect x="750" y="330" width="60" height="190" fill="%238DA399" rx="6"/><circle cx="850" cy="370" r="40" fill="%236B8E23"/><path d="M 950 320 L 995 450 L 905 450 Z" fill="%232F4F4F"/><rect x="1050" y="315" width="72" height="205" fill="%238DA399" rx="8"/></g></svg>');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    margin: 0;
+    padding: 1rem;
+    position: relative;
+}
+
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(8px);
+    z-index: -1;
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 450px;
+    background: white;
+    padding: 2.5rem;
+    border-radius: 16px;
+    box-shadow: var(--shadow-md);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+.role-selector {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.role-option {
+    flex: 1;
+    position: relative;
+}
+
+.role-option input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.role-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem;
+    border: 2px solid #E2E8F0;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+}
+
+.role-card:hover {
+    border-color: var(--primary);
+    background: var(--secondary);
+}
+
+.role-option input:checked+.role-card {
+    border-color: var(--primary);
+    background: var(--secondary);
+    color: var(--primary-dark);
+}
+
+.role-icon {
+    margin-bottom: 0.5rem;
+}
+
+</style></head><body><div class="auth-card"><div style="text-align: center; margin-bottom: 2rem;"><div style="width: 48px; height: 48px; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; border-radius: 12px; margin: 0 auto 1rem auto; font-size: 1.5rem; font-weight: bold;">Rx</div><h2>Create Account</h2><p>Join the medication safety network</p></div><form id="signup-form" method="POST"><div class="role-selector"><label class="role-option"><input type="radio" name="role" value="doctor" checked><div class="role-card"><i data-lucide="stethoscope" class="role-icon"></i><strong>Doctor</strong><span style="font-size: 0.8rem; color: var(--text-muted)">Clinical Safety</span></div></label><label class="role-option"><input type="radio" name="role" value="pharma"><div class="role-card"><i data-lucide="flask-conical" class="role-icon"></i><strong>Pharma</strong><span style="font-size: 0.8rem; color: var(--text-muted)">Intelligence</span></div></label><label class="role-option"><input type="radio" name="role" value="hospital"><div class="role-card"><i data-lucide="building-2" class="role-icon"></i><strong>Hospital</strong><span style="font-size: 0.8rem; color: var(--text-muted)">Safety Management</span></div></label><label class="role-option"><input type="radio" name="role" value="pharmacy"><div class="role-card"><i data-lucide="store" class="role-icon"></i><strong>Pharmacy</strong><span style="font-size: 0.8rem; color: var(--text-muted)">Local Reporting</span></div></label></div><div class="form-group"><label>Full Name</label><input type="text" name="name" required placeholder="Dr. John Doe"></div><div class="form-group"><label>Email Address</label><input type="email" name="email" required placeholder="john@hospital.com"></div><div class="form-group"><label>Password</label><input type="password" name="password" required placeholder="••••••••"></div><button type="submit" class="btn btn-primary" style="width: 100%;">Sign Up</button><p style="text-align: center; margin-top: 1.5rem; font-size: 0.9rem;">Already have an account? <a href="/login" style="color: var(--primary-dark); font-weight: 600;">Login</a></p></form></div><script type="module">import {
+    Auth
+}
+
+from '/static/js/auth.js';
+lucide.createIcons();
+
+document.getElementById('signup-form').addEventListener('submit', async (e)=> {
+        e.preventDefault();
+        const formData=new FormData(e.target);
+        const data=Object.fromEntries(formData.entries());
+
+        const result=await Auth.register(data.name, data.email, data.password, data.role);
+
+        if (result.success) {
+            alert('Account created! Please login.');
+            window.location.href='/login';
+        }
+
+        else {
+            alert(result.message || 'Registration failed');
+        }});
+</script></body></html>

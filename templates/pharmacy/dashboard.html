@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pharmacy Dashboard - Inteleyzer</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script type="module" src="/static/js/sidebar.js"></script>
+</head>
+<body>
+    <div class="dashboard-layout">
+        <app-sidebar></app-sidebar>
+        
+        <main class="main-content">
+            <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                <div>
+                    <h1>Pharmacy Dashboard</h1>
+                    <p>Welcome, <span id="pharmacy-name">Local Pharmacy</span></p>
+                </div>
+                <button class="btn btn-primary" onclick="window.location.href='/pharmacy/report'">
+                    <i data-lucide="plus"></i> Report ADR
+                </button>
+            </header>
+
+            <!-- Summary Cards -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div>
+                            <p style="margin: 0; font-size: 0.9rem;">Reports Filed Today</p>
+                            <h2 style="margin: 0.5rem 0 0 0; font-size: 2rem;" id="stat-today">0</h2>
+                        </div>
+                        <div style="padding: 0.5rem; background: var(--secondary); border-radius: 8px; color: var(--primary-dark);">
+                            <i data-lucide="file-text"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div>
+                            <p style="margin: 0; font-size: 0.9rem;">Total ADR Reports</p>
+                            <h2 style="margin: 0.5rem 0 0 0; font-size: 2rem;" id="stat-total">0</h2>
+                        </div>
+                        <div style="padding: 0.5rem; background: #E0F2FE; border-radius: 8px; color: #0284C7;">
+                            <i data-lucide="clipboard-list"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div>
+                            <p style="margin: 0; font-size: 0.9rem;">High Priority Alerts</p>
+                            <h2 style="margin: 0.5rem 0 0 0; font-size: 2rem; color: #DC2626;" id="stat-alerts">0</h2>
+                        </div>
+                        <div style="padding: 0.5rem; background: #FEF2F2; border-radius: 8px; color: #DC2626;">
+                            <i data-lucide="alert-triangle"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div>
+                            <p style="margin: 0; font-size: 0.9rem;">Dispensing Events</p>
+                            <h2 style="margin: 0.5rem 0 0 0; font-size: 2rem;" id="stat-dispensing">0</h2>
+                        </div>
+                        <div style="padding: 0.5rem; background: #DCFCE7; border-radius: 8px; color: #16A34A;">
+                            <i data-lucide="package"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+                <div class="card">
+                    <h3>Reports by Severity</h3>
+                    <canvas id="severityChart"></canvas>
+                </div>
+                <div class="card">
+                    <h3>Top Reported Drugs</h3>
+                    <canvas id="drugsChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Recent Reports Table -->
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3>Recent ADR Reports</h3>
+                    <button class="btn btn-outline" onclick="window.location.href='/pharmacy/reports'">
+                        View All
+                    </button>
+                </div>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="text-align: left; border-bottom: 2px solid #F1F5F9; color: var(--text-muted);">
+                            <th style="padding: 0.75rem;">Date</th>
+                            <th style="padding: 0.75rem;">Patient</th>
+                            <th style="padding: 0.75rem;">Drug</th>
+                            <th style="padding: 0.75rem;">Reaction</th>
+                            <th style="padding: 0.75rem;">Severity</th>
+                            <th style="padding: 0.75rem;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reports-table">
+                        <tr>
+                            <td colspan="6" style="padding: 1rem; text-align: center;">Loading reports...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        import { Auth } from '/static/js/auth.js';
+
+        const user = Auth.requireAuth();
+        if (user.role !== 'pharmacy') {
+            window.location.href = '/login';
+        }
+
+        document.getElementById('pharmacy-name').textContent = user.name;
+        lucide.createIcons();
+
+        // Load stats
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/pharmacy/stats');
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('stat-today').textContent = data.today;
+                    document.getElementById('stat-total').textContent = data.total;
+                    document.getElementById('stat-alerts').textContent = data.alerts;
+                    document.getElementById('stat-dispensing').textContent = data.dispensing;
+                    
+                    // Create charts
+                    createSeverityChart(data.severity);
+                    createDrugsChart(data.topDrugs);
+                }
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        // Load recent reports
+        async function loadReports() {
+            try {
+                const response = await fetch('/api/pharmacy/reports?limit=5');
+                const data = await response.json();
+                
+                if (data.success && data.reports.length > 0) {
+                    const tableBody = document.getElementById('reports-table');
+                    tableBody.innerHTML = data.reports.map(r => `
+                        <tr style="border-bottom: 1px solid #F1F5F9;">
+                            <td style="padding: 0.75rem;">${new Date(r.date).toLocaleDateString()}</td>
+                            <td style="padding: 0.75rem;">${r.patientName}</td>
+                            <td style="padding: 0.75rem;">${r.drugName}</td>
+                            <td style="padding: 0.75rem;">${r.reaction}</td>
+                            <td style="padding: 0.75rem;">
+                                <span class="badge badge-${r.severity.toLowerCase()}">${r.severity}</span>
+                            </td>
+                            <td style="padding: 0.75rem;">
+                                <span class="badge badge-${r.status === 'Submitted' ? 'success' : 'warning'}">${r.status}</span>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    document.getElementById('reports-table').innerHTML = 
+                        '<tr><td colspan="6" style="padding: 1rem; text-align: center;">No reports yet. Start by filing an ADR report.</td></tr>';
+                }
+            } catch (error) {
+                console.error('Error loading reports:', error);
+            }
+        }
+
+        function createSeverityChart(data) {
+            const ctx = document.getElementById('severityChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Low', 'Medium', 'High'],
+                    datasets: [{
+                        data: [data.low || 0, data.medium || 0, data.high || 0],
+                        backgroundColor: ['#A3C9A8', '#E2C792', '#DCA5A5'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    cutout: '70%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function createDrugsChart(data) {
+            const ctx = document.getElementById('drugsChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.map(d => d.name),
+                    datasets: [{
+                        label: 'Reports',
+                        data: data.map(d => d.count),
+                        backgroundColor: '#8DA399',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    scales: {
+                        x: {
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        // Load data on page load
+        loadStats();
+        loadReports();
+    </script>
+</body>
+</html>
