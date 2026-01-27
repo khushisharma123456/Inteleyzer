@@ -1,0 +1,99 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Safety Intelligence - MedSafe</title><link rel="stylesheet" href="/static/css/style.css"><script src="https://unpkg.com/lucide@latest"></script><script src="https://cdn.jsdelivr.net/npm/chart.js"></script><script type="module" src="/static/js/sidebar.js"></script></head><body><div class="dashboard-layout"><app-sidebar></app-sidebar><main class="main-content"><header style="margin-bottom: 2rem;"><h1>Safety Intelligence</h1><p>Population-level signal detection and reporting</p></header><!-- KPI Cards --><div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;"><div class="card"><p style="margin: 0; font-size: 0.9rem;">Total Reports</p><h2 style="margin: 0.5rem 0 0 0; font-size: 2rem;" id="stat-total">0</h2></div><div class="card"><p style="margin: 0; font-size: 0.9rem;">High Risk Signals</p><h2 style="margin: 0.5rem 0 0 0; font-size: 2rem; color: #DC2626;" id="stat-high">0</h2></div><div class="card"><p style="margin: 0; font-size: 0.9rem;">Avg Patient Age</p><h2 style="margin: 0.5rem 0 0 0; font-size: 2rem;" id="stat-age">0</h2></div></div><!-- Charts Section --><div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;"><div class="card"><h3>Risk Distribution</h3><canvas id="riskChart"></canvas></div><div class="card"><h3>Patient Demographics (Gender)</h3><canvas id="genderChart"></canvas></div></div><!-- Recent Signals --><section class="card"><h3>Recent Signals</h3><div class="table-container" style="margin-top: 1rem;"><table style="width: 100%; border-collapse: collapse;"><thead><tr style="text-align: left; border-bottom: 1px solid #E2E8F0;"><th style="padding: 1rem;">ID</th><th style="padding: 1rem;">Drug</th><th style="padding: 1rem;">Event/Symptom</th><th style="padding: 1rem;">Risk</th></tr></thead><tbody id="signals-table"><tr><td colspan="4" style="padding: 1rem; text-align: center;">Loading data...</td></tr></tbody></table></div></section></main></div><script type="module">import {
+    PharmaApp
+}
+
+from '/static/js/pharma.js';
+
+import {
+    Auth
+}
+
+from '/static/js/auth.js';
+
+Auth.requireAuth();
+lucide.createIcons();
+
+async function init() {
+    // Fetch Stats
+    const stats=await PharmaApp.getAggregateStats();
+    document.getElementById('stat-total').textContent=stats.totalReports;
+    document.getElementById('stat-high').textContent=stats.highRiskCount;
+    document.getElementById('stat-age').textContent=stats.avgAge;
+
+    // Render Charts
+    renderCharts(stats);
+
+    // Fetch Recent List
+    const patients=await PharmaApp.getAllData();
+    const recent=patients.slice(-5).reverse(); // Last 5
+
+    const table=document.getElementById('signals-table');
+
+    if (recent.length===0) {
+        table.innerHTML='<tr><td colspan="4" style="padding: 1rem; text-align: center;">No reports found.</td></tr>';
+    }
+
+    else {
+        table.innerHTML=recent.map(p=> ` <tr style="border-bottom: 1px solid #F1F5F9;" > <td style="padding: 1rem; font-weight: 500;" >${
+                p.id
+            }
+
+            </td> <td style="padding: 1rem;" >${
+                p.drugName
+            }
+
+            </td> <td style="padding: 1rem;" >${
+                p.symptoms || 'None'
+            }
+
+            </td> <td style="padding: 1rem;" > <span class="badge badge-${p.riskLevel.toLowerCase()}" >${
+                p.riskLevel
+            }
+
+            </span> </td> </tr> `).join('');
+    }
+}
+
+function renderCharts(stats) {
+
+    // Risk Pie Chart
+    new Chart(document.getElementById('riskChart'), {
+
+        type: 'doughnut',
+        data: {
+
+            labels: ['Low', 'Medium', 'High'],
+            datasets: [ {
+                data: [stats.riskDist.low, stats.riskDist.medium, stats.riskDist.high],
+                backgroundColor: ['#A3C9A8', '#E2C792', '#DCA5A5']
+            }
+
+            ]
+        }});
+
+// Gender Bar Chart
+new Chart(document.getElementById('genderChart'), {
+
+    type: 'bar',
+    data: {
+
+        labels: ['Male', 'Female', 'Other'],
+        datasets: [ {
+            label: 'Patients',
+            data: [stats.genderDist.male, stats.genderDist.female, stats.genderDist.other],
+            backgroundColor: '#8DA399'
+        }
+
+        ]
+    }
+
+    ,
+    options: {
+        scales: {
+            y: {
+                beginAtZero: true
+            }}}});
+}
+
+init();
+</script></body></html>

@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Experience - MedSafe PV</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script type="module" src="/static/js/sidebar.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        .form-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+        
+        .form-section {
+            background: white;
+            border: 1px solid #E2E8F0;
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+        
+        .form-section h3 {
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid var(--primary);
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        
+        .required-field::after {
+            content: " *";
+            color: #DC2626;
+        }
+        
+        .upload-zone {
+            border: 2px dashed #CBD5E1;
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #FAFAF9;
+        }
+        
+        .upload-zone:hover {
+            border-color: var(--primary);
+            background: var(--secondary);
+        }
+        
+        .upload-zone.dragover {
+            border-color: var(--accent);
+            background: #E6F4EA;
+        }
+        
+        .upload-zone i {
+            width: 48px;
+            height: 48px;
+            color: var(--primary);
+        }
+        
+        .excel-preview {
+            margin-top: 1rem;
+            max-height: 400px;
+            overflow: auto;
+        }
+        
+        .excel-preview table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        
+        .excel-preview th, .excel-preview td {
+            padding: 0.5rem;
+            border: 1px solid #E2E8F0;
+            text-align: left;
+        }
+        
+        .excel-preview th {
+            background: var(--secondary);
+            position: sticky;
+            top: 0;
+        }
+        
+        .missing-field {
+            background: #FEF2F2 !important;
+            color: #DC2626;
+        }
+        
+        .valid-field {
+            background: #F0FDF4;
+        }
+        
+        .analysis-card {
+            background: white;
+            border: 1px solid #E2E8F0;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        
+        .analysis-stat {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #F1F5F9;
+        }
+        
+        .analysis-stat:last-child {
+            border-bottom: none;
+        }
+        
+        .stat-label {
+            color: var(--text-muted);
+        }
+        
+        .stat-value {
+            font-weight: 600;
+        }
+        
+        .stat-value.good { color: #166534; }
+        .stat-value.warning { color: #92400E; }
+        .stat-value.bad { color: #991B1B; }
+        
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .tab {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            background: var(--secondary);
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        .tab.active {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .score-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .score-positive { background: #E6F4EA; color: #166534; }
+        .score-negative { background: #FEE2E2; color: #991B1B; }
+        .score-neutral { background: #FEF3C7; color: #92400E; }
+        
+        .submission-result {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            border-radius: 8px;
+            display: none;
+        }
+        
+        .submission-result.success {
+            background: #E6F4EA;
+            border: 1px solid #166534;
+            color: #166534;
+            display: block;
+        }
+        
+        .submission-result.error {
+            background: #FEE2E2;
+            border: 1px solid #991B1B;
+            color: #991B1B;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-layout">
+        <app-sidebar></app-sidebar>
+        
+        <main class="main-content">
+            <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <div>
+                    <h1>Report Drug Experience</h1>
+                    <p style="color: var(--text-muted);">Submit clinical observations for pharmacovigilance</p>
+                </div>
+            </header>
+            
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('manual')">
+                    <i data-lucide="edit-3" style="width:16px; height:16px; margin-right:0.5rem;"></i>
+                    Manual Entry
+                </button>
+                <button class="tab" onclick="switchTab('excel')">
+                    <i data-lucide="file-spreadsheet" style="width:16px; height:16px; margin-right:0.5rem;"></i>
+                    Excel Upload
+                </button>
+                <button class="tab" onclick="switchTab('history')">
+                    <i data-lucide="history" style="width:16px; height:16px; margin-right:0.5rem;"></i>
+                    Submission History
+                </button>
+            </div>
+            
+            <!-- Manual Entry Tab -->
+            <div id="tab-manual" class="tab-content active">
+                <form id="pv-form" onsubmit="submitExperience(event)">
+                    <div class="form-container">
+                        <!-- Patient Information -->
+                        <div class="form-section">
+                            <h3><i data-lucide="user" style="width:20px; height:20px; margin-right:0.5rem;"></i>Patient Information</h3>
+                            
+                            <div class="form-group">
+                                <label class="required-field">Patient Identifier</label>
+                                <input type="text" name="patient_identifier" required 
+                                       placeholder="Patient ID, phone, or unique identifier">
+                                <small style="color: var(--text-muted);">Will be securely hashed for privacy</small>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Patient Age</label>
+                                    <input type="number" name="patient_age" placeholder="Age">
+                                </div>
+                                <div class="form-group">
+                                    <label>Gender</label>
+                                    <select name="patient_gender">
+                                        <option value="">Select...</option>
+                                        <option value="male">Male</option>
+                                        <option value="female">Female</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Drug Information -->
+                        <div class="form-section">
+                            <h3><i data-lucide="pill" style="width:20px; height:20px; margin-right:0.5rem;"></i>Drug Information</h3>
+                            
+                            <div class="form-group">
+                                <label class="required-field">Drug Name</label>
+                                <input type="text" name="drug_name" required placeholder="Brand or generic name">
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Drug Code (NDC/ATC)</label>
+                                    <input type="text" name="drug_code" placeholder="Optional code">
+                                </div>
+                                <div class="form-group">
+                                    <label>Batch/Lot Number</label>
+                                    <input type="text" name="drug_batch" placeholder="If known">
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Dosage</label>
+                                    <input type="text" name="dosage" placeholder="e.g., 500mg twice daily">
+                                </div>
+                                <div class="form-group">
+                                    <label>Route</label>
+                                    <select name="route_of_administration">
+                                        <option value="">Select...</option>
+                                        <option value="oral">Oral</option>
+                                        <option value="iv">Intravenous (IV)</option>
+                                        <option value="im">Intramuscular (IM)</option>
+                                        <option value="subcutaneous">Subcutaneous</option>
+                                        <option value="topical">Topical</option>
+                                        <option value="inhaled">Inhaled</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Indication (Why Prescribed)</label>
+                                <input type="text" name="indication" placeholder="Condition being treated">
+                            </div>
+                        </div>
+                        
+                        <!-- Event Details -->
+                        <div class="form-section">
+                            <h3><i data-lucide="activity" style="width:20px; height:20px; margin-right:0.5rem;"></i>Event Details</h3>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Drug Start Date</label>
+                                    <input type="date" name="start_date">
+                                </div>
+                                <div class="form-group">
+                                    <label>Event/Observation Date</label>
+                                    <input type="date" name="event_date">
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Observed Events / Symptoms</label>
+                                <textarea name="observed_events" rows="4" 
+                                          placeholder="Describe any symptoms, side effects, or observations..."></textarea>
+                                <small style="color: var(--text-muted);">Include: No adverse events, well-tolerated, or specific symptoms</small>
+                            </div>
+                        </div>
+                        
+                        <!-- Outcome -->
+                        <div class="form-section">
+                            <h3><i data-lucide="clipboard-check" style="width:20px; height:20px; margin-right:0.5rem;"></i>Outcome</h3>
+                            
+                            <div class="form-group">
+                                <label>Patient Outcome</label>
+                                <select name="outcome_status">
+                                    <option value="">Select outcome...</option>
+                                    <option value="recovered">Recovered</option>
+                                    <option value="recovering">Recovering</option>
+                                    <option value="not_recovered">Not Recovered</option>
+                                    <option value="ongoing">Ongoing Treatment</option>
+                                    <option value="unknown">Unknown</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Outcome Notes</label>
+                                <textarea name="outcome" rows="3" 
+                                          placeholder="Additional details about the outcome..."></textarea>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" name="consent_to_contact" value="true">
+                                    Patient consents to follow-up contact
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 1.5rem; display: flex; gap: 1rem; justify-content: flex-end;">
+                        <button type="button" class="btn btn-outline" onclick="clearForm()">Clear Form</button>
+                        <button type="submit" class="btn btn-primary" id="submit-btn">
+                            <i data-lucide="send" style="width:16px; height:16px; margin-right:0.5rem;"></i>
+                            Submit to PV System
+                        </button>
+                    </div>
+                    
+                    <div id="submission-result" class="submission-result"></div>
+                </form>
+            </div>
+            
+            <!-- Excel Upload Tab -->
+            <div id="tab-excel" class="tab-content">
+                <div class="form-section">
+                    <h3><i data-lucide="upload" style="width:20px; height:20px; margin-right:0.5rem;"></i>Upload Excel File</h3>
+                    
+                    <div class="upload-zone" id="upload-zone" onclick="document.getElementById('excel-input').click()">
+                        <i data-lucide="file-spreadsheet"></i>
+                        <h4 style="margin: 1rem 0 0.5rem;">Drop Excel file here or click to browse</h4>
+                        <p style="color: var(--text-muted); margin: 0;">Supports .xlsx and .xls files</p>
+                        <input type="file" id="excel-input" accept=".xlsx,.xls" style="display:none" onchange="handleFileSelect(event)">
+                    </div>
+                    
+                    <div style="margin-top: 1rem;">
+                        <button class="btn btn-outline" onclick="downloadTemplate()">
+                            <i data-lucide="download" style="width:16px; height:16px; margin-right:0.5rem;"></i>
+                            Download Template
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Excel Analysis Results -->
+                <div id="excel-analysis" style="display: none;">
+                    <div class="analysis-card">
+                        <h3 style="margin-bottom: 1rem;">Data Quality Analysis</h3>
+                        <div class="analysis-stat">
+                            <span class="stat-label">Total Records</span>
+                            <span class="stat-value" id="stat-total-records">0</span>
+                        </div>
+                        <div class="analysis-stat">
+                            <span class="stat-label">Complete Records</span>
+                            <span class="stat-value good" id="stat-complete">0</span>
+                        </div>
+                        <div class="analysis-stat">
+                            <span class="stat-label">Missing Required Fields</span>
+                            <span class="stat-value bad" id="stat-missing">0</span>
+                        </div>
+                        <div class="analysis-stat">
+                            <span class="stat-label">Missing Optional Fields</span>
+                            <span class="stat-value warning" id="stat-optional-missing">0</span>
+                        </div>
+                    </div>
+                    
+                    <div class="analysis-card">
+                        <h3 style="margin-bottom: 1rem;">Missing Information Details</h3>
+                        <div id="missing-details"></div>
+                    </div>
+                    
+                    <div class="form-section" style="margin-top: 1.5rem;">
+                        <h3>Data Preview</h3>
+                        <div class="excel-preview" id="excel-preview"></div>
+                    </div>
+                    
+                    <div style="margin-top: 1.5rem; display: flex; gap: 1rem; justify-content: flex-end;">
+                        <button class="btn btn-outline" onclick="clearExcel()">Clear</button>
+                        <button class="btn btn-primary" onclick="submitExcelData()" id="excel-submit-btn">
+                            <i data-lucide="upload-cloud" style="width:16px; height:16px; margin-right:0.5rem;"></i>
+                            Submit All Records
+                        </button>
+                    </div>
+                    
+                    <div id="excel-submission-result" class="submission-result"></div>
+                </div>
+            </div>
+            
+            <!-- History Tab -->
+            <div id="tab-history" class="tab-content">
+                <div class="form-section">
+                    <h3>Recent Submissions</h3>
+                    <div id="history-container">
+                        <p style="text-align: center; padding: 2rem; color: var(--text-muted);">Loading...</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        import { Auth } from '/static/js/auth.js';
+        
+        // Require authentication
+        const user = Auth.requireAuth();
+        if (!user) {
+            window.location.href = '/login';
+        }
+        
+        lucide.createIcons();
+        
+        // Make functions globally available
+        window.switchTab = switchTab;
+        window.submitExperience = submitExperience;
+        window.clearForm = clearForm;
+        window.handleFileSelect = handleFileSelect;
+        window.downloadTemplate = downloadTemplate;
+        window.clearExcel = clearExcel;
+        window.submitExcelData = submitExcelData;
+        
+        // Store parsed Excel data
+        let excelData = [];
+        
+        // PV Backend URL
+        const PV_API = 'http://localhost:5001/api';
+        
+        // Use development endpoints (no auth required)
+        const PV_SUBMIT_URL = `${PV_API}/submit/doctor-dev`;
+        const PV_CASES_URL = `${PV_API}/cases/dev`;
+        
+        // Get auth token for PV API (optional in dev mode)
+        function getPVToken() {
+            return localStorage.getItem('pv_token');
+        }
+        
+        // Tab switching
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            
+            if (tabName === 'history') {
+                loadHistory();
+            }
+            
+            lucide.createIcons();
+        }
+        
+        // Submit experience form
+        async function submitExperience(event) {
+            event.preventDefault();
+            
+            const form = event.target;
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+            
+            // Map form data to PV API format
+            const pvData = {
+                patient_identifier: data.patient_identifier,
+                drug_name: data.drug_name,
+                drug_code: data.drug_code || null,
+                drug_batch: data.drug_batch || null,
+                indication: data.indication || null,
+                dosage: data.dosage || null,
+                route_of_administration: data.route_of_administration || null,
+                start_date: data.start_date || null,
+                event_date: data.event_date || null,
+                observed_events: data.observed_events || null,
+                outcome: data.outcome || data.outcome_status || null,
+                consent_to_contact: data.consent_to_contact === 'true'
+            };
+            
+            const resultDiv = document.getElementById('submission-result');
+            const submitBtn = document.getElementById('submit-btn');
+            
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i data-lucide="loader" style="width:16px; height:16px; margin-right:0.5rem;"></i>Submitting...';
+            
+            try {
+                // First try to get PV token, or use existing session
+                let token = getPVToken();
+                
+                // Submit to PV backend (use dev endpoint - no auth required)
+                const response = await fetch(PV_SUBMIT_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(pvData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    resultDiv.className = 'submission-result success';
+                    resultDiv.innerHTML = `
+                        <strong>✓ Submission Successful</strong>
+                        <p>Case Number: <strong>${result.case_number}</strong></p>
+                        <p>Event ID: ${result.event_id} | New Case: ${result.is_new_case ? 'Yes' : 'No (linked to existing)'}</p>
+                        <p>Score: <span class="score-badge ${getScoreClass(result.score?.computed_score)}">${result.score?.computed_score || 0}</span>
+                           (${result.score?.polarity || 'unclear'}, strength ${result.score?.strength || 0})</p>
+                        ${result.followups_created > 0 ? `<p style="color: #92400E;">⚠ ${result.followups_created} follow-up request(s) created due to incomplete data</p>` : ''}
+                    `;
+                    
+                    // Also save to local backend for patient tracking
+                    await saveToLocalBackend(data);
+                    
+                    // Clear form after successful submission
+                    setTimeout(() => {
+                        form.reset();
+                    }, 2000);
+                } else {
+                    throw new Error(result.message || 'Submission failed');
+                }
+            } catch (error) {
+                console.error('Submission error:', error);
+                resultDiv.className = 'submission-result error';
+                resultDiv.innerHTML = `
+                    <strong>✗ Submission Failed</strong>
+                    <p>${error.message}</p>
+                    <p>Please ensure the PV backend is running on port 5001 and you are authenticated.</p>
+                `;
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i data-lucide="send" style="width:16px; height:16px; margin-right:0.5rem;"></i>Submit to PV System';
+                lucide.createIcons();
+            }
+        }
+        
+        function getScoreClass(score) {
+            if (score > 0) return 'score-positive';
+            if (score < 0) return 'score-negative';
+            return 'score-neutral';
+        }
+        
+        // Save to local backend for patient tracking
+        async function saveToLocalBackend(data) {
+            try {
+                await fetch('/api/patients', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: `Patient-${data.patient_identifier.substring(0, 8)}`,
+                        age: data.patient_age || 0,
+                        gender: data.patient_gender || 'Unknown',
+                        drugName: data.drug_name,
+                        symptoms: data.observed_events || ''
+                    })
+                });
+            } catch (e) {
+                console.log('Local backend save skipped:', e);
+            }
+        }
+        
+        function clearForm() {
+            document.getElementById('pv-form').reset();
+            document.getElementById('submission-result').className = 'submission-result';
+        }
+        
+        // Excel handling
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                
+                // Get first sheet
+                const sheetName = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[sheetName];
+                
+                // Convert to JSON
+                excelData = XLSX.utils.sheet_to_json(sheet);
+                
+                // Analyze and display
+                analyzeExcelData(excelData);
+            };
+            reader.readAsArrayBuffer(file);
+        }
+        
+        // Drag and drop
+        const uploadZone = document.getElementById('upload-zone');
+        
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+        
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+        
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            
+            const file = e.dataTransfer.files[0];
+            if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
+                const input = document.getElementById('excel-input');
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                input.files = dataTransfer.files;
+                handleFileSelect({ target: input });
+            }
+        });
+        
+        // Required and optional fields
+        const REQUIRED_FIELDS = ['patient_identifier', 'drug_name'];
+        const OPTIONAL_FIELDS = ['drug_code', 'indication', 'dosage', 'route', 'start_date', 'event_date', 'observed_events', 'outcome'];
+        
+        function analyzeExcelData(data) {
+            document.getElementById('excel-analysis').style.display = 'block';
+            
+            let completeCount = 0;
+            let missingRequired = 0;
+            let missingOptional = 0;
+            const missingByField = {};
+            
+            data.forEach((row, index) => {
+                let hasAllRequired = true;
+                let missingOptionalCount = 0;
+                
+                REQUIRED_FIELDS.forEach(field => {
+                    if (!row[field] && !row[field.replace('_', ' ')]) {
+                        hasAllRequired = false;
+                        missingByField[field] = (missingByField[field] || 0) + 1;
+                    }
+                });
+                
+                OPTIONAL_FIELDS.forEach(field => {
+                    if (!row[field] && !row[field.replace('_', ' ')]) {
+                        missingOptionalCount++;
+                        missingByField[field] = (missingByField[field] || 0) + 1;
+                    }
+                });
+                
+                if (hasAllRequired) {
+                    completeCount++;
+                } else {
+                    missingRequired++;
+                }
+                
+                if (missingOptionalCount > 0) {
+                    missingOptional++;
+                }
+            });
+            
+            // Update stats
+            document.getElementById('stat-total-records').textContent = data.length;
+            document.getElementById('stat-complete').textContent = completeCount;
+            document.getElementById('stat-missing').textContent = missingRequired;
+            document.getElementById('stat-optional-missing').textContent = missingOptional;
+            
+            // Show missing details
+            const detailsDiv = document.getElementById('missing-details');
+            if (Object.keys(missingByField).length > 0) {
+                detailsDiv.innerHTML = Object.entries(missingByField).map(([field, count]) => `
+                    <div class="analysis-stat">
+                        <span class="stat-label">${field.replace('_', ' ')}</span>
+                        <span class="stat-value ${REQUIRED_FIELDS.includes(field) ? 'bad' : 'warning'}">${count} records missing</span>
+                    </div>
+                `).join('');
+            } else {
+                detailsDiv.innerHTML = '<p style="color: #166534;">All fields are complete!</p>';
+            }
+            
+            // Show preview table
+            renderExcelPreview(data);
+        }
+        
+        function renderExcelPreview(data) {
+            if (data.length === 0) return;
+            
+            const headers = Object.keys(data[0]);
+            const previewDiv = document.getElementById('excel-preview');
+            
+            let html = '<table><thead><tr>';
+            headers.forEach(h => {
+                const isRequired = REQUIRED_FIELDS.includes(h.replace(' ', '_'));
+                html += `<th>${h}${isRequired ? ' *' : ''}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+            
+            data.slice(0, 50).forEach(row => {
+                html += '<tr>';
+                headers.forEach(h => {
+                    const value = row[h];
+                    const fieldName = h.replace(' ', '_');
+                    let cellClass = '';
+                    
+                    if (!value) {
+                        if (REQUIRED_FIELDS.includes(fieldName)) {
+                            cellClass = 'missing-field';
+                        }
+                    }
+                    
+                    html += `<td class="${cellClass}">${value || '<em>missing</em>'}</td>`;
+                });
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table>';
+            if (data.length > 50) {
+                html += `<p style="text-align: center; padding: 1rem; color: var(--text-muted);">Showing first 50 of ${data.length} records</p>`;
+            }
+            
+            previewDiv.innerHTML = html;
+        }
+        
+        function downloadTemplate() {
+            const template = [
+                {
+                    'patient_identifier': 'P001',
+                    'drug_name': 'Aspirin',
+                    'drug_code': 'NDC-12345',
+                    'indication': 'Pain management',
+                    'dosage': '500mg daily',
+                    'route': 'oral',
+                    'start_date': '2026-01-01',
+                    'event_date': '2026-01-15',
+                    'observed_events': 'No adverse events, well tolerated',
+                    'outcome': 'ongoing'
+                }
+            ];
+            
+            const ws = XLSX.utils.json_to_sheet(template);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Drug Experiences');
+            XLSX.writeFile(wb, 'pv_template.xlsx');
+        }
+        
+        function clearExcel() {
+            excelData = [];
+            document.getElementById('excel-input').value = '';
+            document.getElementById('excel-analysis').style.display = 'none';
+            document.getElementById('excel-submission-result').className = 'submission-result';
+        }
+        
+        async function submitExcelData() {
+            if (excelData.length === 0) {
+                alert('No data to submit');
+                return;
+            }
+            
+            const resultDiv = document.getElementById('excel-submission-result');
+            const submitBtn = document.getElementById('excel-submit-btn');
+            
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i data-lucide="loader"></i>Submitting...';
+            
+            let successCount = 0;
+            let failCount = 0;
+            const errors = [];
+            
+            const token = getPVToken();
+            
+            for (let i = 0; i < excelData.length; i++) {
+                const row = excelData[i];
+                
+                // Map Excel columns to API format
+                const pvData = {
+                    patient_identifier: row.patient_identifier || row['patient_identifier'],
+                    drug_name: row.drug_name || row['drug_name'],
+                    drug_code: row.drug_code || row['drug_code'] || null,
+                    indication: row.indication || null,
+                    dosage: row.dosage || null,
+                    route_of_administration: row.route || null,
+                    start_date: row.start_date || null,
+                    event_date: row.event_date || null,
+                    observed_events: row.observed_events || null,
+                    outcome: row.outcome || null
+                };
+                
+                // Skip rows without required fields
+                if (!pvData.patient_identifier || !pvData.drug_name) {
+                    failCount++;
+                    errors.push(`Row ${i + 1}: Missing required fields`);
+                    continue;
+                }
+                
+                try {
+                    const response = await fetch(PV_SUBMIT_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(pvData)
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        successCount++;
+                    } else {
+                        failCount++;
+                        errors.push(`Row ${i + 1}: ${result.message}`);
+                    }
+                } catch (e) {
+                    failCount++;
+                    errors.push(`Row ${i + 1}: Network error`);
+                }
+            }
+            
+            // Show results
+            if (failCount === 0) {
+                resultDiv.className = 'submission-result success';
+                resultDiv.innerHTML = `
+                    <strong>✓ All ${successCount} records submitted successfully!</strong>
+                `;
+            } else {
+                resultDiv.className = 'submission-result ' + (successCount > 0 ? 'warning' : 'error');
+                resultDiv.innerHTML = `
+                    <strong>${successCount} succeeded, ${failCount} failed</strong>
+                    <details style="margin-top: 0.5rem;">
+                        <summary>Show errors</summary>
+                        <ul style="margin-top: 0.5rem;">
+                            ${errors.map(e => `<li>${e}</li>`).join('')}
+                        </ul>
+                    </details>
+                `;
+            }
+            
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i data-lucide="upload-cloud"></i>Submit All Records';
+            lucide.createIcons();
+        }
+        
+        // Load submission history
+        async function loadHistory() {
+            const container = document.getElementById('history-container');
+            
+            try {
+                const response = await fetch(`${PV_CASES_URL}?limit=20`, {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.cases && result.cases.length > 0) {
+                    container.innerHTML = `
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="border-bottom: 2px solid #E2E8F0;">
+                                    <th style="text-align: left; padding: 0.75rem;">Case #</th>
+                                    <th style="text-align: left; padding: 0.75rem;">Drug</th>
+                                    <th style="text-align: left; padding: 0.75rem;">Score</th>
+                                    <th style="text-align: left; padding: 0.75rem;">Status</th>
+                                    <th style="text-align: left; padding: 0.75rem;">Events</th>
+                                    <th style="text-align: left; padding: 0.75rem;">Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${result.cases.map(c => `
+                                    <tr style="border-bottom: 1px solid #F1F5F9;">
+                                        <td style="padding: 0.75rem;"><strong>${c.case_number}</strong></td>
+                                        <td style="padding: 0.75rem;">${c.drug_name_normalized}</td>
+                                        <td style="padding: 0.75rem;">
+                                            <span class="score-badge ${getScoreClass(c.current_score)}">${c.current_score}</span>
+                                        </td>
+                                        <td style="padding: 0.75rem;">
+                                            <span class="badge badge-${c.priority === 'critical' ? 'high' : c.priority === 'high' ? 'medium' : 'low'}">${c.status}</span>
+                                        </td>
+                                        <td style="padding: 0.75rem;">${c.event_count}</td>
+                                        <td style="padding: 0.75rem;">${new Date(c.created_at).toLocaleDateString()}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                } else {
+                    container.innerHTML = '<p style="text-align: center; padding: 2rem; color: var(--text-muted);">No submissions yet. Start by submitting a drug experience report.</p>';
+                }
+            } catch (e) {
+                console.error('Error loading history:', e);
+                container.innerHTML = '<p style="text-align: center; padding: 2rem; color: #DC2626;">Error loading history. Make sure PV backend is running.</p>';
+            }
+        }
+    </script>
+</body>
+</html>

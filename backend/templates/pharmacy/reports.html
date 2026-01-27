@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ADR Reports - Pharmacy</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script type="module" src="/static/js/sidebar.js"></script>
+</head>
+<body>
+    <div class="dashboard-layout">
+        <app-sidebar></app-sidebar>
+        
+        <main class="main-content">
+            <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                <div>
+                    <h1>ADR Reports</h1>
+                    <p>All adverse drug reactions reported from your pharmacy</p>
+                </div>
+                <button class="btn btn-primary" onclick="window.location.href='/pharmacy/report'">
+                    <i data-lucide="plus"></i> New Report
+                </button>
+            </header>
+
+            <!-- Filter Section -->
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <select id="filter-severity" class="form-control" style="width: 150px;">
+                        <option value="">All Severities</option>
+                        <option value="Low">Low</option>
+                        <option value="Medium">Medium</option>
+                        <option value="High">High</option>
+                    </select>
+                    
+                    <select id="filter-status" class="form-control" style="width: 150px;">
+                        <option value="">All Statuses</option>
+                        <option value="Submitted">Submitted</option>
+                        <option value="Under Review">Under Review</option>
+                        <option value="Resolved">Resolved</option>
+                    </select>
+                    
+                    <input type="text" id="filter-drug" class="form-control" placeholder="Search by drug name..." style="flex: 1; min-width: 200px;">
+                    
+                    <button class="btn btn-outline" onclick="applyFilters()">
+                        <i data-lucide="filter"></i> Apply
+                    </button>
+                    <button class="btn btn-outline" onclick="clearFilters()">
+                        <i data-lucide="x"></i> Clear
+                    </button>
+                </div>
+            </div>
+
+            <!-- Reports Table -->
+            <div class="card">
+                <div id="loading" style="text-align: center; padding: 3rem;">
+                    <p>Loading reports...</p>
+                </div>
+                
+                <div id="reports-container" style="display: none;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="text-align: left; border-bottom: 2px solid #F1F5F9; color: var(--text-muted);">
+                                <th style="padding: 0.75rem;">Report ID</th>
+                                <th style="padding: 0.75rem;">Date</th>
+                                <th style="padding: 0.75rem;">Patient</th>
+                                <th style="padding: 0.75rem;">Age/Gender</th>
+                                <th style="padding: 0.75rem;">Drug</th>
+                                <th style="padding: 0.75rem;">Reaction</th>
+                                <th style="padding: 0.75rem;">Severity</th>
+                                <th style="padding: 0.75rem;">Status</th>
+                                <th style="padding: 0.75rem;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reports-table"></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Report Detail Modal -->
+    <div id="reportModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+        <div class="card" style="max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 2px solid #F1F5F9; padding-bottom: 1rem;">
+                <h3>Report Details</h3>
+                <button onclick="closeModal()" style="background: none; border: none; cursor: pointer;">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div id="modal-content"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { Auth } from '/static/js/auth.js';
+
+        const user = Auth.requireAuth();
+        if (user.role !== 'pharmacy') {
+            window.location.href = '/login';
+        }
+
+        lucide.createIcons();
+
+        let allReports = [];
+
+        async function loadReports() {
+            try {
+                const response = await fetch('/api/pharmacy/reports');
+                const data = await response.json();
+                
+                if (data.success) {
+                    allReports = data.reports;
+                    displayReports(allReports);
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('reports-container').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error loading reports:', error);
+                document.getElementById('loading').innerHTML = '<p style="color: red;">Error loading reports</p>';
+            }
+        }
+
+        function displayReports(reports) {
+            const tableBody = document.getElementById('reports-table');
+            
+            if (reports.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="9" style="padding: 2rem; text-align: center;">No reports found</td></tr>';
+                return;
+            }
+            
+            tableBody.innerHTML = reports.map(r => `
+                <tr style="border-bottom: 1px solid #F1F5F9;">
+                    <td style="padding: 0.75rem; font-family: monospace;">${r.id}</td>
+                    <td style="padding: 0.75rem;">${new Date(r.date).toLocaleDateString()}</td>
+                    <td style="padding: 0.75rem;">${r.patientName}</td>
+                    <td style="padding: 0.75rem;">${r.age}/${r.gender[0]}</td>
+                    <td style="padding: 0.75rem;"><strong>${r.drugName}</strong></td>
+                    <td style="padding: 0.75rem;">${r.reaction.substring(0, 30)}...</td>
+                    <td style="padding: 0.75rem;">
+                        <span class="badge badge-${r.severity.toLowerCase()}">${r.severity}</span>
+                    </td>
+                    <td style="padding: 0.75rem;">
+                        <span class="badge badge-${r.status === 'Submitted' ? 'success' : r.status === 'Under Review' ? 'warning' : 'info'}">
+                            ${r.status}
+                        </span>
+                    </td>
+                    <td style="padding: 0.75rem;">
+                        <button class="btn btn-sm btn-outline" onclick="viewReport('${r.id}')">
+                            <i data-lucide="eye"></i> View
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+            
+            lucide.createIcons();
+        }
+
+        window.applyFilters = function() {
+            const severity = document.getElementById('filter-severity').value;
+            const status = document.getElementById('filter-status').value;
+            const drug = document.getElementById('filter-drug').value.toLowerCase();
+            
+            const filtered = allReports.filter(r => {
+                if (severity && r.severity !== severity) return false;
+                if (status && r.status !== status) return false;
+                if (drug && !r.drugName.toLowerCase().includes(drug)) return false;
+                return true;
+            });
+            
+            displayReports(filtered);
+        };
+
+        window.clearFilters = function() {
+            document.getElementById('filter-severity').value = '';
+            document.getElementById('filter-status').value = '';
+            document.getElementById('filter-drug').value = '';
+            displayReports(allReports);
+        };
+
+        window.viewReport = function(reportId) {
+            const report = allReports.find(r => r.id === reportId);
+            if (!report) return;
+            
+            const modal = document.getElementById('reportModal');
+            const content = document.getElementById('modal-content');
+            
+            content.innerHTML = `
+                <div style="display: grid; gap: 1rem;">
+                    <div>
+                        <label style="font-weight: 600; display: block; margin-bottom: 0.25rem;">Report ID</label>
+                        <p>${report.id}</p>
+                    </div>
+                    <div>
+                        <label style="font-weight: 600; display: block; margin-bottom: 0.25rem;">Date Reported</label>
+                        <p>${new Date(report.date).toLocaleString()}</p>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div>
+                            <label style="font-weight: 600; display: block; margin-bottom: 0.25rem;">Patient Name</label>
+                            <p>${report.patientName}</p>
+                        </div>
+                        <div>
+                            <label style="font-weight: 600; display: block; margin-bottom: 0.25rem;">Age / Gender</label>
+                            <p>${report.age} years / ${report.gender}</p>
+                        </div>
+                    </div>
+                    <div>
+                        <label style="font-weight: 600; display: block; margin-bottom: 0.25rem;">Drug Name</label>
+                        <p style="font-size: 1.1rem; color: var(--primary-dark);"><strong>${report.drugName}</strong></p>
+                    </div>
+                    <div>
+                        <label style="font-weight: 600; display: block; margin-bottom: 0.25rem;">Adverse Reaction</label>
+                        <p>${report.reaction}</p>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div>
+                            <label style="font-weight: 600; display: block; margin-bottom: 0.25rem;">Severity</label>
+                            <span class="badge badge-${report.severity.toLowerCase()}">${report.severity}</span>
+                        </div>
+                        <div>
+                            <label style="font-weight: 600; display: block; margin-bottom: 0.25rem;">Status</label>
+                            <span class="badge badge-${report.status === 'Submitted' ? 'success' : 'warning'}">${report.status}</span>
+                        </div>
+                    </div>
+                    ${report.notes ? `
+                        <div>
+                            <label style="font-weight: 600; display: block; margin-bottom: 0.25rem;">Additional Notes</label>
+                            <p>${report.notes}</p>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            modal.style.display = 'flex';
+            lucide.createIcons();
+        };
+
+        window.closeModal = function() {
+            document.getElementById('reportModal').style.display = 'none';
+        };
+
+        // Close modal on outside click
+        document.getElementById('reportModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+
+        loadReports();
+    </script>
+</body>
+</html>
