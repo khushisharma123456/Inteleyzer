@@ -1,11 +1,11 @@
 :root {
     /* Color Palette */
-    --primary: #8DA399;
-    /* Soft Sage Green */
-    --primary-dark: #2F4F4F;
-    /* Dark Slate */
-    --secondary: #F5F5F0;
-    /* Cream / Warm Beige */
+    --primary: #3A5A7A;
+    /* Deep Bluish Gray */
+    --primary-dark: #1F3A52;
+    /* Very Dark Bluish Gray */
+    --secondary: #D8E0EB;
+    /* Darker Light Blue-Gray */
     --accent: #6B8E23;
     /* Olive Green */
 

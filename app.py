@@ -16,6 +16,15 @@ from datetime import datetime
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'inteleyzer-secret-key-dev'
 
+# Template configuration
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+
+# Session configuration
+app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['PERMANENT_SESSION_LIFETIME'] = 86400  # 24 hours
+
 # Get absolute path for database
 basedir = os.path.abspath(os.path.dirname(__file__))
 instance_path = os.path.join(basedir, 'instance')
@@ -25,6 +34,17 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 CORS(app)
 db.init_app(app)
+
+# Add cache-busting headers for development
+@app.after_request
+def add_header(response):
+    response.cache_control.max_age = 0
+    response.cache_control.no_cache = True
+    response.cache_control.no_store = True
+    response.cache_control.must_revalidate = True
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 # Create database tables
 with app.app_context():
@@ -64,6 +84,10 @@ def doctor_warnings():
 @app.route('/doctor/report')
 def doctor_report():
     return render_template('doctor/report.html')
+
+@app.route('/doctor/settings')
+def doctor_settings():
+    return render_template('doctor/settings.html')
 
 # Pharma Routes
 @app.route('/pharma/dashboard')
@@ -125,6 +149,7 @@ def login():
     user = User.query.filter_by(email=data['email'], password=data['password']).first()
     
     if user:
+        session.permanent = True
         session['user_id'] = user.id
         session['role'] = user.role
         session['user_name'] = user.name
@@ -876,6 +901,90 @@ def get_hospital_drug_stats(drug_name):
         'adverselyAffected': adversely_affected,
         'pharmaCalls': pharma_calls
     })
+
+# Hospital Settings APIs
+@app.route('/api/hospital/settings', methods=['POST'])
+def save_hospital_settings():
+    if 'user_id' not in session or session.get('role') != 'hospital':
+        return jsonify({'success': False, 'message': 'Not authorized'}), 403
+    
+    data = request.json
+    user = User.query.get(session['user_id'])
+    
+    if user:
+        # In a real app, you would save these to the database
+        # For now, we'll just return success
+        return jsonify({'success': True, 'message': 'Settings saved'})
+    
+    return jsonify({'success': False, 'message': 'User not found'}), 404
+
+@app.route('/api/hospital/privacy-settings', methods=['POST'])
+def save_privacy_settings():
+    if 'user_id' not in session or session.get('role') != 'hospital':
+        return jsonify({'success': False, 'message': 'Not authorized'}), 403
+    
+    data = request.json
+    user = User.query.get(session['user_id'])
+    
+    if user:
+        # In a real app, you would save these to the database
+        return jsonify({'success': True, 'message': 'Privacy settings saved'})
+    
+    return jsonify({'success': False, 'message': 'User not found'}), 404
+
+@app.route('/api/hospital/notification-settings', methods=['POST'])
+def save_notification_settings():
+    if 'user_id' not in session or session.get('role') != 'hospital':
+        return jsonify({'success': False, 'message': 'Not authorized'}), 403
+    
+    data = request.json
+    user = User.query.get(session['user_id'])
+    
+    if user:
+        # In a real app, you would save these to the database
+        return jsonify({'success': True, 'message': 'Notification settings saved'})
+    
+    return jsonify({'success': False, 'message': 'User not found'}), 404
+
+# Doctor Settings APIs
+@app.route('/api/doctor/settings', methods=['POST'])
+def save_doctor_settings():
+    if 'user_id' not in session or session.get('role') != 'doctor':
+        return jsonify({'success': False, 'message': 'Not authorized'}), 403
+    
+    data = request.json
+    user = User.query.get(session['user_id'])
+    
+    if user:
+        return jsonify({'success': True, 'message': 'Settings saved'})
+    
+    return jsonify({'success': False, 'message': 'User not found'}), 404
+
+@app.route('/api/doctor/privacy-settings', methods=['POST'])
+def save_doctor_privacy_settings():
+    if 'user_id' not in session or session.get('role') != 'doctor':
+        return jsonify({'success': False, 'message': 'Not authorized'}), 403
+    
+    data = request.json
+    user = User.query.get(session['user_id'])
+    
+    if user:
+        return jsonify({'success': True, 'message': 'Privacy settings saved'})
+    
+    return jsonify({'success': False, 'message': 'User not found'}), 404
+
+@app.route('/api/doctor/notification-settings', methods=['POST'])
+def save_doctor_notification_settings():
+    if 'user_id' not in session or session.get('role') != 'doctor':
+        return jsonify({'success': False, 'message': 'Not authorized'}), 403
+    
+    data = request.json
+    user = User.query.get(session['user_id'])
+    
+    if user:
+        return jsonify({'success': True, 'message': 'Notification settings saved'})
+    
+    return jsonify({'success': False, 'message': 'User not found'}), 404
 
 if __name__ == '__main__':
     # ========================================================================

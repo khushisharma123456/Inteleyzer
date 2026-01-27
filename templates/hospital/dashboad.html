@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hospital–Pharma Safety Intelligence Dashboard</title>
+    <!-- DEBUG: dashboad.html is being rendered -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
@@ -1361,18 +1362,24 @@
             updateDashboardCards();
             updateTables();
             
+            // Show pharma alert immediately
+            showPharmaAlert(
+                '🚨 URGENT: Medicines to be Immediately Discontinued',
+                'Priority Risk Medicines: PainAway (Ibuprofen 500mg), Neurocalm (Diazepam 5mg), Cardiostat (Atorvastatin 20mg). These medicines are on priority risk - DO NOT USE.'
+            );
+            
             // Initialize charts after a short delay to ensure DOM is ready
             setTimeout(() => {
                 setupCharts();
-            }, 500);
+            }, 300);
 
             // Demo: Show pharma alert (remove this in production or trigger from backend)
             setTimeout(() => {
                 showPharmaAlert(
-                    '⚠️ Critical Safety Alert from Pharma',
-                    'PainAway (Ibuprofen 500mg) - Immediate action required. Review details in Pharma Safety Alerts section.'
+                    '🚨 URGENT: Medicines to be Immediately Discontinued',
+                    'Priority Risk Medicines: PainAway (Ibuprofen 500mg), Neurocalm (Diazepam 5mg), Cardiostat (Atorvastatin 20mg). These medicines are on priority risk - DO NOT USE.'
                 );
-            }, 1000);
+            }, 100);
         });
 
         function initDashboard() {
@@ -2391,14 +2398,9 @@
                 });
             }
 
-            // Navigation links
-            document.querySelectorAll('.nav-link').forEach(link => {
-                link.addEventListener('click', function (e) {
-                    e.preventDefault();
-                    const sectionId = this.getAttribute('data-tab');
-                    showSection(sectionId);
-                });
-            });
+            // Navigation links - REMOVED: Allow normal navigation to separate pages
+            // Previously prevented default and used showSection() for single-page app
+            // Now each page is a separate template rendered by Flask
 
             // Tab switching in overview
             const tabs = document.querySelectorAll('.tab');

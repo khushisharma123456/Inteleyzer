@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Patient Recall - Hospital Safety Dashboard</title>
+    <!-- DEBUG: patient-recall.html is being rendered -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -264,8 +265,14 @@
         /* Main Content */
         .main-content {
             flex: 1;
+            margin-left: var(--sidebar-width);
             padding: 25px 30px;
             overflow-y: auto;
+            transition: margin-left 0.3s ease;
+        }
+
+        body.sidebar-collapsed .main-content {
+            margin-left: 80px;
         }
 
         .header {
@@ -466,12 +473,21 @@
             margin-top: 20px;
             padding-top: 15px;
             border-top: 1px solid #e2e8f0;
+            justify-content: space-between;
         }
 
         .button-group .btn {
-            flex: 1;
             text-align: center;
             padding: 10px 15px;
+        }
+
+        .button-group .btn-primary {
+            flex: 1;
+        }
+
+        .button-group .btn-secondary {
+            padding: 10px 20px;
+            flex: 0 0 auto;
         }
 
         .success-message {
@@ -809,7 +825,7 @@
         // Recall Action Handler
         function handleRecallAction(requestId, action) {
             if (action === 'yes') {
-                showSuccessMessage(`Recall request ${requestId} has been accepted.`);
+                showSuccessMessage(`Assurance delivered to the company for recall request ${requestId}.`);
             } else if (action === 'no') {
                 openRejectionModal(requestId);
             }

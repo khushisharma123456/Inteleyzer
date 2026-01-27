@@ -173,6 +173,7 @@
         font-size: 11px;
         color: var(--text-muted);
         margin: 4px 0 0 0;
+        display: none;
     }
 
     .sidebar.collapsed .hospital-info {
@@ -186,10 +187,9 @@
 
 <aside class="sidebar" id="sidebar">
     <div class="logo">
-        <div class="logo-icon">Rx</div>
+        <img src="{{ url_for('static', filename='images/logo.jpeg') }}" alt="Inteleyzer Logo" style="width: 32px; height: 32px; border-radius: 8px; object-fit: cover;">
         <div class="logo-text">
             <h1>Inteleyzer</h1>
-            <span>Hospital Safety</span>
         </div>
     </div>
 
