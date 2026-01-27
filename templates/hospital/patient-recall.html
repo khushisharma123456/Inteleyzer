@@ -508,6 +508,11 @@
             border-collapse: collapse;
         }
 
+        .data-table-wrapper {
+            overflow-x: auto;
+            margin-bottom: 20px;
+        }
+
         .data-table th {
             background-color: #f7fafc;
             padding: 16px 20px;
@@ -515,12 +520,14 @@
             font-weight: 600;
             color: var(--hospital-blue);
             border-bottom: 2px solid #e2e8f0;
-            font-size: 14px;
+            font-size: 13px;
+            white-space: nowrap;
         }
 
         .data-table td {
             padding: 16px 20px;
             border-bottom: 1px solid #f0f0f0;
+            font-size: 13px;
         }
 
         .data-table tr:hover {
@@ -697,10 +704,17 @@
 
                 <!-- Active Recall Requests Table -->
                 <h4 style="margin-top: 30px; margin-bottom: 15px; color: var(--hospital-blue); font-weight: 600;">Active Recall Requests</h4>
-                <table class="data-table">
+                <div class="data-table-wrapper">
+                    <table class="data-table">
                     <thead>
                         <tr>
                             <th>Request ID</th>
+                            <th>Patient Name</th>
+                            <th>Phone</th>
+                            <th>Email</th>
+                            <th>Address</th>
+                            <th>State</th>
+                            <th>District</th>
                             <th>Drug</th>
                             <th>Exposure Period</th>
                             <th>Reason</th>
@@ -712,6 +726,12 @@
                     <tbody>
                         <tr>
                             <td><strong>REC-001</strong></td>
+                            <td>Rajesh Kumar</td>
+                            <td>+91 98765 43210</td>
+                            <td>rajesh.kumar@email.com</td>
+                            <td>123 Main Street, Hospital Lane</td>
+                            <td>Maharashtra</td>
+                            <td>Mumbai</td>
                             <td>PainAway</td>
                             <td>May–June 2023</td>
                             <td>Post-market safety monitoring</td>
@@ -730,6 +750,12 @@
                         </tr>
                         <tr>
                             <td><strong>REC-002</strong></td>
+                            <td>Priya Sharma</td>
+                            <td>+91 87654 32109</td>
+                            <td>priya.sharma@email.com</td>
+                            <td>456 Oak Avenue, Medical Complex</td>
+                            <td>Karnataka</td>
+                            <td>Bangalore</td>
                             <td>Neurocalm</td>
                             <td>August–September 2023</td>
                             <td>Adverse event follow-up</td>
@@ -749,6 +775,12 @@
                         </tr>
                         <tr>
                             <td><strong>REC-003</strong></td>
+                            <td>Amit Patel</td>
+                            <td>+91 76543 21098</td>
+                            <td>amit.patel@email.com</td>
+                            <td>789 Pine Road, Health Center</td>
+                            <td>Gujarat</td>
+                            <td>Ahmedabad</td>
                             <td>Cardiostat</td>
                             <td>October–November 2023</td>
                             <td>Long-term efficacy study</td>
@@ -767,6 +799,7 @@
                         </tr>
                     </tbody>
                 </table>
+                </div>
 
                 <!-- Rejection Modal -->
                 <div id="rejectionModal" class="modal" style="display: none;">

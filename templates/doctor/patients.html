@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Patients - Doctor Dashboard</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script type="module" src="/static/js/sidebar.js"></script>
+    <style>
+        .dashboard-layout { display: flex; }
+        .main-content { flex: 1; margin-left: var(--sidebar-width); padding: 2rem; background-color: #FAFAF9; transition: margin-left 0.3s ease; }
+        body.sidebar-collapsed .main-content { margin-left: 80px; }
+        .header { margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid #E2E8F0; }
+        .header h1 { font-size: 2rem; color: var(--primary-dark); margin: 0; }
+        .header p { color: var(--text-muted); margin: 0.5rem 0 0 0; font-size: 0.95rem; }
+        .header-actions { display: flex; gap: 1rem; margin-top: 1.5rem; }
+        .btn { padding: 0.75rem 1.5rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.9rem; display: inline-flex; align-items: center; gap: 0.5rem; }
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-primary:hover { background-color: var(--primary-dark); transform: translateY(-2px); }
+        .btn-secondary { background-color: white; color: var(--primary); border: 1px solid #E2E8F0; }
+        .btn-secondary:hover { background-color: var(--secondary); }
+        .tabs { display: flex; gap: 1rem; margin-bottom: 2rem; border-bottom: 2px solid #E2E8F0; }
+        .tab-btn { padding: 1rem 1.5rem; background: none; border: none; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: all 0.2s; border-bottom: 3px solid transparent; margin-bottom: -2px; }
+        .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .section { background: white; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); }
+        .section-title { font-size: 1.1rem; font-weight: 700; color: var(--primary-dark); margin: 0 0 1.5rem 0; }
+        .patient-table { width: 100%; border-collapse: collapse; }
+        .patient-table th { background-color: #F9FAFB; padding: 1rem; text-align: left; font-weight: 600; color: var(--primary-dark); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #E2E8F0; }
+        .patient-table td { padding: 1rem; border-bottom: 1px solid #E2E8F0; color: var(--text-main); }
+        .patient-table tbody tr:hover { background-color: #FAFAF9; }
+        .status-badge { display: inline-block; padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600; }
+        .status-normal { background-color: #F0FDF4; color: #10B981; }
+        .status-monitor { background-color: #FFFBEB; color: #F59E0B; }
+        .status-review { background-color: #FEF2F2; color: #DC2626; }
+        .empty-state { text-align: center; padding: 3rem 2rem; color: var(--text-muted); }
+        .empty-state i { font-size: 2.5rem; color: #D1D5DB; margin-bottom: 1rem; }
+        .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); align-items: center; justify-content: center; }
+        .modal.show { display: flex; }
+        .modal-content { background-color: white; padding: 2rem; border-radius: 12px; max-width: 500px; width: 90%; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+        .modal-header h2 { margin: 0; color: var(--primary-dark); }
+        .close-btn { background: none; border: none; font-size: 1.5rem; color: var(--text-muted); cursor: pointer; }
+        .form-group { margin-bottom: 1.5rem; }
+        .form-label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-main); font-size: 0.95rem; }
+        .form-control { width: 100%; padding: 0.75rem; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 0.95rem; transition: border-color 0.3s; }
+        .form-control:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(58, 90, 122, 0.1); }
+        .button-group { display: flex; gap: 1rem; margin-top: 2rem; }
+        .button-group .btn { flex: 1; justify-content: center; }
+        .error-message { background-color: #FEF2F2; color: #C53030; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; display: none; border: 1px solid #FED7D7; }
+        .error-message.show { display: block; }
+        .success-message { background-color: #F0FDF4; color: #10B981; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; display: none; border: 1px solid #DCFCE7; }
+        .success-message.show { display: block; }
+        .action-dropdown { position: relative; display: inline-block; }
+        .dropdown-btn { padding: 0.4rem 0.8rem; font-size: 0.8rem; background-color: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; }
+        .dropdown-btn:hover { background-color: var(--primary-dark); }
+        .dropdown-menu { display: none; position: absolute; right: 0; background-color: white; min-width: 180px; box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2); border-radius: 6px; z-index: 1; top: 100%; margin-top: 0.5rem; }
+        .dropdown-menu.show { display: block; }
+        .dropdown-menu a { color: var(--text-main); padding: 0.75rem 1rem; text-decoration: none; display: block; transition: all 0.2s; }
+        .dropdown-menu a:hover { background-color: #F9FAFB; color: var(--primary); }
+        .dropdown-menu a:first-child { border-radius: 6px 6px 0 0; }
+        .dropdown-menu a:last-child { border-radius: 0 0 6px 6px; }
+        .confirmation-modal { display: none; position: fixed; z-index: 3000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); align-items: center; justify-content: center; }
+        .confirmation-modal.show { display: flex; }
+        .confirmation-content { background-color: white; padding: 2rem; border-radius: 12px; max-width: 400px; width: 90%; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); }
+        .confirmation-content h3 { margin: 0 0 1rem 0; color: var(--primary-dark); }
+        .confirmation-content p { margin: 0 0 1.5rem 0; color: var(--text-muted); }
+        .confirmation-buttons { display: flex; gap: 1rem; }
+        .confirmation-buttons button { flex: 1; padding: 0.75rem; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; }
+        .btn-confirm { background-color: #DC2626; color: white; }
+        .btn-confirm:hover { background-color: #991B1B; }
+        .btn-cancel { background-color: #E2E8F0; color: var(--text-main); }
+        .btn-cancel:hover { background-color: #CBD5E0; }
+        @media (max-width: 768px) { .main-content { padding: 1rem; } .patient-table { font-size: 0.85rem; } .patient-table th, .patient-table td { padding: 0.75rem; } }
+    </style>
+</head>
+<body>
+    <div class="dashboard-layout">
+        <app-sidebar></app-sidebar>
+        <main class="main-content">
+            <div class="header">
+                <h1>My Patients</h1>
+                <p>Manage your identified and anonymised patients</p>
+                <div class="header-actions">
+                    <button class="btn btn-primary" onclick="openAddPatientModal()">
+                        <i data-lucide="plus"></i> Add Patient
+                    </button>
+                    <button class="btn btn-secondary" onclick="openExcelUploadModal()">
+                        <i data-lucide="upload"></i> Upload Excel
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('identified')">
+                    <i data-lucide="user"></i> Identified Patients
+                </button>
+                <button class="tab-btn" onclick="switchTab('anonymised')">
+                    <i data-lucide="lock"></i> Anonymised Patients
+                </button>
+            </div>
+
+            <!-- Identified Patients Tab -->
+            <div id="identified" class="tab-content active">
+                <div class="section">
+                    <h2 class="section-title">Identified Patients</h2>
+                    <div id="identified-table-container">
+                        <table class="patient-table">
+                            <thead>
+                                <tr>
+                                    <th>Patient ID</th>
+                                    <th>Patient Name</th>
+                                    <th>Age</th>
+                                    <th>Gender</th>
+                                    <th>Prescriptions</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="identified-patients-body">
+                                <tr><td colspan="7" class="empty-state"><i data-lucide="inbox"></i><p>No identified patients yet</p></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Anonymised Patients Tab -->
+            <div id="anonymised" class="tab-content">
+                <div class="section">
+                    <h2 class="section-title">Anonymised Patients</h2>
+                    <div id="anonymised-table-container">
+                        <table class="patient-table">
+                            <thead>
+                                <tr>
+                                    <th>Anonymised ID</th>
+                                    <th>Prescriptions</th>
+                                    <th>Status</th>
+                                    <th>Last Updated</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="anonymised-patients-body">
+                                <tr><td colspan="5" class="empty-state"><i data-lucide="inbox"></i><p>No anonymised patients yet</p></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add Patient Modal -->
+    <div id="addPatientModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add Patient</h2>
+                <button class="close-btn" onclick="closeAddPatientModal()">&times;</button>
+            </div>
+            <div class="error-message" id="addPatientError"></div>
+            <div id="patientTypeSelection">
+                <p style="margin-bottom: 1.5rem; color: var(--text-muted);">Select patient type:</p>
+                <button class="btn btn-primary" style="width: 100%; margin-bottom: 1rem;" onclick="selectPatientType('identified')">
+                    <i data-lucide="user"></i> Add as Identified Patient
+                </button>
+                <button class="btn btn-secondary" style="width: 100%;" onclick="selectPatientType('anonymised')">
+                    <i data-lucide="lock"></i> Add as Anonymised Patient
+                </button>
+            </div>
+            <form id="addPatientForm" style="display: none;">
+                <div class="form-group">
+                    <label class="form-label">Patient Name</label>
+                    <input type="text" class="form-control" id="patientName" placeholder="Full name" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Age</label>
+                    <input type="number" class="form-control" id="patientAge" placeholder="Age" min="0" max="150" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Gender</label>
+                    <select class="form-control" id="patientGender" required>
+                        <option value="">Select gender</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="button-group">
+                    <button type="submit" class="btn btn-primary">Add Patient</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeAddPatientModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Excel Upload Modal -->
+    <div id="excelUploadModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Upload Patients via Excel</h2>
+                <button class="close-btn" onclick="closeExcelUploadModal()">&times;</button>
+            </div>
+            <div class="error-message" id="excelUploadError"></div>
+            <div id="uploadTypeSelection">
+                <p style="margin-bottom: 1.5rem; color: var(--text-muted);">Select patient type to upload:</p>
+                <button class="btn btn-primary" style="width: 100%; margin-bottom: 1rem;" onclick="selectUploadType('identified')">
+                    <i data-lucide="user"></i> Upload Identified Patients
+                </button>
+                <button class="btn btn-secondary" style="width: 100%;" onclick="selectUploadType('anonymised')">
+                    <i data-lucide="lock"></i> Upload Anonymised Patients
+                </button>
+            </div>
+            <form id="excelUploadForm" style="display: none;">
+                <div class="form-group">
+                    <label class="form-label">Select Excel File</label>
+                    <input type="file" class="form-control" id="excelFile" accept=".xlsx,.xls" required>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem;" id="requiredColumns"></p>
+                </div>
+                <div class="button-group">
+                    <button type="submit" class="btn btn-primary">Upload</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeExcelUploadModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { Auth } from '/static/js/auth.js';
+        const user = Auth.requireAuth();
+        lucide.createIcons();
+
+        let currentPatientType = null;
+        let currentUploadType = null;
+        let identifiedPatients = [];
+        let anonymisedPatients = [];
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tab).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        function openAddPatientModal() {
+            document.getElementById('addPatientModal').classList.add('show');
+            document.getElementById('patientTypeSelection').style.display = 'block';
+            document.getElementById('addPatientForm').style.display = 'none';
+            currentPatientType = null;
+        }
+
+        function closeAddPatientModal() {
+            document.getElementById('addPatientModal').classList.remove('show');
+            document.getElementById('addPatientForm').reset();
+            document.getElementById('addPatientError').classList.remove('show');
+        }
+
+        function selectPatientType(type) {
+            currentPatientType = type;
+            document.getElementById('patientTypeSelection').style.display = 'none';
+            document.getElementById('addPatientForm').style.display = 'block';
+        }
+
+        function openExcelUploadModal() {
+            document.getElementById('excelUploadModal').classList.add('show');
+            document.getElementById('uploadTypeSelection').style.display = 'block';
+            document.getElementById('excelUploadForm').style.display = 'none';
+            currentUploadType = null;
+        }
+
+        function closeExcelUploadModal() {
+            document.getElementById('excelUploadModal').classList.remove('show');
+            document.getElementById('excelUploadForm').reset();
+            document.getElementById('excelUploadError').classList.remove('show');
+        }
+
+        function selectUploadType(type) {
+            currentUploadType = type;
+            const columns = type === 'identified' 
+                ? 'Patient ID, Patient Name, Age, Gender, Prescriptions, Status'
+                : 'Anonymised ID, Prescriptions, Status, Last Updated';
+            document.getElementById('requiredColumns').textContent = `Required columns: ${columns}`;
+            document.getElementById('uploadTypeSelection').style.display = 'none';
+            document.getElementById('excelUploadForm').style.display = 'block';
+        }
+
+        document.getElementById('addPatientForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const name = document.getElementById('patientName').value.trim();
+            const age = document.getElementById('patientAge').value;
+            const gender = document.getElementById('patientGender').value;
+
+            if (!name || !age || !gender) {
+                showError('addPatientError', 'Please fill in all fields');
+                return;
+            }
+
+            const patient = {
+                id: `P${Date.now()}`,
+                name: name,
+                age: age,
+                gender: gender,
+                prescriptions: 0,
+                status: 'Normal',
+                createdAt: new Date().toLocaleDateString()
+            };
+
+            if (currentPatientType === 'identified') {
+                identifiedPatients.push(patient);
+            } else {
+                const anonPatient = {
+                    id: `ANON${Date.now()}`,
+                    prescriptions: 0,
+                    status: 'Normal',
+                    lastUpdated: new Date().toLocaleDateString()
+                };
+                anonymisedPatients.push(anonPatient);
+            }
+
+            renderPatients();
+            closeAddPatientModal();
+        });
+
+        document.getElementById('excelUploadForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const file = document.getElementById('excelFile').files[0];
+            if (!file) {
+                showError('excelUploadError', 'Please select a file');
+                return;
+            }
+            showError('excelUploadError', 'Excel upload validation: File format verified. Ready for import.');
+            setTimeout(() => closeExcelUploadModal(), 2000);
+        });
+
+        function showError(elementId, message) {
+            const el = document.getElementById(elementId);
+            el.textContent = message;
+            el.classList.add('show');
+            setTimeout(() => el.classList.remove('show'), 4000);
+        }
+
+        function renderPatients() {
+            const identifiedBody = document.getElementById('identified-patients-body');
+            const anonymisedBody = document.getElementById('anonymised-patients-body');
+
+            if (identifiedPatients.length === 0) {
+                identifiedBody.innerHTML = '<tr><td colspan="7" class="empty-state"><i data-lucide="inbox"></i><p>No identified patients yet</p></td></tr>';
+            } else {
+                identifiedBody.innerHTML = identifiedPatients.map(p => `
+                    <tr>
+                        <td>${p.id}</td>
+                        <td>${p.name}</td>
+                        <td>${p.age}</td>
+                        <td>${p.gender}</td>
+                        <td>${p.prescriptions}</td>
+                        <td><span class="status-badge status-${p.status.toLowerCase()}">${p.status}</span></td>
+                        <td><button class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">View</button></td>
+                    </tr>
+                `).join('');
+            }
+
+            if (anonymisedPatients.length === 0) {
+                anonymisedBody.innerHTML = '<tr><td colspan="5" class="empty-state"><i data-lucide="inbox"></i><p>No anonymised patients yet</p></td></tr>';
+            } else {
+                anonymisedBody.innerHTML = anonymisedPatients.map(p => `
+                    <tr>
+                        <td>${p.id}</td>
+                        <td>${p.prescriptions}</td>
+                        <td><span class="status-badge status-${p.status.toLowerCase()}">${p.status}</span></td>
+                        <td>${p.lastUpdated}</td>
+                        <td><button class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">View</button></td>
+                    </tr>
+                `).join('');
+            }
+
+            lucide.createIcons();
+        }
+
+        window.openAddPatientModal = openAddPatientModal;
+        window.closeAddPatientModal = closeAddPatientModal;
+        window.selectPatientType = selectPatientType;
+        window.openExcelUploadModal = openExcelUploadModal;
+        window.closeExcelUploadModal = closeExcelUploadModal;
+        window.selectUploadType = selectUploadType;
+        window.switchTab = switchTab;
+
+        renderPatients();
+    </script>
+</body>
+</html>

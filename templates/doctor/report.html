@@ -3,1467 +3,552 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Report Experience - MedSafe PV</title>
+    <title>Report Drug Experience - Doctor Dashboard</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <script src="https://unpkg.com/lucide@latest"></script>
     <script type="module" src="/static/js/sidebar.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        .form-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
-        }
-        
-        .form-section {
-            background: white;
-            border: 1px solid #E2E8F0;
-            border-radius: 12px;
-            padding: 1.5rem;
-        }
-        
-        .form-section h3 {
-            margin-bottom: 1.5rem;
-            padding-bottom: 0.75rem;
-            border-bottom: 2px solid var(--primary);
-        }
-        
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-        }
-        
-        .required-field::after {
-            content: " *";
-            color: #DC2626;
-        }
-        
-        .upload-zone {
-            border: 2px dashed #CBD5E1;
-            border-radius: 12px;
-            padding: 2rem;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s;
-            background: #FAFAF9;
-        }
-        
-        .upload-zone:hover {
-            border-color: var(--primary);
-            background: var(--secondary);
-        }
-        
-        .upload-zone.dragover {
-            border-color: var(--accent);
-            background: #E6F4EA;
-        }
-        
-        .upload-zone i {
-            width: 48px;
-            height: 48px;
-            color: var(--primary);
-        }
-        
-        .excel-preview {
-            margin-top: 1rem;
-            max-height: 400px;
-            overflow: auto;
-        }
-        
-        .excel-preview table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.85rem;
-        }
-        
-        .excel-preview th, .excel-preview td {
-            padding: 0.5rem;
-            border: 1px solid #E2E8F0;
-            text-align: left;
-        }
-        
-        .excel-preview th {
-            background: var(--secondary);
-            position: sticky;
-            top: 0;
-        }
-        
-        .missing-field {
-            background: #FEF2F2 !important;
-            color: #DC2626;
-        }
-        
-        .valid-field {
-            background: #F0FDF4;
-        }
-        
-        .analysis-card {
-            background: white;
-            border: 1px solid #E2E8F0;
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin-top: 1.5rem;
-        }
-        
-        .analysis-stat {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.75rem 0;
-            border-bottom: 1px solid #F1F5F9;
-        }
-        
-        .analysis-stat:last-child {
-            border-bottom: none;
-        }
-        
-        .stat-label {
-            color: var(--text-muted);
-        }
-        
-        .stat-value {
-            font-weight: 600;
-        }
-        
-        .stat-value.good { color: #166534; }
-        .stat-value.warning { color: #92400E; }
-        .stat-value.bad { color: #991B1B; }
-        
-        .tabs {
-            display: flex;
-            gap: 0.5rem;
-            margin-bottom: 1.5rem;
-        }
-        
-        .tab {
-            padding: 0.75rem 1.5rem;
-            border: none;
-            background: var(--secondary);
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 500;
-        }
-        
-        .tab.active {
-            background: var(--primary);
-            color: white;
-        }
-        
-        .tab-content {
-            display: none;
-        }
-        
-        .tab-content.active {
-            display: block;
-        }
-        
-        .score-badge {
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.85rem;
-            font-weight: 600;
-        }
-        
-        .score-positive { background: #E6F4EA; color: #166534; }
-        .score-negative { background: #FEE2E2; color: #991B1B; }
-        .score-neutral { background: #FEF3C7; color: #92400E; }
-        
-        .submission-result {
-            margin-top: 1.5rem;
-            padding: 1rem;
-            border-radius: 8px;
-            display: none;
-        }
-        
-        .submission-result.success {
-            background: #E6F4EA;
-            border: 1px solid #166534;
-            color: #166534;
-            display: block;
-        }
-        
-        .submission-result.error {
-            background: #FEE2E2;
-            border: 1px solid #991B1B;
-            color: #991B1B;
-            display: block;
-        }
-        
-        /* Case Matching Modal Styles */
-        .case-match-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-        }
-        
-        .case-match-content {
-            background: white;
-            border-radius: 12px;
-            max-width: 600px;
-            width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-        }
-        
-        .case-match-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 1.5rem;
-            border-bottom: 1px solid #E2E8F0;
-        }
-        
-        .case-match-header h2 {
-            margin: 0;
-            display: flex;
-            align-items: center;
-            color: #991B1B;
-        }
-        
-        .close-modal {
-            background: none;
-            border: none;
-            font-size: 2rem;
-            cursor: pointer;
-            color: var(--text-muted);
-        }
-        
-        .case-match-body {
-            padding: 1.5rem;
-        }
-        
-        .match-message {
-            color: var(--text-muted);
-            margin: 0 0 1rem 0;
-        }
-        
-        .match-case-item {
-            background: #FAFAF9;
-            border: 1px solid #E2E8F0;
-            border-radius: 8px;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            cursor: pointer;
-            transition: all 0.2s;
-            position: relative;
-        }
-        
-        .match-case-item:hover {
-            background: #F1F5F9;
-            border-color: var(--primary);
-        }
-        
-        .match-case-item.selected {
-            background: #EFF6FF;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-        }
-        
-        .case-selector {
-            position: absolute;
-            top: 1rem;
-            right: 1rem;
-            width: 20px;
-            height: 20px;
-            border: 2px solid #D1D5DB;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        
-        .match-case-item.selected .case-selector {
-            background: var(--primary);
-            border-color: var(--primary);
-        }
-        
-        .case-selector::after {
-            content: '✓';
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.75rem;
-            font-weight: bold;
-        }
-        
-        .match-case-item.selected .case-selector::after {
-            content: '✓';
-        }
-        
-        .case-info-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.5rem 0;
-            font-size: 0.9rem;
-        }
-        
-        .case-info-label {
-            font-weight: 600;
-            color: var(--text-muted);
-            min-width: 120px;
-        }
-        
-        .case-info-value {
-            color: var(--text);
-            flex: 1;
-        }
-        
-        .similarity-score {
-            display: inline-block;
-            padding: 0.25rem 0.75rem;
-            border-radius: 6px;
-            font-weight: 600;
-            font-size: 0.85rem;
-        }
-        
-        .similarity-score.high {
-            background: #FEE2E2;
-            color: #991B1B;
-        }
-        
-        .similarity-score.medium {
-            background: #FEF3C7;
-            color: #92400E;
-        }
-        
-        .similarity-score.low {
-            background: #E6F4EA;
-            color: #166534;
-        }
-        
-        .score-breakdown {
-            margin-top: 0.75rem;
-            padding-top: 0.75rem;
-            border-top: 1px solid #E2E8F0;
-        }
-        
-        .score-item {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            padding: 0.25rem 0;
-        }
-        
-        .recommendation-box {
-            margin: 1.5rem 0;
-            padding: 1rem;
-            border-radius: 8px;
-            background: #FEF2F2;
-            border-left: 4px solid #DC2626;
-        }
-        
-        .recommendation-box strong {
-            display: block;
-            margin-bottom: 0.5rem;
-            color: #991B1B;
-        }
-        
-        .recommendation-box p {
-            margin: 0;
-            color: #7F1D1D;
-        }
-        
-        .case-match-footer {
-            padding: 1.5rem;
-            border-top: 1px solid #E2E8F0;
-            display: flex;
-            gap: 1rem;
-            justify-content: flex-end;
-        }
-        
-        .btn-danger {
-            background: #DC2626;
-            color: white;
-        }
-        
-        .btn-danger:hover {
-            background: #991B1B;
-        }
+        .dashboard-layout { display: flex; }
+        .main-content { flex: 1; margin-left: var(--sidebar-width); padding: 2rem; background-color: #FAFAF9; transition: margin-left 0.3s ease; overflow-y: auto; }
+        body.sidebar-collapsed .main-content { margin-left: 80px; }
+        .header { margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid #E2E8F0; }
+        .header h1 { font-size: 2rem; color: var(--primary-dark); margin: 0; }
+        .header p { color: var(--text-muted); margin: 0.5rem 0 0 0; font-size: 0.95rem; }
+        .form-container { max-width: 800px; margin: 0 auto; }
+        .section { background: white; border-radius: 12px; padding: 2rem; margin-bottom: 2rem; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); }
+        .section-title { font-size: 1.2rem; font-weight: 700; color: var(--primary-dark); margin: 0 0 1.5rem 0; display: flex; align-items: center; gap: 0.75rem; }
+        .section-title i { color: var(--primary); }
+        .helper-text { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.5rem; padding: 1rem; background-color: #F9FAFB; border-left: 4px solid var(--primary); border-radius: 6px; }
+        .notice { padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; font-size: 0.95rem; }
+        .notice-info { background-color: #EBF8FF; border-left: 4px solid #3B82F6; color: #1E40AF; }
+        .notice-warning { background-color: #FEF3C7; border-left: 4px solid #F59E0B; color: #92400E; }
+        .scope-selector { margin-bottom: 2rem; }
+        .radio-group { display: flex; flex-direction: column; gap: 1rem; }
+        .radio-option { display: flex; align-items: flex-start; gap: 1rem; padding: 1rem; border: 2px solid #E2E8F0; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        .radio-option:hover { border-color: var(--primary); background-color: #F9FAFB; }
+        .radio-option input[type="radio"] { margin-top: 0.25rem; cursor: pointer; }
+        .radio-option.selected { border-color: var(--primary); background-color: #F0F7FF; }
+        .radio-label { flex: 1; }
+        .radio-label strong { display: block; color: var(--primary-dark); margin-bottom: 0.25rem; }
+        .radio-label p { margin: 0; color: var(--text-muted); font-size: 0.9rem; }
+        .form-group { margin-bottom: 1.5rem; }
+        .form-label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-main); font-size: 0.95rem; }
+        .form-label .required { color: #DC2626; }
+        .form-control { width: 100%; padding: 0.75rem; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 0.95rem; transition: border-color 0.3s; }
+        .form-control:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(58, 90, 122, 0.1); }
+        .form-description { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem; }
+        .patient-selection { display: flex; gap: 1rem; margin-bottom: 1rem; }
+        .patient-selection button { flex: 1; padding: 0.75rem; border: 1px solid #E2E8F0; border-radius: 8px; background-color: white; color: var(--primary); font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .patient-selection button.active { background-color: var(--primary); color: white; border-color: var(--primary); }
+        .patient-selection button:hover { border-color: var(--primary); }
+        .hidden-section { display: none; }
+        .hidden-section.show { display: block; }
+        .button-group { display: flex; gap: 1rem; margin-top: 2rem; }
+        .btn { padding: 0.75rem 1.5rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.95rem; display: inline-flex; align-items: center; gap: 0.5rem; }
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-primary:hover { background-color: var(--primary-dark); transform: translateY(-2px); }
+        .btn-secondary { background-color: white; color: var(--primary); border: 1px solid #E2E8F0; }
+        .btn-secondary:hover { background-color: var(--secondary); }
+        .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); align-items: center; justify-content: center; }
+        .modal.show { display: flex; }
+        .modal-content { background-color: white; padding: 2.5rem; border-radius: 12px; max-width: 500px; width: 90%; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); text-align: center; }
+        .modal-icon { font-size: 3rem; margin-bottom: 1rem; }
+        .modal-icon.success { color: #10B981; }
+        .modal-title { font-size: 1.5rem; font-weight: 700; color: var(--primary-dark); margin-bottom: 1rem; }
+        .modal-message { color: var(--text-main); margin-bottom: 1.5rem; line-height: 1.6; }
+        .modal-detail { background-color: #F9FAFB; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; font-size: 0.9rem; color: var(--text-muted); }
+        .modal-btn { padding: 0.75rem 2rem; background-color: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+        .modal-btn:hover { background-color: var(--primary-dark); }
+        .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 2px solid #E2E8F0; }
+        .tab-btn { padding: 1rem 1.5rem; background: none; border: none; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: all 0.2s; border-bottom: 3px solid transparent; margin-bottom: -2px; }
+        .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .history-table { width: 100%; border-collapse: collapse; }
+        .history-table th { background-color: #F9FAFB; padding: 1rem; text-align: left; font-weight: 600; color: var(--primary-dark); font-size: 0.9rem; border-bottom: 2px solid #E2E8F0; }
+        .history-table td { padding: 1rem; border-bottom: 1px solid #E2E8F0; }
+        .history-table tbody tr:hover { background-color: #FAFAF9; }
+        .status-badge { display: inline-block; padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600; }
+        .status-submitted { background-color: #F0FDF4; color: #10B981; }
+        .status-pending { background-color: #FFFBEB; color: #F59E0B; }
+        .type-badge { display: inline-block; padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600; }
+        .type-linked { background-color: #EBF8FF; color: #0C4A6E; }
+        .type-anonymised { background-color: #F3E8FF; color: #5B21B6; }
+        @media (max-width: 768px) { .main-content { padding: 1rem; } .section { padding: 1.5rem; } .patient-selection { flex-direction: column; } }
     </style>
 </head>
 <body>
     <div class="dashboard-layout">
         <app-sidebar></app-sidebar>
-        
         <main class="main-content">
-            <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                <div>
-                    <h1>Report Drug Experience</h1>
-                    <p style="color: var(--text-muted);">Submit clinical observations for pharmacovigilance</p>
-                </div>
-            </header>
-            
-            <!-- Tabs -->
-            <div class="tabs">
-                <button class="tab active" onclick="switchTab('manual')">
-                    <i data-lucide="edit-3" style="width:16px; height:16px; margin-right:0.5rem;"></i>
-                    Manual Entry
-                </button>
-                <button class="tab" onclick="switchTab('excel')">
-                    <i data-lucide="file-spreadsheet" style="width:16px; height:16px; margin-right:0.5rem;"></i>
-                    Excel Upload
-                </button>
-                <button class="tab" onclick="switchTab('history')">
-                    <i data-lucide="history" style="width:16px; height:16px; margin-right:0.5rem;"></i>
-                    Submission History
-                </button>
+            <div class="header">
+                <h1>Report Drug Experience</h1>
+                <p>Submit adverse effects, observations, or safety concerns</p>
             </div>
-            
-            <!-- Manual Entry Tab -->
-            <div id="tab-manual" class="tab-content active">
-                <form id="pv-form" onsubmit="submitExperience(event)">
-                    <div class="form-container">
-                        <!-- Patient Information -->
-                        <div class="form-section">
-                            <h3><i data-lucide="user" style="width:20px; height:20px; margin-right:0.5rem;"></i>Patient Information</h3>
-                            
-                            <div class="form-group">
-                                <label class="required-field">Patient Identifier</label>
-                                <input type="text" name="patient_identifier" required 
-                                       placeholder="Patient ID, phone, or unique identifier">
-                                <small style="color: var(--text-muted);">Will be securely hashed for privacy</small>
-                            </div>
-                            
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label>Patient Age</label>
-                                    <input type="number" name="patient_age" placeholder="Age">
-                                </div>
-                                <div class="form-group">
-                                    <label>Gender</label>
-                                    <select name="patient_gender">
-                                        <option value="">Select...</option>
-                                        <option value="male">Male</option>
-                                        <option value="female">Female</option>
-                                        <option value="other">Other</option>
-                                    </select>
-                                </div>
-                            </div>
+
+            <div class="form-container">
+                <!-- Tabs -->
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="switchTab('report')">New Report</button>
+                    <button class="tab-btn" onclick="switchTab('history')">Submission History</button>
+                </div>
+
+                <!-- Report Tab -->
+                <div id="report" class="tab-content active">
+                    <!-- Upload Option -->
+                    <div class="section" style="background-color: #F0F7FF; border-left: 4px solid var(--primary);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h3 style="margin: 0; color: var(--primary-dark);">Bulk Report Upload</h3>
+                            <button class="btn btn-secondary" onclick="openExcelUploadModal()" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
+                                <i data-lucide="upload"></i> Upload Excel
+                            </button>
                         </div>
-                        
-                        <!-- Drug Information -->
-                        <div class="form-section">
-                            <h3><i data-lucide="pill" style="width:20px; height:20px; margin-right:0.5rem;"></i>Drug Information</h3>
-                            
-                            <div class="form-group">
-                                <label class="required-field">Drug Name</label>
-                                <input type="text" name="drug_name" required placeholder="Brand or generic name">
-                            </div>
-                            
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label>Drug Code (NDC/ATC)</label>
-                                    <input type="text" name="drug_code" placeholder="Optional code">
-                                </div>
-                                <div class="form-group">
-                                    <label>Batch/Lot Number</label>
-                                    <input type="text" name="drug_batch" placeholder="If known">
-                                </div>
-                            </div>
-                            
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label>Dosage</label>
-                                    <input type="text" name="dosage" placeholder="e.g., 500mg twice daily">
-                                </div>
-                                <div class="form-group">
-                                    <label>Route</label>
-                                    <select name="route_of_administration">
-                                        <option value="">Select...</option>
-                                        <option value="oral">Oral</option>
-                                        <option value="iv">Intravenous (IV)</option>
-                                        <option value="im">Intramuscular (IM)</option>
-                                        <option value="subcutaneous">Subcutaneous</option>
-                                        <option value="topical">Topical</option>
-                                        <option value="inhaled">Inhaled</option>
-                                        <option value="other">Other</option>
-                                    </select>
-                                </div>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label>Indication (Why Prescribed)</label>
-                                <input type="text" name="indication" placeholder="Condition being treated">
-                            </div>
-                        </div>
-                        
-                        <!-- Event Details -->
-                        <div class="form-section">
-                            <h3><i data-lucide="activity" style="width:20px; height:20px; margin-right:0.5rem;"></i>Event Details</h3>
-                            
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label>Drug Start Date</label>
-                                    <input type="date" name="start_date">
-                                </div>
-                                <div class="form-group">
-                                    <label>Event/Observation Date</label>
-                                    <input type="date" name="event_date">
-                                </div>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label>Observed Events / Symptoms</label>
-                                <textarea name="observed_events" rows="4" 
-                                          placeholder="Describe any symptoms, side effects, or observations..."></textarea>
-                                <small style="color: var(--text-muted);">Include: No adverse events, well-tolerated, or specific symptoms</small>
-                            </div>
-                        </div>
-                        
-                        <!-- Outcome -->
-                        <div class="form-section">
-                            <h3><i data-lucide="clipboard-check" style="width:20px; height:20px; margin-right:0.5rem;"></i>Outcome</h3>
-                            
-                            <div class="form-group">
-                                <label>Patient Outcome</label>
-                                <select name="outcome_status">
-                                    <option value="">Select outcome...</option>
-                                    <option value="recovered">Recovered</option>
-                                    <option value="recovering">Recovering</option>
-                                    <option value="not_recovered">Not Recovered</option>
-                                    <option value="ongoing">Ongoing Treatment</option>
-                                    <option value="unknown">Unknown</option>
-                                </select>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label>Outcome Notes</label>
-                                <textarea name="outcome" rows="3" 
-                                          placeholder="Additional details about the outcome..."></textarea>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label>
-                                    <input type="checkbox" name="consent_to_contact" value="true">
-                                    Patient consents to follow-up contact
+                        <p style="margin: 0; color: var(--text-muted); font-size: 0.9rem;">Upload multiple drug experience reports at once using an Excel file with the correct format.</p>
+                    </div>
+
+                    <!-- STEP 1: Reporting Intent Selector -->
+                    <div class="section">
+                        <h2 class="section-title">
+                            <i data-lucide="target"></i> Reporting Intent
+                        </h2>
+                        <p style="margin-bottom: 1.5rem; color: var(--text-muted); font-weight: 600;">This report is being submitted as:</p>
+                        <div class="scope-selector">
+                            <div class="radio-group">
+                                <label class="radio-option" onclick="selectReportType('patient-linked')">
+                                    <input type="radio" name="reportType" value="patient-linked" onchange="updateReportType('patient-linked')">
+                                    <div class="radio-label">
+                                        <strong>Patient-linked Report</strong>
+                                        <p>Link this report to a specific patient in My Patients</p>
+                                    </div>
+                                </label>
+                                <label class="radio-option selected" onclick="selectReportType('anonymised')">
+                                    <input type="radio" name="reportType" value="anonymised" checked onchange="updateReportType('anonymised')">
+                                    <div class="radio-label">
+                                        <strong>Anonymised / Observational Report</strong>
+                                        <p>No patient record will be created or linked</p>
+                                    </div>
                                 </label>
                             </div>
                         </div>
                     </div>
-                    
-                    <div style="margin-top: 1.5rem; display: flex; gap: 1rem; justify-content: flex-end;">
-                        <button type="button" class="btn btn-outline" onclick="clearForm()">Clear Form</button>
-                        <button type="submit" class="btn btn-primary" id="submit-btn">
-                            <i data-lucide="send" style="width:16px; height:16px; margin-right:0.5rem;"></i>
-                            Submit to PV System
-                        </button>
-                    </div>
-                    
-                    <div id="submission-result" class="submission-result"></div>
-                </form>
-                
-                <!-- Case Matching Modal -->
-                <div id="case-match-modal" class="case-match-modal" style="display: none;">
-                    <div class="case-match-content">
-                        <div class="case-match-header">
-                            <h2><i data-lucide="alert-circle" style="width:24px; height:24px; margin-right:0.5rem;"></i>Potential Duplicate Cases Found</h2>
-                            <button class="close-modal" onclick="closeCaseMatchModal()">×</button>
+
+                    <!-- STEP 2: Patient Information Section -->
+                    <div id="patientSection" class="section hidden-section">
+                        <h2 class="section-title">
+                            <i data-lucide="user"></i> Patient Information
+                        </h2>
+                        <div class="helper-text">
+                            Patient information will be linked to your patient records.
                         </div>
-                        
-                        <div class="case-match-body">
-                            <p class="match-message" id="match-message">
-                                This case appears similar to existing cases in the database. Review below:
-                            </p>
-                            
-                            <div id="matches-list" style="margin: 1.5rem 0;"></div>
-                            
-                            <div id="recommendation-box" class="recommendation-box" style="margin: 1.5rem 0; padding: 1rem; border-radius: 8px; background: #FEF2F2; border-left: 4px solid #DC2626;">
-                                <strong id="rec-action">Recommendation:</strong>
-                                <p id="rec-reason" style="margin: 0.5rem 0 0;"></p>
+                        <div class="form-group">
+                            <label class="form-label">Select Patient</label>
+                            <div class="patient-selection">
+                                <button class="active" onclick="selectPatientMode('existing')">Select from My Patients</button>
+                                <button onclick="selectPatientMode('manual')">Enter Manually</button>
                             </div>
                         </div>
-                        
-                        <div class="case-match-footer">
-                            <button class="btn btn-outline" onclick="proceedWithNewCase()">Add as New Case</button>
-                            <button class="btn btn-primary" id="link-case-btn" onclick="linkToExistingCase()" style="display: none;">Link to Selected Case</button>
-                            <button class="btn btn-danger" id="discard-btn" onclick="discardDuplicateCase()" style="display: none;">Discard Duplicate</button>
+                        <div id="existingPatientMode" class="form-group">
+                            <select class="form-control" id="patientSelect">
+                                <option value="">-- Select a patient --</option>
+                                <option value="P001">P001 - Rajesh Kumar</option>
+                                <option value="P002">P002 - Priya Sharma</option>
+                                <option value="P003">P003 - Amit Patel</option>
+                            </select>
+                        </div>
+                        <div id="manualPatientMode" class="hidden-section">
+                            <div class="form-group">
+                                <label class="form-label">Patient Name <span class="required">*</span></label>
+                                <input type="text" class="form-control" placeholder="Full name">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Age <span class="required">*</span></label>
+                                <input type="number" class="form-control" placeholder="Age" min="0" max="150">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Gender <span class="required">*</span></label>
+                                <select class="form-control">
+                                    <option value="">Select gender</option>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </div>
-            
-            <!-- Excel Upload Tab -->
-            <div id="tab-excel" class="tab-content">
-                <div class="form-section">
-                    <h3><i data-lucide="upload" style="width:20px; height:20px; margin-right:0.5rem;"></i>Upload Excel File</h3>
-                    
-                    <div class="upload-zone" id="upload-zone" onclick="document.getElementById('excel-input').click()">
-                        <i data-lucide="file-spreadsheet"></i>
-                        <h4 style="margin: 1rem 0 0.5rem;">Drop Excel file here or click to browse</h4>
-                        <p style="color: var(--text-muted); margin: 0;">Supports .xlsx and .xls files</p>
-                        <input type="file" id="excel-input" accept=".xlsx,.xls" style="display:none" onchange="handleFileSelect(event)">
+
+                    <!-- Anonymised Patient Section -->
+                    <div id="anonymisedSection" class="section show">
+                        <h2 class="section-title">
+                            <i data-lucide="lock"></i> Anonymised Identifier
+                        </h2>
+                        <div class="helper-text">
+                            No patient identity will be stored or linked. This report will be used for safety monitoring only.
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Anonymised ID (Optional)</label>
+                            <input type="text" class="form-control" placeholder="e.g., ANON-2024-001 (system-generated if left blank)">
+                            <p class="form-description">Leave blank for system-generated ID, or provide your own identifier</p>
+                        </div>
                     </div>
-                    
-                    <div style="margin-top: 1rem;">
-                        <button class="btn btn-outline" onclick="downloadTemplate()">
-                            <i data-lucide="download" style="width:16px; height:16px; margin-right:0.5rem;"></i>
-                            Download Template
+
+                    <!-- STEP 3: Data Propagation Notice -->
+                    <div id="propagationNotice" class="notice notice-info">
+                        <strong>Data Storage:</strong> This report will be stored independently and will not create or update a patient record.
+                    </div>
+
+                    <!-- STEP 4: Drug Information Section -->
+                    <div class="section">
+                        <h2 class="section-title">
+                            <i data-lucide="pill"></i> Drug Information
+                        </h2>
+                        <div class="helper-text">
+                            Drug information is required for pharmacovigilance and safety analysis.
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Drug Name <span class="required">*</span></label>
+                            <input type="text" class="form-control" placeholder="e.g., Aspirin, Metformin" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Drug Code / Batch Number</label>
+                            <input type="text" class="form-control" placeholder="e.g., BATCH-2024-001">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Dosage <span class="required">*</span></label>
+                            <input type="text" class="form-control" placeholder="e.g., 500mg" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Route of Administration <span class="required">*</span></label>
+                            <select class="form-control" required>
+                                <option value="">Select route</option>
+                                <option value="oral">Oral</option>
+                                <option value="injection">Injection</option>
+                                <option value="topical">Topical</option>
+                                <option value="inhalation">Inhalation</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Indication (Why prescribed)</label>
+                            <input type="text" class="form-control" placeholder="e.g., Pain relief, Diabetes management">
+                        </div>
+                    </div>
+
+                    <!-- STEP 5: Event Details Section -->
+                    <div class="section">
+                        <h2 class="section-title">
+                            <i data-lucide="alert-circle"></i> Observed Events / Symptoms
+                        </h2>
+                        <div class="helper-text">
+                            Describe observed symptoms, discomfort, lack of effect, or any notable observation. Reporting 'no adverse effects observed' is also valid.
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Description <span class="required">*</span></label>
+                            <textarea class="form-control" rows="5" placeholder="Describe what you observed..." required></textarea>
+                            <p class="form-description">Be specific about timing, severity, and any actions taken</p>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Onset Date</label>
+                            <input type="date" class="form-control">
+                        </div>
+                    </div>
+
+                    <!-- STEP 6: Outcome Section -->
+                    <div class="section">
+                        <h2 class="section-title">
+                            <i data-lucide="check-circle"></i> Outcome
+                        </h2>
+                        <div class="form-group">
+                            <label class="form-label">Outcome <span class="required">*</span></label>
+                            <select class="form-control" required>
+                                <option value="">Select outcome</option>
+                                <option value="recovered">Recovered</option>
+                                <option value="recovering">Recovering</option>
+                                <option value="not-recovered">Not Recovered</option>
+                                <option value="fatal">Fatal</option>
+                                <option value="unknown">Unknown</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                <input type="checkbox" required>
+                                <span>I consent to follow-up contact if necessary</span>
+                            </label>
+                            <p class="form-description">Consent is required only if follow-up contact may be necessary.</p>
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="button-group">
+                        <button class="btn btn-primary" onclick="submitReport()">
+                            <i data-lucide="send"></i> Submit to PV System
+                        </button>
+                        <button class="btn btn-secondary" onclick="resetForm()">
+                            <i data-lucide="x"></i> Clear Form
                         </button>
                     </div>
                 </div>
-                
-                <!-- Excel Analysis Results -->
-                <div id="excel-analysis" style="display: none;">
-                    <div class="analysis-card">
-                        <h3 style="margin-bottom: 1rem;">Data Quality Analysis</h3>
-                        <div class="analysis-stat">
-                            <span class="stat-label">Total Records</span>
-                            <span class="stat-value" id="stat-total-records">0</span>
-                        </div>
-                        <div class="analysis-stat">
-                            <span class="stat-label">Complete Records</span>
-                            <span class="stat-value good" id="stat-complete">0</span>
-                        </div>
-                        <div class="analysis-stat">
-                            <span class="stat-label">Missing Required Fields</span>
-                            <span class="stat-value bad" id="stat-missing">0</span>
-                        </div>
-                        <div class="analysis-stat">
-                            <span class="stat-label">Missing Optional Fields</span>
-                            <span class="stat-value warning" id="stat-optional-missing">0</span>
-                        </div>
-                    </div>
-                    
-                    <div class="analysis-card">
-                        <h3 style="margin-bottom: 1rem;">Missing Information Details</h3>
-                        <div id="missing-details"></div>
-                    </div>
-                    
-                    <div class="form-section" style="margin-top: 1.5rem;">
-                        <h3>Data Preview</h3>
-                        <div class="excel-preview" id="excel-preview"></div>
-                    </div>
-                    
-                    <div style="margin-top: 1.5rem; display: flex; gap: 1rem; justify-content: flex-end;">
-                        <button class="btn btn-outline" onclick="clearExcel()">Clear</button>
-                        <button class="btn btn-primary" onclick="submitExcelData()" id="excel-submit-btn">
-                            <i data-lucide="upload-cloud" style="width:16px; height:16px; margin-right:0.5rem;"></i>
-                            Submit All Records
-                        </button>
-                    </div>
-                    
-                    <div id="excel-submission-result" class="submission-result"></div>
-                </div>
-            </div>
-            
-            <!-- History Tab -->
-            <div id="tab-history" class="tab-content">
-                <div class="form-section">
-                    <h3>Recent Submissions</h3>
-                    <div id="history-container">
-                        <p style="text-align: center; padding: 2rem; color: var(--text-muted);">Loading...</p>
+
+                <!-- History Tab -->
+                <div id="history" class="tab-content">
+                    <div class="section">
+                        <h2 class="section-title">
+                            <i data-lucide="history"></i> Submission History
+                        </h2>
+                        <table class="history-table">
+                            <thead>
+                                <tr>
+                                    <th>Report Type</th>
+                                    <th>Drug Name</th>
+                                    <th>Date Submitted</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyBody">
+                                <tr>
+                                    <td><span class="type-badge type-anonymised">Anonymised</span></td>
+                                    <td>Aspirin</td>
+                                    <td>2024-01-25</td>
+                                    <td><span class="status-badge status-submitted">Submitted</span></td>
+                                </tr>
+                                <tr>
+                                    <td><span class="type-badge type-linked">Patient-linked</span></td>
+                                    <td>Metformin</td>
+                                    <td>2024-01-20</td>
+                                    <td><span class="status-badge status-submitted">Submitted</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
         </main>
     </div>
 
+    <!-- Submission Confirmation Modal -->
+    <div id="confirmationModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-icon success">
+                <i data-lucide="check-circle"></i>
+            </div>
+            <h2 class="modal-title">Report Submitted Successfully</h2>
+            <p class="modal-message" id="confirmationMessage"></p>
+            <div class="modal-detail" id="confirmationDetail"></div>
+            <button class="modal-btn" onclick="closeConfirmation()">Done</button>
+        </div>
+    </div>
+
+    <!-- Excel Upload Modal -->
+    <div id="excelUploadModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h2 class="modal-title" style="margin: 0;">Upload Drug Experience Reports</h2>
+                <button style="background: none; border: none; font-size: 1.5rem; color: var(--text-muted); cursor: pointer;" onclick="closeExcelUploadModal()">&times;</button>
+            </div>
+
+            <div id="uploadTypeSelection">
+                <p style="margin-bottom: 1.5rem; color: var(--text-muted); font-weight: 600;">Select report type to upload:</p>
+                <button class="btn btn-primary" style="width: 100%; margin-bottom: 1rem; justify-content: center;" onclick="selectUploadType('patient-linked')">
+                    <i data-lucide="user"></i> Upload Patient-linked Reports
+                </button>
+                <button class="btn btn-secondary" style="width: 100%; justify-content: center;" onclick="selectUploadType('anonymised')">
+                    <i data-lucide="lock"></i> Upload Anonymised Reports
+                </button>
+            </div>
+
+            <form id="excelUploadForm" style="display: none;">
+                <div class="form-group">
+                    <label class="form-label">Select Excel File</label>
+                    <input type="file" class="form-control" id="excelFile" accept=".xlsx,.xls" required>
+                    <p class="form-description" id="requiredColumns"></p>
+                </div>
+                <div class="form-group">
+                    <p style="background-color: #F9FAFB; padding: 1rem; border-radius: 8px; margin: 0; font-size: 0.9rem; color: var(--text-muted);">
+                        <strong>Template Download:</strong> <a href="#" onclick="downloadTemplate(event)" style="color: var(--primary); text-decoration: none; font-weight: 600;">Download Excel Template</a>
+                    </p>
+                </div>
+                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                    <button type="submit" class="btn btn-primary" style="flex: 1; justify-content: center;">Upload</button>
+                    <button type="button" class="btn btn-secondary" style="flex: 1; justify-content: center;" onclick="closeExcelUploadModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script type="module">
         import { Auth } from '/static/js/auth.js';
-        
-        // Require authentication
         const user = Auth.requireAuth();
-        if (!user) {
-            window.location.href = '/login';
-        }
-        
         lucide.createIcons();
-        
-        // Make functions globally available
+
+        let currentReportType = 'anonymised';
+
+        function selectReportType(type) {
+            currentReportType = type;
+            document.querySelectorAll('.radio-option').forEach(el => el.classList.remove('selected'));
+            event.currentTarget.classList.add('selected');
+            updateReportType(type);
+        }
+
+        function updateReportType(type) {
+            currentReportType = type;
+            const patientSection = document.getElementById('patientSection');
+            const anonymisedSection = document.getElementById('anonymisedSection');
+            const propagationNotice = document.getElementById('propagationNotice');
+
+            if (type === 'patient-linked') {
+                patientSection.classList.add('show');
+                patientSection.classList.remove('hidden-section');
+                anonymisedSection.classList.add('hidden-section');
+                anonymisedSection.classList.remove('show');
+                propagationNotice.innerHTML = '<strong>Data Storage:</strong> This report will be linked to the selected patient\'s record and visible in My Patients.';
+                propagationNotice.className = 'notice notice-info';
+            } else {
+                patientSection.classList.add('hidden-section');
+                patientSection.classList.remove('show');
+                anonymisedSection.classList.add('show');
+                anonymisedSection.classList.remove('hidden-section');
+                propagationNotice.innerHTML = '<strong>Data Storage:</strong> This report will be stored independently and will not create or update a patient record.';
+                propagationNotice.className = 'notice notice-info';
+            }
+        }
+
+        function selectPatientMode(mode) {
+            const existingMode = document.getElementById('existingPatientMode');
+            const manualMode = document.getElementById('manualPatientMode');
+            const buttons = document.querySelectorAll('.patient-selection button');
+
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            if (mode === 'existing') {
+                existingMode.classList.remove('hidden-section');
+                manualMode.classList.add('hidden-section');
+            } else {
+                existingMode.classList.add('hidden-section');
+                manualMode.classList.remove('hidden-section');
+            }
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tab).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        function submitReport() {
+            const message = currentReportType === 'patient-linked'
+                ? 'This patient-linked report has been recorded and linked to the patient\'s record. It will appear in My Patients and may trigger alerts if severity thresholds are met.'
+                : 'This anonymised report has been recorded for safety monitoring. No patient record was created.';
+
+            const detail = currentReportType === 'patient-linked'
+                ? 'Report Type: Patient-linked | Visibility: My Patients, Alerts'
+                : 'Report Type: Anonymised | Visibility: Safety Analytics, Aggregate Alerts';
+
+            document.getElementById('confirmationMessage').textContent = message;
+            document.getElementById('confirmationDetail').textContent = detail;
+            document.getElementById('confirmationModal').classList.add('show');
+        }
+
+        function closeConfirmation() {
+            document.getElementById('confirmationModal').classList.remove('show');
+            resetForm();
+        }
+
+        function resetForm() {
+            document.querySelectorAll('input[type="text"], input[type="date"], textarea, select').forEach(el => el.value = '');
+            document.querySelector('input[type="checkbox"]').checked = false;
+        }
+
+        let currentUploadType = null;
+
+        function openExcelUploadModal() {
+            currentUploadType = null;
+            document.getElementById('uploadTypeSelection').style.display = 'block';
+            document.getElementById('excelUploadForm').style.display = 'none';
+            document.getElementById('excelUploadModal').classList.add('show');
+        }
+
+        function closeExcelUploadModal() {
+            document.getElementById('excelUploadModal').classList.remove('show');
+            document.getElementById('excelFile').value = '';
+            currentUploadType = null;
+        }
+
+        function selectUploadType(type) {
+            currentUploadType = type;
+            const columns = type === 'patient-linked'
+                ? 'Patient Name, Age, Gender, Drug Name, Drug Code, Dosage, Route, Indication, Description, Onset Date, Outcome, Consent'
+                : 'Anonymised ID, Drug Name, Drug Code, Dosage, Route, Indication, Description, Onset Date, Outcome, Consent';
+            
+            document.getElementById('requiredColumns').innerHTML = `<strong>Required columns:</strong> ${columns}`;
+            document.getElementById('uploadTypeSelection').style.display = 'none';
+            document.getElementById('excelUploadForm').style.display = 'block';
+        }
+
+        function downloadTemplate(e) {
+            e.preventDefault();
+            const type = currentUploadType || 'anonymised';
+            
+            if (type === 'patient-linked') {
+                const headers = ['Patient Name', 'Age', 'Gender', 'Drug Name', 'Drug Code', 'Dosage', 'Route', 'Indication', 'Description', 'Onset Date', 'Outcome', 'Consent'];
+                const sampleData = [
+                    ['Rajesh Kumar', '45', 'Male', 'Aspirin', 'BATCH-001', '500mg', 'Oral', 'Pain relief', 'Mild headache after 2 hours', '2024-01-25', 'Recovered', 'Yes'],
+                    ['Priya Sharma', '38', 'Female', 'Metformin', 'BATCH-002', '1000mg', 'Oral', 'Diabetes management', 'No adverse effects', '2024-01-24', 'Unknown', 'Yes']
+                ];
+                downloadCSV(headers, sampleData, 'Patient-linked_Reports_Template.csv');
+            } else {
+                const headers = ['Anonymised ID', 'Drug Name', 'Drug Code', 'Dosage', 'Route', 'Indication', 'Description', 'Onset Date', 'Outcome', 'Consent'];
+                const sampleData = [
+                    ['ANON-2024-001', 'Aspirin', 'BATCH-001', '500mg', 'Oral', 'Pain relief', 'Mild headache after 2 hours', '2024-01-25', 'Recovered', 'Yes'],
+                    ['ANON-2024-002', 'Metformin', 'BATCH-002', '1000mg', 'Oral', 'Diabetes management', 'No adverse effects', '2024-01-24', 'Unknown', 'Yes']
+                ];
+                downloadCSV(headers, sampleData, 'Anonymised_Reports_Template.csv');
+            }
+        }
+
+        function downloadCSV(headers, data, filename) {
+            let csv = headers.join(',') + '\n';
+            data.forEach(row => {
+                csv += row.map(cell => `"${cell}"`).join(',') + '\n';
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        document.getElementById('excelUploadForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const file = document.getElementById('excelFile').files[0];
+            
+            if (!file) {
+                alert('Please select a file');
+                return;
+            }
+
+            if (!file.name.match(/\.(xlsx|xls)$/)) {
+                alert('Please upload an Excel file (.xlsx or .xls)');
+                return;
+            }
+
+            alert(`Excel file "${file.name}" uploaded successfully for ${currentUploadType} reports. Processing...`);
+            closeExcelUploadModal();
+        });
+
+        window.selectReportType = selectReportType;
+        window.updateReportType = updateReportType;
+        window.selectPatientMode = selectPatientMode;
         window.switchTab = switchTab;
-        window.submitExperience = submitExperience;
-        window.clearForm = clearForm;
-        window.handleFileSelect = handleFileSelect;
+        window.submitReport = submitReport;
+        window.closeConfirmation = closeConfirmation;
+        window.resetForm = resetForm;
+        window.openExcelUploadModal = openExcelUploadModal;
+        window.closeExcelUploadModal = closeExcelUploadModal;
+        window.selectUploadType = selectUploadType;
         window.downloadTemplate = downloadTemplate;
-        window.clearExcel = clearExcel;
-        window.submitExcelData = submitExcelData;
-        window.closeCaseMatchModal = closeCaseMatchModal;
-        window.proceedWithNewCase = proceedWithNewCase;
-        window.linkToExistingCase = linkToExistingCase;
-        window.discardDuplicateCase = discardDuplicateCase;
-        window.selectMatchCase = selectMatchCase;
-        
-        // Store parsed Excel data
-        let excelData = [];
-        let currentCaseData = null;
-        let currentMatchResults = null;
-        let selectedMatchId = null;
-        
-        // PV Backend URL
-        const PV_API = 'http://localhost:5001/api';
-        const LOCAL_API = 'http://localhost:5000/api';
-        
-        // Use development endpoints (no auth required)
-        const PV_SUBMIT_URL = `${PV_API}/submit/doctor-dev`;
-        const PV_CASES_URL = `${PV_API}/cases/dev`;
-        const CASE_MATCH_URL = `${LOCAL_API}/cases/match`;
-        const CASE_LINK_URL = `${LOCAL_API}/cases/link`;
-        const CASE_DISCARD_URL = `${LOCAL_API}/cases/discard`;
-        
-        // Get auth token for PV API (optional in dev mode)
-        function getPVToken() {
-            return localStorage.getItem('pv_token');
-        }
-        
-        // Tab switching
-        function switchTab(tabName) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            
-            document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
-            document.getElementById(`tab-${tabName}`).classList.add('active');
-            
-            if (tabName === 'history') {
-                loadHistory();
-            }
-            
-            lucide.createIcons();
-        }
-        
-        // Submit experience form
-        async function submitExperience(event) {
-            event.preventDefault();
-            
-            const form = event.target;
-            const formData = new FormData(form);
-            const data = Object.fromEntries(formData.entries());
-            
-            // Store current case data for later use
-            currentCaseData = data;
-            
-            // Prepare matching data
-            const matchingData = {
-                drugName: data.drug_name,
-                symptoms: data.observed_events || '',
-                age: parseInt(data.patient_age) || 0,
-                gender: data.patient_gender || '',
-                threshold: 0.75
-            };
-            
-            const resultDiv = document.getElementById('submission-result');
-            const submitBtn = document.getElementById('submit-btn');
-            
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i data-lucide="loader" style="width:16px; height:16px; margin-right:0.5rem;"></i>Checking for similar cases...';
-            
-            try {
-                // Step 1: Check for matching cases
-                console.log('Checking for matching cases:', matchingData);
-                const matchResponse = await fetch(CASE_MATCH_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(matchingData)
-                });
-                
-                const matchResult = await matchResponse.json();
-                currentMatchResults = matchResult;
-                
-                if (matchResult.success && matchResult.matches && matchResult.matches.length > 0) {
-                    // Show case matching modal
-                    showCaseMatchModal(matchResult);
-                    return;
-                }
-                
-                // No matches found, proceed with submission
-                await proceedWithNewCaseSubmission(form, data);
-                
-            } catch (error) {
-                console.error('Error during case matching:', error);
-                // Continue with submission anyway
-                await proceedWithNewCaseSubmission(form, data);
-            }
-        }
-        
-        // Show the case matching modal
-        function showCaseMatchModal(matchResult) {
-            selectedMatchId = null;
-            const modal = document.getElementById('case-match-modal');
-            const messageEl = document.getElementById('match-message');
-            const matchesListEl = document.getElementById('matches-list');
-            const recActionEl = document.getElementById('rec-action');
-            const recReasonEl = document.getElementById('rec-reason');
-            
-            // Update message
-            messageEl.textContent = `Found ${matchResult.total_matches} similar case(s). Please review:`;
-            
-            // Render matches
-            matchesListEl.innerHTML = matchResult.matches.map((match, idx) => `
-                <div class="match-case-item" id="match-${match.case_id}" onclick="selectMatchCase('${match.case_id}')">
-                    <div class="case-selector"></div>
-                    <div class="case-info-row">
-                        <span class="case-info-label">Case ID:</span>
-                        <span class="case-info-value"><strong>${match.case_id}</strong></span>
-                    </div>
-                    <div class="case-info-row">
-                        <span class="case-info-label">Patient:</span>
-                        <span class="case-info-value">${match.patient_name}</span>
-                    </div>
-                    <div class="case-info-row">
-                        <span class="case-info-label">Drug:</span>
-                        <span class="case-info-value">${match.drug_name}</span>
-                    </div>
-                    <div class="case-info-row">
-                        <span class="case-info-label">Symptoms:</span>
-                        <span class="case-info-value">${match.symptoms || 'N/A'}</span>
-                    </div>
-                    <div class="case-info-row">
-                        <span class="case-info-label">Demographics:</span>
-                        <span class="case-info-value">${match.age} years, ${match.gender}</span>
-                    </div>
-                    <div class="case-info-row">
-                        <span class="case-info-label">Reported:</span>
-                        <span class="case-info-value">${new Date(match.created_at).toLocaleDateString()}</span>
-                    </div>
-                    <div class="score-breakdown">
-                        <div class="case-info-row" style="margin-bottom: 0.5rem;">
-                            <strong>Match Score:</strong>
-                            <span class="similarity-score ${getSimilarityClass(match.similarity_score)}">
-                                ${(match.similarity_score * 100).toFixed(1)}%
-                            </span>
-                        </div>
-                        <div class="score-item">
-                            <span>Drug Match:</span>
-                            <span>${(match.breakdown.drug * 100).toFixed(0)}%</span>
-                        </div>
-                        <div class="score-item">
-                            <span>Symptom Match:</span>
-                            <span>${(match.breakdown.symptoms * 100).toFixed(0)}%</span>
-                        </div>
-                        <div class="score-item">
-                            <span>Demographics:</span>
-                            <span>${(match.breakdown.demographics * 100).toFixed(0)}%</span>
-                        </div>
-                        <div class="score-item">
-                            <span>Time Recency:</span>
-                            <span>${(match.breakdown.time_recency * 100).toFixed(0)}%</span>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-            
-            // Update recommendation
-            const action = matchResult.action;
-            recActionEl.textContent = `Recommendation: ${action}`;
-            recReasonEl.textContent = matchResult.reason;
-            
-            // Update recommendation box color
-            const recBox = document.getElementById('recommendation-box');
-            if (action === 'DISCARD') {
-                recBox.style.borderLeftColor = '#DC2626';
-                recBox.style.background = '#FEF2F2';
-            } else if (action === 'REVIEW') {
-                recBox.style.borderLeftColor = '#EA580C';
-                recBox.style.background = '#FEF3C7';
-            } else {
-                recBox.style.borderLeftColor = '#16A34A';
-                recBox.style.background = '#ECFDF5';
-            }
-            
-            // Update button visibility
-            const linkBtn = document.getElementById('link-case-btn');
-            const discardBtn = document.getElementById('discard-btn');
-            
-            if (action === 'DISCARD') {
-                linkBtn.style.display = 'none';
-                discardBtn.style.display = 'block';
-            } else {
-                linkBtn.style.display = 'block';
-                discardBtn.style.display = matchResult.top_match ? 'block' : 'none';
-            }
-            
-            // Show modal
-            modal.style.display = 'flex';
-            lucide.createIcons();
-        }
-        
-        function getSimilarityClass(score) {
-            if (score >= 0.8) return 'high';
-            if (score >= 0.6) return 'medium';
-            return 'low';
-        }
-        
-        function selectMatchCase(caseId) {
-            // Remove previous selection
-            document.querySelectorAll('.match-case-item').forEach(item => {
-                item.classList.remove('selected');
-            });
-            
-            // Add selection to clicked item
-            document.getElementById(`match-${caseId}`).classList.add('selected');
-            selectedMatchId = caseId;
-            
-            // Show link button
-            document.getElementById('link-case-btn').style.display = 'block';
-        }
-        
-        function closeCaseMatchModal() {
-            document.getElementById('case-match-modal').style.display = 'none';
-            resetSubmitButton();
-        }
-        
-        async function proceedWithNewCase() {
-            closeCaseMatchModal();
-            // Generate a new case ID and submit
-            const newCaseId = `DR-${Date.now()}`;
-            await proceedWithNewCaseSubmission(null, currentCaseData, newCaseId);
-        }
-        
-        async function proceedWithNewCaseSubmission(form, data, caseId) {
-            const resultDiv = document.getElementById('submission-result');
-            const submitBtn = document.getElementById('submit-btn');
-            
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i data-lucide="loader" style="width:16px; height:16px; margin-right:0.5rem;"></i>Submitting...';
-            
-            try {
-                // Map form data to PV API format
-                const pvData = {
-                    patient_identifier: data.patient_identifier,
-                    drug_name: data.drug_name,
-                    drug_code: data.drug_code || null,
-                    drug_batch: data.drug_batch || null,
-                    indication: data.indication || null,
-                    dosage: data.dosage || null,
-                    route_of_administration: data.route_of_administration || null,
-                    start_date: data.start_date || null,
-                    event_date: data.event_date || null,
-                    observed_events: data.observed_events || null,
-                    outcome: data.outcome || data.outcome_status || null,
-                    consent_to_contact: data.consent_to_contact === 'true'
-                };
-                
-                // First try to submit to PV backend
-                const response = await fetch(PV_SUBMIT_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(pvData)
-                });
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    resultDiv.className = 'submission-result success';
-                    resultDiv.innerHTML = `
-                        <strong>✓ Submission Successful</strong>
-                        <p>Case Number: <strong>${result.case_number || caseId}</strong></p>
-                        <p>Event ID: ${result.event_id} | New Case: ${result.is_new_case ? 'Yes' : 'No (linked to existing)'}</p>
-                        <p>Score: <span class="score-badge ${getScoreClass(result.score?.computed_score)}">${result.score?.computed_score || 0}</span>
-                           (${result.score?.polarity || 'unclear'}, strength ${result.score?.strength || 0})</p>
-                        ${result.followups_created > 0 ? `<p style="color: #92400E;">⚠ ${result.followups_created} follow-up request(s) created due to incomplete data</p>` : ''}
-                    `;
-                    
-                    // Also save to local backend for patient tracking
-                    await saveToLocalBackend(data);
-                    
-                    // Clear form after successful submission
-                    setTimeout(() => {
-                        if (form) form.reset();
-                    }, 2000);
-                } else {
-                    throw new Error(result.message || 'Submission failed');
-                }
-            } catch (error) {
-                console.error('Submission error:', error);
-                resultDiv.className = 'submission-result error';
-                resultDiv.innerHTML = `
-                    <strong>✗ Submission Failed</strong>
-                    <p>${error.message}</p>
-                    <p>Please ensure the PV backend is running on port 5001 and you are authenticated.</p>
-                `;
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i data-lucide="send" style="width:16px; height:16px; margin-right:0.5rem;"></i>Submit to PV System';
-                lucide.createIcons();
-            }
-        }
-        
-        async function linkToExistingCase() {
-            if (!selectedMatchId) {
-                alert('Please select a case to link to');
-                return;
-            }
-            
-            const matchResult = currentMatchResults.matches.find(m => m.case_id === selectedMatchId);
-            if (!matchResult) return;
-            
-            closeCaseMatchModal();
-            
-            const resultDiv = document.getElementById('submission-result');
-            const submitBtn = document.getElementById('submit-btn');
-            
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i data-lucide="loader" style="width:16px; height:16px; margin-right:0.5rem;"></i>Linking case...';
-            
-            try {
-                // Create new case
-                const newCaseId = `DR-${Date.now()}`;
-                const linkData = {
-                    newCaseId: newCaseId,
-                    linkedCaseId: selectedMatchId,
-                    matchScore: matchResult.similarity_score,
-                    notes: `Linked from doctor report. Match confidence: ${(matchResult.similarity_score * 100).toFixed(1)}%`
-                };
-                
-                const response = await fetch(CASE_LINK_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(linkData)
-                });
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    resultDiv.className = 'submission-result success';
-                    resultDiv.innerHTML = `
-                        <strong>✓ Case Linked Successfully</strong>
-                        <p>New Case ID: <strong>${newCaseId}</strong></p>
-                        <p>Linked to existing case: <strong>${selectedMatchId}</strong></p>
-                        <p>Match Score: <span class="score-badge" style="background: #E6F4EA; color: #166534;">${(matchResult.similarity_score * 100).toFixed(1)}%</span></p>
-                    `;
-                } else {
-                    throw new Error(result.message || 'Linking failed');
-                }
-            } catch (error) {
-                console.error('Linking error:', error);
-                resultDiv.className = 'submission-result error';
-                resultDiv.innerHTML = `
-                    <strong>✗ Linking Failed</strong>
-                    <p>${error.message}</p>
-                `;
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i data-lucide="send" style="width:16px; height:16px; margin-right:0.5rem;"></i>Submit to PV System';
-                lucide.createIcons();
-            }
-        }
-        
-        async function discardDuplicateCase() {
-            if (!selectedMatchId && !currentMatchResults?.top_match) {
-                alert('No case to discard');
-                return;
-            }
-            
-            const caseToDiscard = selectedMatchId || currentMatchResults.top_match.case_id;
-            
-            closeCaseMatchModal();
-            
-            const resultDiv = document.getElementById('submission-result');
-            const submitBtn = document.getElementById('submit-btn');
-            
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i data-lucide="loader" style="width:16px; height:16px; margin-right:0.5rem;"></i>Discarding duplicate...';
-            
-            try {
-                const discardData = {
-                    caseId: caseToDiscard,
-                    reason: 'Identified as duplicate during case matching review'
-                };
-                
-                const response = await fetch(CASE_DISCARD_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(discardData)
-                });
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    resultDiv.className = 'submission-result success';
-                    resultDiv.innerHTML = `
-                        <strong>✓ Duplicate Discarded</strong>
-                        <p>Case <strong>${caseToDiscard}</strong> has been marked as discarded.</p>
-                    `;
-                } else {
-                    throw new Error(result.message || 'Discard failed');
-                }
-            } catch (error) {
-                console.error('Discard error:', error);
-                resultDiv.className = 'submission-result error';
-                resultDiv.innerHTML = `
-                    <strong>✗ Discard Failed</strong>
-                    <p>${error.message}</p>
-                `;
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i data-lucide="send" style="width:16px; height:16px; margin-right:0.5rem;"></i>Submit to PV System';
-                lucide.createIcons();
-            }
-        }
-        
-        function resetSubmitButton() {
-            const submitBtn = document.getElementById('submit-btn');
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i data-lucide="send" style="width:16px; height:16px; margin-right:0.5rem;"></i>Submit to PV System';
-        }
-        
-        function getScoreClass(score) {
-            if (score > 0) return 'score-positive';
-            if (score < 0) return 'score-negative';
-            return 'score-neutral';
-        }
-        
-        // Save to local backend for patient tracking
-        async function saveToLocalBackend(data) {
-            try {
-                await fetch('/api/patients', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        name: `Patient-${data.patient_identifier.substring(0, 8)}`,
-                        age: data.patient_age || 0,
-                        gender: data.patient_gender || 'Unknown',
-                        drugName: data.drug_name,
-                        symptoms: data.observed_events || ''
-                    })
-                });
-            } catch (e) {
-                console.log('Local backend save skipped:', e);
-            }
-        }
-        
-        function clearForm() {
-            document.getElementById('pv-form').reset();
-            document.getElementById('submission-result').className = 'submission-result';
-        }
-        
-        // Excel handling
-        function handleFileSelect(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                
-                // Get first sheet
-                const sheetName = workbook.SheetNames[0];
-                const sheet = workbook.Sheets[sheetName];
-                
-                // Convert to JSON
-                excelData = XLSX.utils.sheet_to_json(sheet);
-                
-                // Analyze and display
-                analyzeExcelData(excelData);
-            };
-            reader.readAsArrayBuffer(file);
-        }
-        
-        // Drag and drop
-        const uploadZone = document.getElementById('upload-zone');
-        
-        uploadZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadZone.classList.add('dragover');
-        });
-        
-        uploadZone.addEventListener('dragleave', () => {
-            uploadZone.classList.remove('dragover');
-        });
-        
-        uploadZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadZone.classList.remove('dragover');
-            
-            const file = e.dataTransfer.files[0];
-            if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
-                const input = document.getElementById('excel-input');
-                const dataTransfer = new DataTransfer();
-                dataTransfer.items.add(file);
-                input.files = dataTransfer.files;
-                handleFileSelect({ target: input });
-            }
-        });
-        
-        // Required and optional fields
-        const REQUIRED_FIELDS = ['patient_identifier', 'drug_name'];
-        const OPTIONAL_FIELDS = ['drug_code', 'indication', 'dosage', 'route', 'start_date', 'event_date', 'observed_events', 'outcome'];
-        
-        function analyzeExcelData(data) {
-            document.getElementById('excel-analysis').style.display = 'block';
-            
-            let completeCount = 0;
-            let missingRequired = 0;
-            let missingOptional = 0;
-            const missingByField = {};
-            
-            data.forEach((row, index) => {
-                let hasAllRequired = true;
-                let missingOptionalCount = 0;
-                
-                REQUIRED_FIELDS.forEach(field => {
-                    if (!row[field] && !row[field.replace('_', ' ')]) {
-                        hasAllRequired = false;
-                        missingByField[field] = (missingByField[field] || 0) + 1;
-                    }
-                });
-                
-                OPTIONAL_FIELDS.forEach(field => {
-                    if (!row[field] && !row[field.replace('_', ' ')]) {
-                        missingOptionalCount++;
-                        missingByField[field] = (missingByField[field] || 0) + 1;
-                    }
-                });
-                
-                if (hasAllRequired) {
-                    completeCount++;
-                } else {
-                    missingRequired++;
-                }
-                
-                if (missingOptionalCount > 0) {
-                    missingOptional++;
-                }
-            });
-            
-            // Update stats
-            document.getElementById('stat-total-records').textContent = data.length;
-            document.getElementById('stat-complete').textContent = completeCount;
-            document.getElementById('stat-missing').textContent = missingRequired;
-            document.getElementById('stat-optional-missing').textContent = missingOptional;
-            
-            // Show missing details
-            const detailsDiv = document.getElementById('missing-details');
-            if (Object.keys(missingByField).length > 0) {
-                detailsDiv.innerHTML = Object.entries(missingByField).map(([field, count]) => `
-                    <div class="analysis-stat">
-                        <span class="stat-label">${field.replace('_', ' ')}</span>
-                        <span class="stat-value ${REQUIRED_FIELDS.includes(field) ? 'bad' : 'warning'}">${count} records missing</span>
-                    </div>
-                `).join('');
-            } else {
-                detailsDiv.innerHTML = '<p style="color: #166534;">All fields are complete!</p>';
-            }
-            
-            // Show preview table
-            renderExcelPreview(data);
-        }
-        
-        function renderExcelPreview(data) {
-            if (data.length === 0) return;
-            
-            const headers = Object.keys(data[0]);
-            const previewDiv = document.getElementById('excel-preview');
-            
-            let html = '<table><thead><tr>';
-            headers.forEach(h => {
-                const isRequired = REQUIRED_FIELDS.includes(h.replace(' ', '_'));
-                html += `<th>${h}${isRequired ? ' *' : ''}</th>`;
-            });
-            html += '</tr></thead><tbody>';
-            
-            data.slice(0, 50).forEach(row => {
-                html += '<tr>';
-                headers.forEach(h => {
-                    const value = row[h];
-                    const fieldName = h.replace(' ', '_');
-                    let cellClass = '';
-                    
-                    if (!value) {
-                        if (REQUIRED_FIELDS.includes(fieldName)) {
-                            cellClass = 'missing-field';
-                        }
-                    }
-                    
-                    html += `<td class="${cellClass}">${value || '<em>missing</em>'}</td>`;
-                });
-                html += '</tr>';
-            });
-            
-            html += '</tbody></table>';
-            if (data.length > 50) {
-                html += `<p style="text-align: center; padding: 1rem; color: var(--text-muted);">Showing first 50 of ${data.length} records</p>`;
-            }
-            
-            previewDiv.innerHTML = html;
-        }
-        
-        function downloadTemplate() {
-            const template = [
-                {
-                    'patient_identifier': 'P001',
-                    'drug_name': 'Aspirin',
-                    'drug_code': 'NDC-12345',
-                    'indication': 'Pain management',
-                    'dosage': '500mg daily',
-                    'route': 'oral',
-                    'start_date': '2026-01-01',
-                    'event_date': '2026-01-15',
-                    'observed_events': 'No adverse events, well tolerated',
-                    'outcome': 'ongoing'
-                }
-            ];
-            
-            const ws = XLSX.utils.json_to_sheet(template);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, 'Drug Experiences');
-            XLSX.writeFile(wb, 'pv_template.xlsx');
-        }
-        
-        function clearExcel() {
-            excelData = [];
-            document.getElementById('excel-input').value = '';
-            document.getElementById('excel-analysis').style.display = 'none';
-            document.getElementById('excel-submission-result').className = 'submission-result';
-        }
-        
-        async function submitExcelData() {
-            if (excelData.length === 0) {
-                alert('No data to submit');
-                return;
-            }
-            
-            const resultDiv = document.getElementById('excel-submission-result');
-            const submitBtn = document.getElementById('excel-submit-btn');
-            
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i data-lucide="loader"></i>Submitting...';
-            
-            let successCount = 0;
-            let failCount = 0;
-            const errors = [];
-            
-            const token = getPVToken();
-            
-            for (let i = 0; i < excelData.length; i++) {
-                const row = excelData[i];
-                
-                // Map Excel columns to API format
-                const pvData = {
-                    patient_identifier: row.patient_identifier || row['patient_identifier'],
-                    drug_name: row.drug_name || row['drug_name'],
-                    drug_code: row.drug_code || row['drug_code'] || null,
-                    indication: row.indication || null,
-                    dosage: row.dosage || null,
-                    route_of_administration: row.route || null,
-                    start_date: row.start_date || null,
-                    event_date: row.event_date || null,
-                    observed_events: row.observed_events || null,
-                    outcome: row.outcome || null
-                };
-                
-                // Skip rows without required fields
-                if (!pvData.patient_identifier || !pvData.drug_name) {
-                    failCount++;
-                    errors.push(`Row ${i + 1}: Missing required fields`);
-                    continue;
-                }
-                
-                try {
-                    const response = await fetch(PV_SUBMIT_URL, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(pvData)
-                    });
-                    
-                    const result = await response.json();
-                    
-                    if (result.success) {
-                        successCount++;
-                    } else {
-                        failCount++;
-                        errors.push(`Row ${i + 1}: ${result.message}`);
-                    }
-                } catch (e) {
-                    failCount++;
-                    errors.push(`Row ${i + 1}: Network error`);
-                }
-            }
-            
-            // Show results
-            if (failCount === 0) {
-                resultDiv.className = 'submission-result success';
-                resultDiv.innerHTML = `
-                    <strong>✓ All ${successCount} records submitted successfully!</strong>
-                `;
-            } else {
-                resultDiv.className = 'submission-result ' + (successCount > 0 ? 'warning' : 'error');
-                resultDiv.innerHTML = `
-                    <strong>${successCount} succeeded, ${failCount} failed</strong>
-                    <details style="margin-top: 0.5rem;">
-                        <summary>Show errors</summary>
-                        <ul style="margin-top: 0.5rem;">
-                            ${errors.map(e => `<li>${e}</li>`).join('')}
-                        </ul>
-                    </details>
-                `;
-            }
-            
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i data-lucide="upload-cloud"></i>Submit All Records';
-            lucide.createIcons();
-        }
-        
-        // Load submission history
-        async function loadHistory() {
-            const container = document.getElementById('history-container');
-            
-            try {
-                const response = await fetch(`${PV_CASES_URL}?limit=20`, {
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                const result = await response.json();
-                
-                if (result.success && result.cases && result.cases.length > 0) {
-                    container.innerHTML = `
-                        <table style="width: 100%; border-collapse: collapse;">
-                            <thead>
-                                <tr style="border-bottom: 2px solid #E2E8F0;">
-                                    <th style="text-align: left; padding: 0.75rem;">Case #</th>
-                                    <th style="text-align: left; padding: 0.75rem;">Drug</th>
-                                    <th style="text-align: left; padding: 0.75rem;">Score</th>
-                                    <th style="text-align: left; padding: 0.75rem;">Status</th>
-                                    <th style="text-align: left; padding: 0.75rem;">Events</th>
-                                    <th style="text-align: left; padding: 0.75rem;">Date</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${result.cases.map(c => `
-                                    <tr style="border-bottom: 1px solid #F1F5F9;">
-                                        <td style="padding: 0.75rem;"><strong>${c.case_number}</strong></td>
-                                        <td style="padding: 0.75rem;">${c.drug_name_normalized}</td>
-                                        <td style="padding: 0.75rem;">
-                                            <span class="score-badge ${getScoreClass(c.current_score)}">${c.current_score}</span>
-                                        </td>
-                                        <td style="padding: 0.75rem;">
-                                            <span class="badge badge-${c.priority === 'critical' ? 'high' : c.priority === 'high' ? 'medium' : 'low'}">${c.status}</span>
-                                        </td>
-                                        <td style="padding: 0.75rem;">${c.event_count}</td>
-                                        <td style="padding: 0.75rem;">${new Date(c.created_at).toLocaleDateString()}</td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    `;
-                } else {
-                    container.innerHTML = '<p style="text-align: center; padding: 2rem; color: var(--text-muted);">No submissions yet. Start by submitting a drug experience report.</p>';
-                }
-            } catch (e) {
-                console.error('Error loading history:', e);
-                container.innerHTML = '<p style="text-align: center; padding: 2rem; color: #DC2626;">Error loading history. Make sure PV backend is running.</p>';
-            }
-        }
     </script>
 </body>
 </html>
