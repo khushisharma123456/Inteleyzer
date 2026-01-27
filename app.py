@@ -8,6 +8,7 @@ Run on: http://127.0.0.1:5000
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from flask_cors import CORS
 from models import db, User, Patient, Drug, Alert
+from pv_backend.services.case_matching import match_new_case, should_accept_case
 import os
 import random
 from datetime import datetime
@@ -558,6 +559,147 @@ def submit_pharmacy_report():
     db.session.commit()
     
     return jsonify({'success': True, 'report_id': patient.id})
+
+# Case Matching APIs for Duplicate Detection
+@app.route('/api/cases/match', methods=['POST'])
+def match_cases():
+    """
+    Check for matching cases before adding a new case
+    Returns similar cases with similarity scores and recommendations
+    """
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authenticated'}), 401
+    
+    data = request.json
+    
+    # Prepare new case data
+    new_case = {
+        'drug_name': data.get('drugName', ''),
+        'symptoms': data.get('symptoms', ''),
+        'age': data.get('age'),
+        'gender': data.get('gender', ''),
+    }
+    
+    # Get threshold from request or use default
+    threshold = data.get('threshold', 0.75)
+    
+    # Get existing cases for this drug
+    existing_patients = Patient.query.filter_by(
+        drug_name=new_case['drug_name']
+    ).filter(Patient.case_status != 'Discarded').all()
+    
+    # Run matching algorithm
+    match_result = match_new_case(new_case, existing_patients, threshold=threshold)
+    
+    # Get action recommendation
+    action_recommendation = should_accept_case(match_result, auto_discard_threshold=0.90)
+    
+    return jsonify({
+        'success': True,
+        'matches': match_result['matches'],
+        'total_matches': match_result['total_matches'],
+        'has_exact_match': match_result['has_exact_match'],
+        'recommendation': match_result['recommendation'],
+        'action': action_recommendation['action'],
+        'reason': action_recommendation['reason'],
+        'threshold': threshold
+    })
+
+@app.route('/api/cases/link', methods=['POST'])
+def link_cases():
+    """
+    Link a new case to an existing case (mark as duplicate)
+    """
+    if 'user_id' not in session:
+        return jsonify({'success': False}), 401
+    
+    data = request.json
+    new_case_id = data.get('newCaseId')
+    linked_case_id = data.get('linkedCaseId')
+    match_score = data.get('matchScore')
+    match_notes = data.get('notes', '')
+    
+    # Get the new case
+    new_case = Patient.query.get(new_case_id)
+    if not new_case:
+        return jsonify({'success': False, 'message': 'Case not found'}), 404
+    
+    # Link to existing case
+    new_case.linked_case_id = linked_case_id
+    new_case.match_score = match_score
+    new_case.case_status = 'Linked'
+    new_case.match_notes = f'Linked to case {linked_case_id}. Score: {match_score}. {match_notes}'
+    
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'message': f'Case {new_case_id} linked to {linked_case_id}',
+        'case': {
+            'id': new_case.id,
+            'status': new_case.case_status,
+            'linkedCaseId': new_case.linked_case_id,
+            'matchScore': new_case.match_score
+        }
+    })
+
+@app.route('/api/cases/discard', methods=['POST'])
+def discard_case():
+    """
+    Mark a case as discarded (duplicate)
+    """
+    if 'user_id' not in session:
+        return jsonify({'success': False}), 401
+    
+    data = request.json
+    case_id = data.get('caseId')
+    reason = data.get('reason', '')
+    
+    case = Patient.query.get(case_id)
+    if not case:
+        return jsonify({'success': False, 'message': 'Case not found'}), 404
+    
+    case.case_status = 'Discarded'
+    case.match_notes = f'Discarded: {reason}'
+    
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'message': f'Case {case_id} discarded',
+        'case': {
+            'id': case.id,
+            'status': case.case_status
+        }
+    })
+
+@app.route('/api/cases/<case_id>/details', methods=['GET'])
+def get_case_details(case_id):
+    """
+    Get details of a specific case including linkage info
+    """
+    case = Patient.query.get(case_id)
+    if not case:
+        return jsonify({'success': False}), 404
+    
+    return jsonify({
+        'success': True,
+        'case': {
+            'id': case.id,
+            'name': case.name,
+            'age': case.age,
+            'gender': case.gender,
+            'drugName': case.drug_name,
+            'symptoms': case.symptoms,
+            'riskLevel': case.risk_level,
+            'status': case.case_status,
+            'linkedCaseId': case.linked_case_id,
+            'matchScore': case.match_score,
+            'matchNotes': case.match_notes,
+            'createdAt': case.created_at.isoformat(),
+            'createdBy': case.created_by
+        }
+    })
 
 # Hospital Routes
 @app.route('/hospital/dashboard')
