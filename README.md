@@ -1,7 +1,7 @@
-# MedSafe - Pharmacovigilance Platform
+# Inteleyzer - Pharmacovigilance Platform
 
 ## 🎯 Overview
-MedSafe is a comprehensive pharmacovigilance system for monitoring and managing adverse drug reactions (ADRs). It supports three user roles: **Pharmaceutical Companies**, **Doctors**, and **Local Pharmacies**.
+Inteleyzer is a comprehensive pharmacovigilance system for monitoring and managing adverse drug reactions (ADRs). It supports three user roles: **Pharmaceutical Companies**, **Doctors**, and **Local Pharmacies**.
 
 ## 📁 Clean Project Structure
 
@@ -13,7 +13,7 @@ Novartis/
 ├── README.md                 # This file
 │
 ├── instance/                 # Database files
-│   ├── medsafe.db           # Main application database
+│   ├── inteleyzer.db        # Main application database
 │   └── pv_database.db       # PV backend database
 │
 ├── static/                   # Static assets (CSS, JS, images)
@@ -105,7 +105,7 @@ Check `/docs/ALL_LOGIN_CREDENTIALS.md` for complete list of test accounts.
 
 ## 📊 Database
 
-### Main Database (`instance/medsafe.db`)
+### Main Database (`instance/inteleyzer.db`)
 Contains:
 - 8 Pharmaceutical Companies
 - 10 Doctors (various specialties)

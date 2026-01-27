@@ -42,6 +42,16 @@
             /* Shadows */
             --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
             --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+
+            /* Hospital-specific colors */
+            --hospital-blue: #1a5f7a;
+            --hospital-light-blue: #4299e1;
+            --neutral-gray: #718096;
+            --pharma-green: #38a169;
+            --warning-orange: #dd6b20;
+            --alert-red: #c53030;
+            --safe-green: #38a169;
         }
 
         * {
@@ -623,15 +633,15 @@
         .tab {
             padding: 15px 25px;
             font-weight: 600;
-            color: var(--neutral-gray);
+            color: var(--text-muted);
             cursor: pointer;
             border-bottom: 3px solid transparent;
             transition: all 0.3s;
         }
 
         .tab.active {
-            color: var(--hospital-blue);
-            border-bottom: 3px solid var(--hospital-light-blue);
+            color: var(--primary);
+            border-bottom: 3px solid var(--primary);
         }
 
         .tab-content {
@@ -810,10 +820,10 @@
         <main class="main-content">
             <div class="header" style="justify-content: center;">
                 <button id="sidebar-open-btn" class="sidebar-toggle-btn-main"
-                    style="position: absolute; left: 30px; background: none; border: none; font-size: 24px; color: var(--hospital-blue); cursor: pointer;"
+                    style="position: absolute; left: 30px; background: none; border: none; font-size: 24px; color: #1a5f7a; cursor: pointer;"
                     title="Show Sidebar"><i class="fas fa-bars"></i></button>
                 <div class="header-title" style="text-align: center;">
-                    <h2 id="page-subtitle" style="color: var(--hospital-blue); font-weight: 700; font-size: 28px;"></h2>
+                    <h2 id="page-subtitle" style="color: #1a5f7a; font-weight: 700; font-size: 28px;">{{ session.get('hospital_name', 'General Hospital') }}</h2>
                 </div>
             </div>
 
@@ -1346,10 +1356,10 @@
 
         // Initialize Dashboard
         document.addEventListener('DOMContentLoaded', function () {
+            setupEventListeners();
             initDashboard();
             updateDashboardCards();
             updateTables();
-            setupEventListeners();
             
             // Initialize charts after a short delay to ensure DOM is ready
             setTimeout(() => {
@@ -1531,6 +1541,11 @@
 
         function toggleDrugDropdown() {
             const menu = document.getElementById('drug-dropdown-menu');
+            if (!menu) {
+                console.error('Drug dropdown menu not found');
+                return;
+            }
+            
             const isVisible = menu.style.display === 'block';
             
             if (isVisible) {
@@ -1538,15 +1553,28 @@
             } else {
                 menu.style.display = 'block';
                 // Show all drugs when dropdown opens
-                populateDrugList(allDrugs);
-                document.getElementById('drug-search').focus();
-                document.getElementById('drug-search').value = '';
+                if (allDrugs.length > 0) {
+                    populateDrugList(allDrugs);
+                } else {
+                    console.warn('No drugs loaded yet');
+                }
+                const searchInput = document.getElementById('drug-search');
+                if (searchInput) {
+                    searchInput.focus();
+                    searchInput.value = '';
+                }
             }
         }
 
         function closeDrugDropdown() {
-            document.getElementById('drug-dropdown-menu').style.display = 'none';
-            document.getElementById('drug-search').value = '';
+            const menu = document.getElementById('drug-dropdown-menu');
+            if (menu) {
+                menu.style.display = 'none';
+            }
+            const searchInput = document.getElementById('drug-search');
+            if (searchInput) {
+                searchInput.value = '';
+            }
         }
 
         function loadDrugStats(drugName) {
@@ -2373,30 +2401,47 @@
             });
 
             // Tab switching in overview
-            document.querySelectorAll('.tab').forEach(tab => {
+            const tabs = document.querySelectorAll('.tab');
+            console.log('Found tabs:', tabs.length);
+            
+            tabs.forEach(tab => {
                 tab.addEventListener('click', function () {
+                    console.log('Tab clicked:', this.getAttribute('data-tab'));
+                    
+                    // Remove active class from all tabs
                     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
                     this.classList.add('active');
 
+                    // Hide all tab content
                     document.querySelectorAll('.tab-content').forEach(content => {
                         content.classList.remove('active');
                     });
 
                     const tabId = this.getAttribute('data-tab');
-                    document.getElementById(`${tabId}-tab`).classList.add('active');
-                    dashboardState.activeSubTab = tabId;
+                    const tabContentElement = document.getElementById(`${tabId}-tab`);
                     
-                    // Reinitialize charts for the active tab
-                    setTimeout(() => {
-                        if (tabId === 'safety-scorecard') {
-                            setupScorecardCharts();
-                        } else if (tabId === 'adverse-effects') {
-                            setupAdverseEffectsCharts();
-                        } else if (tabId === 'drug-usage') {
-                            setupCharts();
-                        }
-                        window.dispatchEvent(new Event('resize'));
-                    }, 100);
+                    if (tabContentElement) {
+                        tabContentElement.classList.add('active');
+                        dashboardState.activeSubTab = tabId;
+                        console.log('Switched to tab:', tabId);
+                        
+                        // Reinitialize charts for the active tab
+                        setTimeout(() => {
+                            if (tabId === 'safety-scorecard') {
+                                console.log('Setting up scorecard charts');
+                                setupScorecardCharts();
+                            } else if (tabId === 'adverse-effects') {
+                                console.log('Setting up adverse effects charts');
+                                setupAdverseEffectsCharts();
+                            } else if (tabId === 'drug-usage') {
+                                console.log('Setting up drug usage charts');
+                                setupCharts();
+                            }
+                            window.dispatchEvent(new Event('resize'));
+                        }, 100);
+                    } else {
+                        console.error('Tab content not found:', `${tabId}-tab`);
+                    }
                 });
             });
 
@@ -2409,186 +2454,164 @@
             const drugDropdownBtn = document.getElementById('drug-dropdown-btn');
             const drugSearch = document.getElementById('drug-search');
 
-            drugDropdownBtn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                toggleDrugDropdown();
-            });
+            if (drugDropdownBtn) {
+                drugDropdownBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    toggleDrugDropdown();
+                });
+            }
 
-            drugSearch.addEventListener('input', function(e) {
-                filterDrugs(e.target.value);
-            });
+            if (drugSearch) {
+                drugSearch.addEventListener('input', function(e) {
+                    filterDrugs(e.target.value);
+                });
 
-            drugSearch.addEventListener('click', function(e) {
-                e.stopPropagation();
-            });
+                drugSearch.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                });
+            }
 
             // Close dropdown when clicking outside
             document.addEventListener('click', function(e) {
                 const menu = document.getElementById('drug-dropdown-menu');
                 const btn = document.getElementById('drug-dropdown-btn');
-                if (!menu.contains(e.target) && e.target !== btn) {
+                if (menu && btn && !menu.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
                     closeDrugDropdown();
                 }
             });
 
             // Export Report Button
-            document.getElementById('export-report-btn')?.addEventListener('click', async function() {
-                await exportDashboardToPDF();
-            });
+            const exportBtn = document.getElementById('export-report-btn');
+            if (exportBtn) {
+                exportBtn.addEventListener('click', async function() {
+                    await exportDashboardToPDF();
+                });
+            }
 
         }
 
         async function exportDashboardToPDF() {
-            const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            
-            const hospitalName = dashboardState.hospitalName || 'General Hospital';
-            const selectedDrug = dashboardState.selectedDrug || 'All Drugs';
-            const currentDate = new Date().toLocaleDateString();
-            
-            let yPosition = 20;
-            
-            // Title
-            pdf.setFontSize(20);
-            pdf.setTextColor(26, 95, 122);
-            pdf.text('Drug Safety Analytics Report', 105, yPosition, { align: 'center' });
-            
-            yPosition += 10;
-            pdf.setFontSize(12);
-            pdf.setTextColor(100, 100, 100);
-            pdf.text(`${hospitalName} - ${currentDate}`, 105, yPosition, { align: 'center' });
-            
-            yPosition += 8;
-            pdf.setFontSize(11);
-            pdf.text(`Selected Drug: ${selectedDrug}`, 105, yPosition, { align: 'center' });
-            
-            yPosition += 15;
-            
-            // Dashboard Cards Data
-            pdf.setFontSize(14);
-            pdf.setTextColor(26, 95, 122);
-            pdf.text('Key Metrics', 20, yPosition);
-            yPosition += 10;
-            
-            pdf.setFontSize(10);
-            pdf.setTextColor(0, 0, 0);
-            
-            const stats = dashboardState.stats;
-            const metrics = [
-                { label: 'Total Patients', value: stats.totalPatients },
-                { label: 'Mildly Affected', value: stats.mildlyAffected },
-                { label: 'Adversely Affected', value: stats.adverselyAffected },
-                { label: 'Patients Called by Pharma', value: stats.pharmaCalls }
-            ];
-            
-            metrics.forEach((metric, index) => {
-                pdf.text(`${metric.label}: ${metric.value}`, 20, yPosition);
-                yPosition += 7;
-            });
-            
-            yPosition += 10;
-            
-            // Safety Scorecard Metrics
-            pdf.setFontSize(14);
-            pdf.setTextColor(26, 95, 122);
-            pdf.text('Safety Scorecard', 20, yPosition);
-            yPosition += 10;
-            
-            pdf.setFontSize(10);
-            pdf.setTextColor(0, 0, 0);
-            
-            const safetyScore = document.getElementById('safety-score')?.textContent || 'N/A';
-            const dosageRate = document.getElementById('dosage-rate')?.textContent || 'N/A';
-            const adverseRate = document.getElementById('adverse-rate')?.textContent || 'N/A';
-            const alertCount = document.getElementById('alert-count')?.textContent || 'N/A';
-            const highRiskCount = document.getElementById('high-risk-count')?.textContent || 'N/A';
-            
-            const scorecardMetrics = [
-                { label: 'Overall Safety Score', value: `${safetyScore}/100` },
-                { label: 'High-Risk Dosage Rate', value: `${dosageRate}%` },
-                { label: 'Adverse Effect Rate', value: `${adverseRate}/100 Rx` },
-                { label: 'Alert-Triggered Prescriptions', value: alertCount },
-                { label: 'High-Risk Drug Count', value: highRiskCount }
-            ];
-            
-            scorecardMetrics.forEach((metric) => {
-                pdf.text(`${metric.label}: ${metric.value}`, 20, yPosition);
-                yPosition += 7;
-            });
-            
-            yPosition += 10;
-            
-            // Safety Alerts Table
-            if (dashboardState.alerts && dashboardState.alerts.length > 0) {
-                pdf.setFontSize(14);
+            try {
+                if (!window.jspdf) {
+                    alert('PDF library not loaded. Please refresh the page and try again.');
+                    return;
+                }
+                
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                
+                const hospitalName = dashboardState.hospitalName || 'General Hospital';
+                const selectedDrug = dashboardState.selectedDrug || 'All Drugs';
+                const currentDate = new Date().toLocaleDateString();
+                
+                let yPosition = 20;
+                
+                // Title
+                pdf.setFontSize(20);
                 pdf.setTextColor(26, 95, 122);
-                pdf.text('Active Safety Alerts', 20, yPosition);
+                pdf.text('Drug Safety Analytics Report', 105, yPosition, { align: 'center' });
+                
                 yPosition += 10;
+                pdf.setFontSize(12);
+                pdf.setTextColor(100, 100, 100);
+                pdf.text(`${hospitalName} - ${currentDate}`, 105, yPosition, { align: 'center' });
                 
-                pdf.setFontSize(9);
-                pdf.setTextColor(0, 0, 0);
+                yPosition += 8;
+                pdf.setFontSize(11);
+                pdf.text(`Selected Drug: ${selectedDrug}`, 105, yPosition, { align: 'center' });
                 
-                dashboardState.alerts.forEach((alert, index) => {
-                    if (yPosition > 270) {
-                        pdf.addPage();
-                        yPosition = 20;
-                    }
-                    
-                    pdf.text(`${index + 1}. ${alert.type} - ${alert.drug}`, 20, yPosition);
-                    yPosition += 5;
-                    pdf.text(`   Issue: ${alert.issue}`, 20, yPosition);
-                    yPosition += 5;
-                    pdf.text(`   Action: ${alert.action}`, 20, yPosition);
-                    yPosition += 8;
-                });
-            }
-            
-            // Capture charts if on Safety Scorecard tab
-            const activeTab = document.querySelector('.tab.active')?.getAttribute('data-tab');
-            if (activeTab === 'safety-scorecard') {
-                pdf.addPage();
-                yPosition = 20;
-                
-                pdf.setFontSize(14);
-                pdf.setTextColor(26, 95, 122);
-                pdf.text('Safety Analytics Charts', 105, yPosition, { align: 'center' });
                 yPosition += 15;
                 
-                // Capture charts
-                const chartIds = [
-                    'safetyTrendLineChart',
-                    'adverseEffectsPieChart',
-                    'alertTypesBarChart',
-                    'dosageComplianceChart',
-                    'deptSafetyBarChart',
-                    'riskLevelDoughnutChart'
+                // Dashboard Cards Data
+                pdf.setFontSize(14);
+                pdf.setTextColor(26, 95, 122);
+                pdf.text('Key Metrics', 20, yPosition);
+                yPosition += 10;
+                
+                pdf.setFontSize(10);
+                pdf.setTextColor(0, 0, 0);
+                
+                const stats = dashboardState.stats;
+                const metrics = [
+                    { label: 'Total Patients', value: stats.totalPatients },
+                    { label: 'Mildly Affected', value: stats.mildlyAffected },
+                    { label: 'Adversely Affected', value: stats.adverselyAffected },
+                    { label: 'Patients Called by Pharma', value: stats.pharmaCalls }
                 ];
                 
-                for (let i = 0; i < chartIds.length; i++) {
-                    const canvas = document.getElementById(chartIds[i]);
-                    if (canvas) {
-                        const imgData = canvas.toDataURL('image/png');
-                        
-                        if (i > 0 && i % 2 === 0) {
+                metrics.forEach((metric, index) => {
+                    pdf.text(`${metric.label}: ${metric.value}`, 20, yPosition);
+                    yPosition += 7;
+                });
+                
+                yPosition += 10;
+                
+                // Safety Scorecard Metrics
+                pdf.setFontSize(14);
+                pdf.setTextColor(26, 95, 122);
+                pdf.text('Safety Scorecard', 20, yPosition);
+                yPosition += 10;
+                
+                pdf.setFontSize(10);
+                pdf.setTextColor(0, 0, 0);
+                
+                const safetyScore = document.getElementById('safety-score')?.textContent || 'N/A';
+                const dosageRate = document.getElementById('dosage-rate')?.textContent || 'N/A';
+                const adverseRate = document.getElementById('adverse-rate')?.textContent || 'N/A';
+                const alertCount = document.getElementById('alert-count')?.textContent || 'N/A';
+                const highRiskCount = document.getElementById('high-risk-count')?.textContent || 'N/A';
+                
+                const scorecardMetrics = [
+                    { label: 'Overall Safety Score', value: `${safetyScore}/100` },
+                    { label: 'High-Risk Dosage Rate', value: `${dosageRate}%` },
+                    { label: 'Adverse Effect Rate', value: `${adverseRate}/100 Rx` },
+                    { label: 'Alert-Triggered Prescriptions', value: alertCount },
+                    { label: 'High-Risk Drug Count', value: highRiskCount }
+                ];
+                
+                scorecardMetrics.forEach((metric) => {
+                    pdf.text(`${metric.label}: ${metric.value}`, 20, yPosition);
+                    yPosition += 7;
+                });
+                
+                yPosition += 10;
+                
+                // Safety Alerts Table
+                if (dashboardState.alerts && dashboardState.alerts.length > 0) {
+                    pdf.setFontSize(14);
+                    pdf.setTextColor(26, 95, 122);
+                    pdf.text('Active Safety Alerts', 20, yPosition);
+                    yPosition += 10;
+                    
+                    pdf.setFontSize(9);
+                    pdf.setTextColor(0, 0, 0);
+                    
+                    dashboardState.alerts.forEach((alert, index) => {
+                        if (yPosition > 270) {
                             pdf.addPage();
                             yPosition = 20;
                         }
                         
-                        const xPos = i % 2 === 0 ? 15 : 110;
-                        pdf.addImage(imgData, 'PNG', xPos, yPosition, 85, 60);
-                        
-                        if (i % 2 === 1) {
-                            yPosition += 70;
-                        }
-                    }
+                        pdf.text(`${index + 1}. ${alert.type} - ${alert.drug}`, 20, yPosition);
+                        yPosition += 5;
+                        pdf.text(`   Issue: ${alert.issue}`, 20, yPosition);
+                        yPosition += 5;
+                        pdf.text(`   Action: ${alert.action}`, 20, yPosition);
+                        yPosition += 8;
+                    });
                 }
+                
+                // Save PDF
+                const filename = `Drug_Safety_Report_${selectedDrug.replace(/\s+/g, '_')}_${currentDate.replace(/\//g, '-')}.pdf`;
+                pdf.save(filename);
+                
+                // Show success message
+                alert('Report exported successfully!');
+                console.log('PDF exported:', filename);
+            } catch (error) {
+                console.error('Error exporting PDF:', error);
+                alert('Error exporting report. Please check the console for details.');
             }
-            
-            // Save PDF
-            pdf.save(`Drug_Safety_Report_${selectedDrug}_${currentDate}.pdf`);
-            
-            // Show success message
-            alert('Report exported successfully!');
         }
     </script>
 </body>

@@ -1,5 +1,5 @@
 """
-MedSafe - Pharmacovigilance Platform
+Inteleyzer - Pharmacovigilance Platform
 Main Flask Application Entry Point
 Supports: Pharmaceutical Companies, Doctors, and Local Pharmacies
 Run on: http://127.0.0.1:5000
@@ -13,13 +13,13 @@ import random
 from datetime import datetime
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'medsafe-secret-key-dev'
+app.config['SECRET_KEY'] = 'inteleyzer-secret-key-dev'
 
 # Get absolute path for database
 basedir = os.path.abspath(os.path.dirname(__file__))
 instance_path = os.path.join(basedir, 'instance')
 os.makedirs(instance_path, exist_ok=True)
-app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(instance_path, "medsafe.db")}'
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(instance_path, "inteleyzer.db")}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 CORS(app)
@@ -127,6 +127,9 @@ def login():
         session['user_id'] = user.id
         session['role'] = user.role
         session['user_name'] = user.name
+        # For hospital role, set hospital_name from user name
+        if user.role == 'hospital':
+            session['hospital_name'] = user.name
         return jsonify({
             'success': True, 
             'user': {'id': user.id, 'name': user.name, 'role': user.role}
@@ -135,9 +138,14 @@ def login():
     return jsonify({'success': False, 'message': 'Invalid credentials'})
 
 @app.route('/api/auth/logout', methods=['POST'])
-def logout():
+def logout_api():
     session.clear()
     return jsonify({'success': True})
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login_page'))
 
 @app.route('/api/auth/me')
 def get_current_user():
@@ -550,6 +558,98 @@ def submit_pharmacy_report():
     db.session.commit()
     
     return jsonify({'success': True, 'report_id': patient.id})
+
+# Hospital Routes
+@app.route('/hospital/dashboard')
+def hospital_dashboard():
+    if 'user_id' not in session or session.get('role') != 'hospital':
+        return redirect(url_for('login_page'))
+    return render_template('hospital/dashboad.html', active_page='overview')
+
+@app.route('/hospital/patient-data')
+def hospital_patient_data():
+    if 'user_id' not in session or session.get('role') != 'hospital':
+        return redirect(url_for('login_page'))
+    return render_template('hospital/patient-data.html', active_page='patient-data')
+
+@app.route('/hospital/pharma-alerts')
+def hospital_pharma_alerts():
+    if 'user_id' not in session or session.get('role') != 'hospital':
+        return redirect(url_for('login_page'))
+    return render_template('hospital/pharma-alerts.html', active_page='pharma-alerts')
+
+@app.route('/hospital/patient-recall')
+def hospital_patient_recall():
+    if 'user_id' not in session or session.get('role') != 'hospital':
+        return redirect(url_for('login_page'))
+    return render_template('hospital/patient-recall.html', active_page='patient-recall')
+
+@app.route('/hospital/settings')
+def hospital_settings():
+    if 'user_id' not in session or session.get('role') != 'hospital':
+        return redirect(url_for('login_page'))
+    return render_template('hospital/settings.html', active_page='settings')
+
+# Hospital API Endpoints
+@app.route('/api/hospital/info')
+def get_hospital_info():
+    if 'user_id' not in session or session.get('role') != 'hospital':
+        return jsonify({'success': False, 'message': 'Not authorized'}), 403
+    
+    return jsonify({
+        'success': True,
+        'hospitalName': session.get('hospital_name', 'General Hospital'),
+        'hospitalId': session.get('user_id')
+    })
+
+@app.route('/api/hospital/drugs')
+def get_hospital_drugs():
+    if 'user_id' not in session or session.get('role') != 'hospital':
+        return jsonify({'success': False, 'message': 'Not authorized'}), 403
+    
+    # Common drugs list as fallback
+    common_drugs = [
+        'Aspirin', 'Ibuprofen', 'Paracetamol', 'Amoxicillin', 'Metformin',
+        'Lisinopril', 'Atorvastatin', 'Omeprazole', 'Sertraline', 'Levothyroxine',
+        'Amlodipine', 'Metoprolol', 'Ciprofloxacin', 'Azithromycin', 'Cephalexin',
+        'Fluconazole', 'Loratadine', 'Cetirizine', 'Ranitidine', 'Diclofenac',
+        'Naproxen', 'Tramadol', 'Codeine', 'Morphine', 'Insulin', 'Glucagon',
+        'Warfarin', 'Heparin', 'Clopidogrel', 'Simvastatin', 'Pravastatin',
+        'Rosuvastatin', 'Valsartan', 'Losartan', 'Enalapril', 'Ramipril',
+        'Diltiazem', 'Verapamil', 'Nifedipine', 'Hydralazine', 'Furosemide',
+        'Spironolactone', 'Hydrochlorothiazide', 'Albuterol', 'Salbutamol',
+        'Fluticasone', 'Montelukast', 'Theophylline', 'Prednisone', 'Dexamethasone',
+        'Methylprednisolone', 'PainAway', 'Neurocalm', 'Cardiostat', 'Immunoboost',
+        'AntibioX'
+    ]
+    
+    return jsonify({
+        'success': True,
+        'drugs': [{'name': drug} for drug in common_drugs]
+    })
+
+@app.route('/api/hospital/drug-stats/<drug_name>')
+def get_hospital_drug_stats(drug_name):
+    if 'user_id' not in session or session.get('role') != 'hospital':
+        return jsonify({'success': False, 'message': 'Not authorized'}), 403
+    
+    # Generate demo statistics for the selected drug
+    # In production, this would query actual hospital data
+    import random
+    
+    total_patients = random.randint(50, 200)
+    mildly_affected = random.randint(5, 30)
+    adversely_affected = random.randint(2, 15)
+    pharma_calls = random.randint(1, 10)
+    
+    return jsonify({
+        'success': True,
+        'drug': drug_name,
+        'totalPatients': total_patients,
+        'mildlyAffected': mildly_affected,
+        'adverselyAffected': adversely_affected,
+        'pharmaCalls': pharma_calls
+    })
 
 if __name__ == '__main__':
     app.run(debug=True, host='127.0.0.1', port=5000)

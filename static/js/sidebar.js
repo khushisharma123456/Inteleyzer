@@ -141,7 +141,7 @@ export class Sidebar extends HTMLElement {
             <aside>
                 <div class="logo-area">
                     <div class="logo-icon">Rx</div>
-                    <span class="app-title">MedSafe</span>
+                    <span class="app-title">Inteleyzer</span>
                 </div>
 
                 <nav>

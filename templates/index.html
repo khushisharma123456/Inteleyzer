@@ -1,66 +1,1592 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>MedSafe - Medication Safety Intelligence</title><link rel="stylesheet" href="/static/css/style.css"><script src="https://unpkg.com/lucide@latest"></script><style>.hero {
-    text-align: center;
-    padding: 4rem 2rem;
-    max-width: 800px;
-    margin: 0 auto;
-}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inteleyzer - Drug Usage & Safety Intelligence Platform</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-.hero h1 {
-    font-size: 3rem;
-    color: var(--primary-dark);
-    margin-bottom: 1.5rem;
-}
+        :root {
+            --charcoal: #2C3E50;
+            --slate: #546E7A;
+            --light-gray: #90A4AE;
+            --off-white: #F5F7FA;
+            --white: #FFFFFF;
+            --accent-blue: #455A64;
+            --border: #CFD8DC;
+        }
 
-.hero p {
-    font-size: 1.25rem;
-    margin-bottom: 2.5rem;
-}
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            color: var(--charcoal);
+            background-color: var(--white);
+            line-height: 1.6;
+        }
 
-.cta-group {
-    display: flex;
-    gap: 1rem;
-    justify-content: center;
-}
+        header {
+            background-color: var(--white);
+            border-bottom: 1px solid var(--border);
+            padding: 1.25rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
 
-.features {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 2rem;
-    margin-top: 4rem;
-}
+        .header-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
 
-.feature-card {
-    background: var(--white);
-    padding: 2rem;
-    border-radius: 12px;
-    text-align: center;
-    box-shadow: var(--shadow-sm);
-}
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--charcoal);
+            text-decoration: none;
+        }
 
-.feature-icon {
-    width: 48px;
-    height: 48px;
-    background: var(--secondary);
-    color: var(--primary);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 1.5rem auto;
-}
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background-color: var(--charcoal);
+            color: var(--white);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            font-size: 0.875rem;
+            font-weight: 700;
+        }
 
-footer {
-    margin-top: auto;
-    text-align: center;
-    padding: 2rem;
-    border-top: 1px solid #E2E8F0;
-    background: var(--white);
-    color: var(--text-muted);
-    font-size: 0.9rem;
-}
+        nav {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
 
-</style></head><body><div class="container" style="flex: 1; display: flex; flex-direction: column;"><nav style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 0;"><div style="display: flex; align-items: center; gap: 0.5rem; font-weight: 700; color: var(--primary-dark); font-size: 1.5rem;"><div style="width: 32px; height: 32px; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; border-radius: 6px;">Rx</div>MedSafe </div><div><a href="/login" class="btn btn-outline">Login</a><a href="/signup" class="btn btn-primary" style="margin-left: 0.5rem;">Sign Up</a></div></nav><section class="hero"><h1>Medication Safety & Side-Effect Intelligence</h1><p>A healthcare-grade platform for Doctors and Pharma Safety Teams to monitor,
-detect,
-and prevent adverse drug events.</p><div class="cta-group"><a href="/signup" class="btn btn-primary">Get Started</a><a href="#how-it-works" class="btn btn-outline">Learn More</a></div></section><section id="how-it-works" class="features"><div class="feature-card"><div class="feature-icon"><i data-lucide="activity"></i></div><h3>Side Effects Reported</h3><p>Doctors log detailed clinical observations and patient symptoms directly into the secure safety registry.</p></div><div class="feature-card"><div class="feature-icon"><i data-lucide="shield-alert"></i></div><h3>AI Risk Detection</h3><p>Intelligent algorithms analyze reports to identify potential drug-drug interactions and adverse signals.</p></div><div class="feature-card"><div class="feature-icon"><i data-lucide="user-check"></i></div><h3>Human Action</h3><p>Medical professionals review alerts and take immediate action to ensure patient safety.</p></div></section></div><footer><p>This platform supports medication safety monitoring and does not replace licensed medical judgment.</p><p>&copy;
-2026 MedSafe Platform. Ethical Safety First.</p></footer><script>lucide.createIcons();
-</script></body></html>
+        nav a {
+            color: var(--slate);
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        nav a:hover {
+            color: var(--charcoal);
+        }
+
+        .btn-login {
+            color: var(--slate);
+            border: 1px solid var(--border);
+            padding: 0.625rem 1.25rem;
+            border-radius: 4px;
+            transition: all 0.3s;
+            text-decoration: none;
+        }
+
+        .btn-login:hover {
+            border-color: var(--charcoal);
+            color: var(--charcoal);
+        }
+
+        .btn-primary {
+            background-color: var(--charcoal);
+            color: var(--white);
+            padding: 0.625rem 1.5rem;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: background-color 0.3s;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--accent-blue);
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            color: var(--charcoal);
+            border: 1px solid var(--charcoal);
+            padding: 0.625rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: all 0.3s;
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--off-white);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 3rem 0;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3rem;
+            align-items: center;
+            min-height: 500px;
+        }
+
+        .hero-content h1 {
+            font-size: 2.5rem;
+            line-height: 1.3;
+            margin-bottom: 1.5rem;
+            color: var(--charcoal);
+            font-weight: 700;
+            animation: slideInLeft 0.8s ease-out;
+        }
+
+        .hero-content p {
+            font-size: 1rem;
+            color: var(--slate);
+            margin-bottom: 2rem;
+            line-height: 1.7;
+            animation: slideInLeft 0.8s ease-out 0.2s both;
+        }
+
+        .hero-cta {
+            display: flex;
+            gap: 1rem;
+            animation: slideInLeft 0.8s ease-out 0.4s both;
+        }
+
+        .hero-visual {
+            background-color: var(--off-white);
+            border-radius: 8px;
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 240px;
+            max-height: 420px;
+            animation: slideInRight 0.8s ease-out;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dashboard-mockup {
+            width: 100%;
+            background-color: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.875rem;
+            animation: scaleIn 0.8s ease-out 0.3s both;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        /* Account Selector */
+        .account-selector {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            background-color: var(--off-white);
+            border-radius: 4px;
+            position: relative;
+        }
+
+        .selector-pointer {
+            position: absolute;
+            left: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            animation: pointerMove 8s ease-in-out infinite;
+            z-index: 10;
+            display: none;
+        }
+
+        @keyframes pointerMove {
+            0% {
+                left: 0.75rem;
+                opacity: 0.6;
+            }
+            12% {
+                left: 0.75rem;
+                opacity: 1;
+            }
+            20% {
+                left: 3.5rem;
+                opacity: 1;
+            }
+            28% {
+                left: 3.5rem;
+                opacity: 0.6;
+            }
+            32% {
+                left: 0.75rem;
+                opacity: 0.6;
+            }
+            42% {
+                left: 0.75rem;
+                opacity: 1;
+            }
+            50% {
+                left: 6.5rem;
+                opacity: 1;
+            }
+            58% {
+                left: 6.5rem;
+                opacity: 0.6;
+            }
+            62% {
+                left: 0.75rem;
+                opacity: 0.6;
+            }
+            72% {
+                left: 0.75rem;
+                opacity: 1;
+            }
+            80% {
+                left: 9.5rem;
+                opacity: 1;
+            }
+            88% {
+                left: 9.5rem;
+                opacity: 0.6;
+            }
+            100% {
+                left: 0.75rem;
+                opacity: 0.6;
+            }
+        }
+
+        /* Account Selector */
+        .account-selector {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+            padding: 0.6rem;
+            background-color: var(--off-white);
+            border-radius: 4px;
+            position: relative;
+        }
+
+        .account-list {
+            display: flex;
+            gap: 0.5rem;
+            flex: 1;
+            padding-left: 1.25rem;
+        }
+
+        .account-item {
+            padding: 0.4rem 0.8rem;
+            background-color: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 0.75rem;
+            color: var(--slate);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            white-space: nowrap;
+        }
+
+        .account-item:hover {
+            border-color: var(--charcoal);
+            color: var(--charcoal);
+        }
+
+        .account-item.active {
+            background-color: var(--charcoal);
+            color: var(--white);
+            border-color: var(--charcoal);
+        }
+
+        /* Content transition animations */
+        .content-card {
+            animation: fadeInUp 0.6s ease-out both;
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+
+        .content-card.fade-out {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        .content-card.fade-in {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Account-specific data */
+        .account-data {
+            display: none;
+        }
+
+        .account-data.active {
+            display: block;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .selector-pointer {
+                animation: none;
+                display: none;
+            }
+
+            .content-card {
+                transition: none;
+            }
+        }
+
+        .mockup-header {
+            display: flex;
+            gap: 0.4rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .mockup-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--light-gray);
+        }
+
+        .mockup-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .mockup-card {
+            background-color: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 0.65rem;
+            height: auto;
+            min-height: 90px;
+            animation: fadeInUp 0.6s ease-out both, cardPulse 2s ease-in-out 1.5s infinite;
+        }
+
+        .mockup-card:nth-child(1) {
+            animation-delay: 0.5s, 1.5s;
+        }
+
+        .mockup-card:nth-child(2) {
+            animation-delay: 0.6s, 1.7s;
+        }
+
+        .mockup-card:nth-child(3) {
+            animation-delay: 0.7s, 1.9s;
+        }
+
+        .mockup-card:nth-child(4) {
+            animation-delay: 0.8s, 2.1s;
+        }
+
+        .mockup-card-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--slate);
+            margin-bottom: 0.4rem;
+        }
+
+        .mockup-chart {
+            width: 100%;
+            height: 60px;
+            margin-top: 0.5rem;
+        }
+
+        .mockup-bars {
+            width: 100%;
+            height: 60px;
+            margin-top: 0.5rem;
+        }
+
+        .mockup-scorecard {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .scorecard-row {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.7rem;
+        }
+
+        .scorecard-label {
+            color: var(--slate);
+            min-width: 70px;
+        }
+
+        .scorecard-bar {
+            flex: 1;
+            height: 3px;
+            background-color: var(--border);
+            border-radius: 2px;
+        }
+
+        .scorecard-badge {
+            background-color: #C8E6C9;
+            color: #2E7D32;
+            padding: 0.15rem 0.4rem;
+            border-radius: 2px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            min-width: 45px;
+            text-align: center;
+        }
+
+        .alert-row {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.7rem;
+            padding: 0.3rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .alert-row:last-child {
+            border-bottom: none;
+        }
+
+        .alert-icon {
+            font-size: 0.8rem;
+        }
+
+        .alert-text {
+            flex: 1;
+            color: var(--slate);
+        }
+
+        .alert-date {
+            color: var(--light-gray);
+            font-size: 0.65rem;
+        }
+
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes scaleIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes expandWidth {
+            from {
+                width: 0;
+                opacity: 0;
+            }
+            to {
+                width: 100%;
+                opacity: 1;
+            }
+        }
+
+        @keyframes shimmer {
+            0% {
+                left: -100%;
+            }
+            100% {
+                left: 100%;
+            }
+        }
+
+        @keyframes cardPulse {
+            0%, 100% {
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            }
+            50% {
+                box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+            }
+        }
+
+        /* Carousel Section */
+        .carousel-section {
+            padding: 0;
+            background-color: transparent;
+            margin: 0;
+        }
+
+        .carousel-container {
+            position: relative;
+            width: 100%;
+            overflow: hidden;
+            border-radius: 0;
+        }
+
+        .carousel-wrapper {
+            display: flex;
+            transition: transform 0.6s ease-in-out;
+        }
+
+        .carousel-item {
+            flex: 0 0 100%;
+            height: 500px;
+            background: linear-gradient(135deg, #546E7A 0%, #2C3E50 100%);
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            position: relative;
+            color: var(--white);
+        }
+
+        .carousel-item-label {
+            position: absolute;
+            bottom: 1rem;
+            left: 2rem;
+            right: 2rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-align: center;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 0.75rem 1rem;
+            border-radius: 4px;
+            color: var(--white);
+        }
+
+        .carousel-indicators {
+            display: flex;
+            justify-content: center;
+            gap: 0.75rem;
+            padding: 1.5rem 0;
+            background-color: var(--off-white);
+        }
+
+        .indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: var(--light-gray);
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .indicator.active {
+            background-color: var(--charcoal);
+        }
+
+        /* Challenge Section */
+        .challenge {
+            padding: 4rem 0;
+            text-align: center;
+            background-color: var(--off-white);
+        }
+
+        .challenge h2 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: var(--charcoal);
+        }
+
+        .challenge-subtitle {
+            font-size: 1rem;
+            color: var(--slate);
+            margin-bottom: 3rem;
+        }
+
+        .flow-diagram {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0;
+            flex-wrap: wrap;
+            margin-bottom: 3rem;
+            background-color: var(--white);
+            border-radius: 50px;
+            padding: 2rem 3rem;
+            width: fit-content;
+            margin-left: auto;
+            margin-right: auto;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .flow-step {
+            text-align: center;
+            flex: 0 1 auto;
+            min-width: auto;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .flow-number {
+            width: 50px;
+            height: 50px;
+            background-color: var(--charcoal);
+            color: var(--white);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin: 0;
+            flex-shrink: 0;
+        }
+
+        .flow-step h3 {
+            font-size: 1.125rem;
+            margin-bottom: 0;
+            color: var(--charcoal);
+            font-weight: 600;
+        }
+
+        .flow-step p {
+            color: var(--slate);
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        .flow-arrow {
+            font-size: 1.5rem;
+            color: var(--light-gray);
+            display: block;
+            margin: 0 1.5rem;
+            letter-spacing: 0.25rem;
+        }
+
+        @media (min-width: 768px) {
+            .flow-arrow {
+                display: block;
+            }
+        }
+
+        .flow-details {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 3rem;
+            margin-top: 2rem;
+        }
+
+        .flow-detail-item {
+            text-align: center;
+        }
+
+        .flow-detail-item h4 {
+            font-size: 0.95rem;
+            color: var(--charcoal);
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .flow-detail-item p {
+            font-size: 0.85rem;
+            color: var(--slate);
+        }
+
+        .flow-detail-item ul {
+            list-style: none;
+            text-align: left;
+            display: inline-block;
+        }
+
+        .flow-detail-item li {
+            font-size: 0.9rem;
+            color: var(--slate);
+            margin-bottom: 0.5rem;
+            text-align: left;
+        }
+
+        .flow-detail-item li strong {
+            color: var(--charcoal);
+            font-weight: 600;
+        }
+
+        /* Solution Section */
+        .solution {
+            padding: 4rem 0;
+            background-color: var(--off-white);
+        }
+
+        .solution h2 {
+            font-size: 2rem;
+            margin-bottom: 3rem;
+            color: var(--charcoal);
+            text-align: center;
+        }
+
+        .solution-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+        }
+
+        .solution-card {
+            background-color: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .solution-card h3 {
+            font-size: 1.125rem;
+            margin-bottom: 1rem;
+            color: var(--charcoal);
+        }
+
+        .solution-card p {
+            color: var(--slate);
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        /* Capabilities Section */
+        .capabilities {
+            padding: 4rem 0;
+            text-align: center;
+        }
+
+        .capabilities h2 {
+            font-size: 2rem;
+            margin-bottom: 3rem;
+            color: var(--charcoal);
+        }
+
+        .capabilities-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 2rem;
+        }
+
+        .capability-card {
+            background-color: var(--off-white);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .capability-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            display: inline-block;
+        }
+
+        .capability-card h3 {
+            font-size: 1.125rem;
+            margin-bottom: 0.75rem;
+            color: var(--charcoal);
+        }
+
+        .capability-card p {
+            color: var(--slate);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        /* Creators Section */
+        .creators {
+            padding: 4rem 0;
+            background-color: var(--off-white);
+            text-align: center;
+        }
+
+        .creators h2 {
+            font-size: 2rem;
+            margin-bottom: 3rem;
+            color: var(--charcoal);
+        }
+
+        .creators-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 3rem;
+        }
+
+        .creator-card {
+            text-align: center;
+        }
+
+        .creator-photo {
+            width: 150px;
+            height: 150px;
+            background-color: var(--light-gray);
+            border-radius: 50%;
+            margin: 0 auto 1.5rem;
+            object-fit: cover;
+            display: block;
+        }
+
+        .creator-card h3 {
+            font-size: 1.125rem;
+            margin-bottom: 0.5rem;
+            color: var(--charcoal);
+        }
+
+        .creator-card p {
+            color: var(--slate);
+            font-size: 0.9rem;
+        }
+
+        /* Ethics Section */
+        .ethics {
+            background-color: var(--charcoal);
+            color: var(--white);
+            padding: 4rem 0;
+        }
+
+        .ethics h2 {
+            font-size: 2rem;
+            margin-bottom: 3rem;
+            text-align: center;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .ethics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 2.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .ethics-item {
+            position: relative;
+            padding-top: 1.5rem;
+        }
+
+        .ethics-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 2px;
+            height: 8px;
+            background-color: #90A4AE;
+            border-radius: 1px;
+        }
+
+        .ethics-item h3 {
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+            line-height: 1.4;
+        }
+
+        .ethics-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .ethics-list li {
+            font-size: 0.9rem;
+            line-height: 1.8;
+            color: rgba(255, 255, 255, 0.85);
+            margin-bottom: 0.5rem;
+            padding-left: 0;
+        }
+
+        .ethics-list li::before {
+            content: '•';
+            margin-right: 0.75rem;
+            color: #90A4AE;
+            font-weight: bold;
+        }
+
+        .ethics-divider {
+            width: 100%;
+            height: 1px;
+            background-color: rgba(255, 255, 255, 0.15);
+            margin: 2rem 0;
+        }
+
+        .ethics-mission {
+            text-align: center;
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--white);
+            margin-bottom: 1.5rem;
+            letter-spacing: -0.3px;
+        }
+
+        .ethics-collaboration {
+            text-align: center;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.7);
+            font-weight: 400;
+            letter-spacing: 0.3px;
+        }
+
+        /* Footer */
+        footer {
+            background-color: var(--charcoal);
+            color: var(--white);
+            padding: 2rem;
+            text-align: center;
+            border-top: 1px solid var(--border);
+        }
+
+        footer p {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        @media (max-width: 1024px) {
+            .hero {
+                grid-template-columns: 1fr;
+            }
+
+            .solution-grid,
+            .capabilities-grid,
+            .creators-grid,
+            .ethics-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .hero-content h1 {
+                font-size: 1.75rem;
+            }
+
+            .solution-grid,
+            .capabilities-grid,
+            .creators-grid,
+            .ethics-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .hero-cta {
+                flex-direction: column;
+            }
+
+            .btn-primary,
+            .btn-secondary {
+                width: 100%;
+            }
+
+            nav {
+                gap: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="header-container">
+            <a href="/" class="logo">
+                <div class="logo-icon">Rx</div>
+                <span>Inteleyzer</span>
+            </a>
+            <nav>
+                <a href="/login" class="btn-login">Login</a>
+                <a href="/signup" class="btn-primary">Sign Up</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="container">
+        <div class="hero">
+            <div class="hero-content">
+                <h1>Transform Drug Usage Data Into Safety Intelligence</h1>
+                <p>Securely collect, analyze, and act on medicine-level data from hospitals, pharmacies, doctors, and pharmaceutical companies. Anonymized insights. No patient identifiers. Compliance-first design.</p>
+                <div class="hero-cta">
+                    <button class="btn-primary">Request Demo</button>
+                    <button class="btn-secondary">See How It Works</button>
+                </div>
+            </div>
+            <div class="hero-visual">
+                <div class="dashboard-mockup">
+                    <div class="mockup-header">
+                        <div class="mockup-dot"></div>
+                        <div class="mockup-dot"></div>
+                        <div class="mockup-dot"></div>
+                    </div>
+                    
+                    <!-- Account Selector with Animated Pointer -->
+                    <div class="account-selector">
+                        <div class="selector-pointer" id="selectorPointer">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                <path d="M2 2L15 10L2 18V2Z" fill="#455A64"/>
+                            </svg>
+                        </div>
+                        <div class="account-list">
+                            <div class="account-item" data-account="hospital">Hospital A</div>
+                            <div class="account-item" data-account="pharmacy">Pharmacy B</div>
+                            <div class="account-item" data-account="pharma">Pharma C</div>
+                            <div class="account-item" data-account="doctor">Doctor D</div>
+                        </div>
+                    </div>
+
+                    <!-- Dashboard Content that Changes -->
+                    <div class="mockup-content">
+                        <div class="mockup-card content-card" id="card1">
+                            <div class="mockup-card-title" id="title1">Drug Utilization Trends</div>
+                            <svg class="mockup-chart" viewBox="0 0 100 60" preserveAspectRatio="xMidYMid meet" id="chart1">
+                                <polyline points="10,45 20,35 30,40 40,25 50,30 60,15 70,20 80,10 90,15" fill="none" stroke="#90A4AE" stroke-width="1.5"/>
+                                <polygon points="10,45 20,35 30,40 40,25 50,30 60,15 70,20 80,10 90,15 90,60 10,60" fill="#E0F2F1" opacity="0.3"/>
+                            </svg>
+                        </div>
+                        <div class="mockup-card content-card" id="card2">
+                            <div class="mockup-card-title" id="title2">Safety Scorecard</div>
+                            <div class="mockup-scorecard" id="scorecard1">
+                                <div class="scorecard-row">
+                                    <span class="scorecard-label">Pain Meds</span>
+                                    <div class="scorecard-bar"></div>
+                                    <span class="scorecard-badge">Elevated</span>
+                                </div>
+                                <div class="scorecard-row">
+                                    <span class="scorecard-label">Antibiotics</span>
+                                    <div class="scorecard-bar"></div>
+                                    <span class="scorecard-badge">Safe</span>
+                                </div>
+                                <div class="scorecard-row">
+                                    <span class="scorecard-label">Statins</span>
+                                    <div class="scorecard-bar"></div>
+                                    <span class="scorecard-badge">Monitor</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mockup-card content-card" id="card3">
+                            <div class="mockup-card-title" id="title3">Adverse Events</div>
+                            <svg class="mockup-bars" viewBox="0 0 100 60" preserveAspectRatio="xMidYMid meet" id="chart2">
+                                <rect x="8" y="30" width="6" height="30" fill="#90A4AE"/>
+                                <rect x="16" y="20" width="6" height="40" fill="#90A4AE"/>
+                                <rect x="24" y="35" width="6" height="25" fill="#90A4AE"/>
+                                <rect x="32" y="15" width="6" height="45" fill="#90A4AE"/>
+                                <rect x="40" y="25" width="6" height="35" fill="#90A4AE"/>
+                                <rect x="48" y="28" width="6" height="32" fill="#90A4AE"/>
+                                <rect x="56" y="18" width="6" height="42" fill="#90A4AE"/>
+                                <rect x="64" y="32" width="6" height="28" fill="#90A4AE"/>
+                                <rect x="72" y="22" width="6" height="38" fill="#90A4AE"/>
+                                <rect x="80" y="26" width="6" height="34" fill="#90A4AE"/>
+                                <rect x="88" y="20" width="6" height="40" fill="#90A4AE"/>
+                            </svg>
+                        </div>
+                        <div class="mockup-card content-card" id="card4">
+                            <div class="mockup-card-title" id="title4">Recent Alerts</div>
+                            <div class="mockup-alerts" id="alerts1">
+                                <div class="alert-row">
+                                    <span class="alert-icon">⚠</span>
+                                    <span class="alert-text">Aspirin Dose Alert</span>
+                                    <span class="alert-date">2025-01-27</span>
+                                </div>
+                                <div class="alert-row">
+                                    <span class="alert-icon">⚠</span>
+                                    <span class="alert-text">Drug Interaction</span>
+                                    <span class="alert-date">2025-01-26</span>
+                                </div>
+                                <div class="alert-row">
+                                    <span class="alert-icon">⚠</span>
+                                    <span class="alert-text">Dosage Review</span>
+                                    <span class="alert-date">2025-01-25</span>
+                                </div>
+                                <div class="alert-row">
+                                    <span class="alert-icon">⚠</span>
+                                    <span class="alert-text">Safety Signal</span>
+                                    <span class="alert-date">2025-01-24</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Carousel Section -->
+    <section class="carousel-section">
+        <div class="carousel-container">
+            <div class="carousel-wrapper" id="carouselWrapper">
+                <div class="carousel-item" style="background-image: url('/templates/assets/Photo_section/section1/1.png'); background-size: cover; background-position: center;">
+                </div>
+                <div class="carousel-item" style="background-image: url('/templates/assets/Photo_section/section1/2.png'); background-size: cover; background-position: center;">
+                </div>
+                <div class="carousel-item" style="background-image: url('/templates/assets/Photo_section/section1/3.png'); background-size: cover; background-position: center;">
+                </div>
+                <div class="carousel-item" style="background-image: url('/templates/assets/Photo_section/section1/4.png'); background-size: cover; background-position: center;">
+                </div>
+            </div>
+        </div>
+        <div class="carousel-indicators" id="carouselIndicators">
+            <div class="indicator active" onclick="goToSlide(0)"></div>
+            <div class="indicator" onclick="goToSlide(1)"></div>
+            <div class="indicator" onclick="goToSlide(2)"></div>
+            <div class="indicator" onclick="goToSlide(3)"></div>
+        </div>
+    </section>
+
+    <!-- Challenge Section -->
+    <section class="container challenge">
+        <h2>The Challenge</h2>
+        <p class="challenge-subtitle">From hospitals, pharmacies, doctors, and pharma companies</p>
+        <div class="flow-diagram">
+            <div class="flow-step">
+                <div class="flow-number">1</div>
+                <h3>Collect</h3>
+            </div>
+            <div class="flow-arrow">· · · · · · · · · · · ·</div>
+            <div class="flow-step">
+                <div class="flow-number">2</div>
+                <h3>Analyze</h3>
+            </div>
+            <div class="flow-arrow">· · · · · · · · · · · ·</div>
+            <div class="flow-step">
+                <div class="flow-number">3</div>
+                <h3>Alert</h3>
+            </div>
+        </div>
+        <div class="flow-details">
+            <div class="flow-detail-item">
+                <h4>Hospitals, <span style="color: var(--slate);">Pharmacies</span></h4>
+                <h4 style="margin-top: 0.75rem;">Doctors, <span style="color: var(--slate);">Pharma</span></h4>
+            </div>
+            <div class="flow-detail-item">
+                <h4>Patterns, <span style="color: var(--slate);">Dosage Trends</span></h4>
+                <h4 style="margin-top: 0.75rem;">Aggregation</h4>
+            </div>
+            <div class="flow-detail-item">
+                <h4>Safety Signals, <span style="color: var(--slate);">Early Warnings</span></h4>
+                <h4 style="margin-top: 0.75rem;">Scorecards</h4>
+            </div>
+        </div>
+    </section>
+
+    <!-- Solution Section -->
+    <section class="solution">
+        <div class="container">
+            <h2>The Solution</h2>
+            <div class="solution-grid">
+                <div class="solution-card">
+                    <h3>Fragmented</h3>
+                    <p>Hospitals, Pharmacies, Doctors, and pharmaceutical companies</p>
+                </div>
+                <div class="solution-card">
+                    <h3>Analyze</h3>
+                    <p>Apply advanced analytics to identify patterns, trends, and safety signals in anonymized data.</p>
+                </div>
+                <div class="solution-card">
+                    <h3>Alert</h3>
+                    <p>Safety scorecards and actionable intelligence for all stakeholders in real-time.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Capabilities Section -->
+    <section class="container capabilities">
+        <h2>Platform Capabilities</h2>
+        <div class="capabilities-grid">
+            <div class="capability-card">
+                <div class="capability-icon">
+                    <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="15" y="10" width="30" height="40" rx="2" stroke="#546E7A" stroke-width="2"/>
+                        <circle cx="30" cy="20" r="3" fill="#546E7A"/>
+                        <line x1="20" y1="28" x2="40" y2="28" stroke="#546E7A" stroke-width="1.5"/>
+                        <line x1="20" y1="33" x2="40" y2="33" stroke="#546E7A" stroke-width="1.5"/>
+                        <line x1="20" y1="38" x2="40" y2="38" stroke="#546E7A" stroke-width="1.5"/>
+                    </svg>
+                </div>
+                <h3>Hospitals</h3>
+                <p>Hospitals, Pharmacies, doctors, pharma companies</p>
+            </div>
+            <div class="capability-card">
+                <div class="capability-icon">
+                    <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="12" y="15" width="36" height="30" rx="2" stroke="#546E7A" stroke-width="2"/>
+                        <rect x="16" y="19" width="8" height="8" stroke="#546E7A" stroke-width="1.5"/>
+                        <rect x="28" y="19" width="8" height="8" stroke="#546E7A" stroke-width="1.5"/>
+                        <rect x="40" y="19" width="4" height="8" stroke="#546E7A" stroke-width="1.5"/>
+                        <line x1="16" y1="30" x2="44" y2="30" stroke="#546E7A" stroke-width="1.5"/>
+                        <line x1="16" y1="38" x2="44" y2="38" stroke="#546E7A" stroke-width="1.5"/>
+                    </svg>
+                </div>
+                <h3>Doctors</h3>
+                <p>Analysed their mapping, additions and intermediates</p>
+            </div>
+            <div class="capability-card">
+                <div class="capability-icon">
+                    <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M30 10L35 20H45V45H15V20H25L30 10Z" stroke="#546E7A" stroke-width="2" fill="none"/>
+                        <line x1="30" y1="25" x2="30" y2="40" stroke="#546E7A" stroke-width="1.5"/>
+                        <line x1="22" y1="32" x2="38" y2="32" stroke="#546E7A" stroke-width="1.5"/>
+                    </svg>
+                </div>
+                <h3>Pharmacies</h3>
+                <p>Meant ies optimised blading enterprising, antalyors</p>
+            </div>
+            <div class="capability-card">
+                <div class="capability-icon">
+                    <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="18" y="12" width="24" height="36" rx="2" stroke="#546E7A" stroke-width="2"/>
+                        <circle cx="30" cy="22" r="3" fill="#546E7A"/>
+                        <line x1="22" y1="30" x2="38" y2="30" stroke="#546E7A" stroke-width="1.5"/>
+                        <line x1="22" y1="36" x2="38" y2="36" stroke="#546E7A" stroke-width="1.5"/>
+                        <line x1="22" y1="42" x2="38" y2="42" stroke="#546E7A" stroke-width="1.5"/>
+                    </svg>
+                </div>
+                <h3>Pharma Companies</h3>
+                <p>Face nones pomeed by aggregation appointed uignals</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Creators Section -->
+    <section class="creators">
+        <div class="container">
+            <h2>Meet the Creators</h2>
+            <div class="creators-grid">
+                <div class="creator-card">
+                    <img src="/templates/assets/creators/suhani.jpg" alt="Suhani Goyal" class="creator-photo">
+                    <h3>Suhani Goyal</h3>
+                    <p>Engineer</p>
+                </div>
+                <div class="creator-card">
+                    <img src="/templates/assets/creators/mehak.jpg" alt="Mehak Dogra" class="creator-photo">
+                    <h3>Mehak Dogra</h3>
+                    <p>Engineer</p>
+                </div>
+                <div class="creator-card">
+                    <img src="/templates/assets/creators/khushi.png" alt="Khushi Sharma" class="creator-photo">
+                    <h3>Khushi Sharma</h3>
+                    <p>Engineer</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Ethics Section -->
+    <section class="ethics">
+        <div class="container">
+            <h2>Data Ethics & Compliance</h2>
+            <div class="ethics-grid">
+                <div class="ethics-item">
+                    <h3>Controlled Data Disclosure</h3>
+                    <ul class="ethics-list">
+                        <li>Medicine-level data only</li>
+                        <li>No full patient history</li>
+                        <li>No diagnosis records</li>
+                        <li>No longitudinal profiles</li>
+                    </ul>
+                </div>
+                <div class="ethics-item">
+                    <h3>Consent-Aware Identification</h3>
+                    <ul class="ethics-list">
+                        <li>Purpose-specific identifiers</li>
+                        <li>Authorized medical professionals only</li>
+                        <li>Intentional data sharing</li>
+                        <li>Analytics & safety workflows</li>
+                    </ul>
+                </div>
+                <div class="ethics-item">
+                    <h3>Medicine-Focused Analytics</h3>
+                    <ul class="ethics-list">
+                        <li>Drug and prescription level</li>
+                        <li>Inputs from doctors & pharmacies</li>
+                        <li>Healthcare organization data</li>
+                        <li>No full patient journeys</li>
+                    </ul>
+                </div>
+                <div class="ethics-item">
+                    <h3>Analytical, Not Clinical</h3>
+                    <ul class="ethics-list">
+                        <li>Drug usage analysis</li>
+                        <li>Safety oversight</li>
+                        <li>Compliance intelligence</li>
+                        <li>No medical advice</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="ethics-divider"></div>
+            <p class="ethics-mission">Designed to support responsible drug intelligence across healthcare ecosystems.</p>
+            <p class="ethics-collaboration">Used by hospitals • doctors • pharmacies • pharmaceutical teams</p>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <p>&copy; 2026 Inteleyzer. Healthcare data intelligence platform. Privacy-first. Compliance-focused.</p>
+    </footer>
+
+    <script>
+        // Account data for different organization types
+        const accountData = {
+            hospital: {
+                name: 'Hospital A',
+                title1: 'Drug Utilization Trends',
+                title2: 'Safety Scorecard',
+                title3: 'Adverse Events',
+                title4: 'Recent Alerts',
+                scorecard: [
+                    { label: 'Pain Meds', badge: 'Elevated' },
+                    { label: 'Antibiotics', badge: 'Safe' },
+                    { label: 'Statins', badge: 'Monitor' }
+                ],
+                alerts: [
+                    { text: 'Aspirin Dose Alert', date: '2025-01-27' },
+                    { text: 'Drug Interaction', date: '2025-01-26' },
+                    { text: 'Dosage Review', date: '2025-01-25' },
+                    { text: 'Safety Signal', date: '2025-01-24' }
+                ]
+            },
+            pharmacy: {
+                name: 'Pharmacy B',
+                title1: 'Prescription Volume',
+                title2: 'Inventory Status',
+                title3: 'Dispensing Errors',
+                title4: 'Compliance Alerts',
+                scorecard: [
+                    { label: 'Opioids', badge: 'Monitor' },
+                    { label: 'Antibiotics', badge: 'Safe' },
+                    { label: 'Controlled', badge: 'Elevated' }
+                ],
+                alerts: [
+                    { text: 'Low Stock Alert', date: '2025-01-27' },
+                    { text: 'Expiry Warning', date: '2025-01-26' },
+                    { text: 'Recall Notice', date: '2025-01-25' },
+                    { text: 'Compliance Check', date: '2025-01-24' }
+                ]
+            },
+            pharma: {
+                name: 'Pharma C',
+                title1: 'Market Penetration',
+                title2: 'Safety Profile',
+                title3: 'Adverse Events',
+                title4: 'Regulatory Alerts',
+                scorecard: [
+                    { label: 'Drug A', badge: 'Safe' },
+                    { label: 'Drug B', badge: 'Monitor' },
+                    { label: 'Drug C', badge: 'Elevated' }
+                ],
+                alerts: [
+                    { text: 'Post-Market Report', date: '2025-01-27' },
+                    { text: 'Safety Review', date: '2025-01-26' },
+                    { text: 'Regulatory Update', date: '2025-01-25' },
+                    { text: 'Clinical Trial Data', date: '2025-01-24' }
+                ]
+            },
+            doctor: {
+                name: 'Doctor D',
+                title1: 'Patient Prescriptions',
+                title2: 'Clinical Safety',
+                title3: 'Drug Interactions',
+                title4: 'Patient Alerts',
+                scorecard: [
+                    { label: 'Hypertension', badge: 'Safe' },
+                    { label: 'Diabetes', badge: 'Monitor' },
+                    { label: 'Cholesterol', badge: 'Safe' }
+                ],
+                alerts: [
+                    { text: 'Drug Interaction Alert', date: '2025-01-27' },
+                    { text: 'Dosage Adjustment', date: '2025-01-26' },
+                    { text: 'Allergy Warning', date: '2025-01-25' },
+                    { text: 'Contraindication', date: '2025-01-24' }
+                ]
+            }
+        };
+
+        let currentAccount = 'hospital';
+        let autoSelectInterval;
+        let accountIndex = 0;
+        const accounts = ['hospital', 'pharmacy', 'pharma', 'doctor'];
+
+        function updateDashboard(accountType) {
+            const data = accountData[accountType];
+            
+            // Fade out cards
+            document.querySelectorAll('.content-card').forEach(card => {
+                card.classList.add('fade-out');
+            });
+
+            // Update after fade out
+            setTimeout(() => {
+                // Update titles
+                document.getElementById('title1').textContent = data.title1;
+                document.getElementById('title2').textContent = data.title2;
+                document.getElementById('title3').textContent = data.title3;
+                document.getElementById('title4').textContent = data.title4;
+
+                // Update scorecard
+                const scorecardDiv = document.getElementById('scorecard1');
+                scorecardDiv.innerHTML = data.scorecard.map(item => `
+                    <div class="scorecard-row">
+                        <span class="scorecard-label">${item.label}</span>
+                        <div class="scorecard-bar"></div>
+                        <span class="scorecard-badge">${item.badge}</span>
+                    </div>
+                `).join('');
+
+                // Update alerts
+                const alertsDiv = document.getElementById('alerts1');
+                alertsDiv.innerHTML = data.alerts.map(item => `
+                    <div class="alert-row">
+                        <span class="alert-icon">⚠</span>
+                        <span class="alert-text">${item.text}</span>
+                        <span class="alert-date">${item.date}</span>
+                    </div>
+                `).join('');
+
+                // Update active account button
+                document.querySelectorAll('.account-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                document.querySelector(`[data-account="${accountType}"]`).classList.add('active');
+
+                // Fade in cards
+                document.querySelectorAll('.content-card').forEach(card => {
+                    card.classList.remove('fade-out');
+                    card.classList.add('fade-in');
+                });
+
+                currentAccount = accountType;
+            }, 150);
+        }
+
+        function startAutoAnimation() {
+            // Start with Hospital A (index 0)
+            accountIndex = 0;
+            updateDashboard(accounts[accountIndex]);
+            console.log('Initial display:', accounts[accountIndex], 'Index:', accountIndex);
+
+            // Auto-cycle through accounts every 2.5 seconds
+            // First cycle happens after 2.5 seconds
+            autoSelectInterval = setInterval(() => {
+                accountIndex = (accountIndex + 1) % accounts.length;
+                console.log('Cycling to:', accounts[accountIndex], 'Index:', accountIndex);
+                updateDashboard(accounts[accountIndex]);
+            }, 2500);
+        }
+
+        // Account item hover handlers - allow manual interaction
+        document.querySelectorAll('.account-item').forEach(item => {
+            item.addEventListener('mouseenter', function() {
+                const accountType = this.getAttribute('data-account');
+                accountIndex = accounts.indexOf(accountType);
+                console.log('Manual selection:', accountType, 'Index:', accountIndex);
+                updateDashboard(accountType);
+                // Reset the auto-animation timer
+                clearInterval(autoSelectInterval);
+                setTimeout(() => {
+                    startAutoAnimation();
+                }, 100);
+            });
+        });
+
+        // Start animation on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            startAutoAnimation();
+        });
+
+        // Fallback if DOM is already loaded
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', startAutoAnimation);
+        } else {
+            startAutoAnimation();
+        }
+
+        // Carousel functionality
+        let currentSlide = 0;
+        const totalSlides = 4;
+        let autoRotateInterval;
+
+        function showSlide(n) {
+            const wrapper = document.getElementById('carouselWrapper');
+            const indicators = document.querySelectorAll('.indicator');
+            
+            if (n >= totalSlides) currentSlide = 0;
+            if (n < 0) currentSlide = totalSlides - 1;
+            
+            wrapper.style.transform = `translateX(-${currentSlide * 100}%)`;
+            
+            indicators.forEach((indicator, index) => {
+                indicator.classList.toggle('active', index === currentSlide);
+            });
+        }
+
+        function goToSlide(n) {
+            currentSlide = n;
+            showSlide(currentSlide);
+            resetAutoRotate();
+        }
+
+        function startAutoRotate() {
+            autoRotateInterval = setInterval(() => {
+                currentSlide++;
+                showSlide(currentSlide);
+            }, 5000);
+        }
+
+        function resetAutoRotate() {
+            clearInterval(autoRotateInterval);
+            startAutoRotate();
+        }
+
+        showSlide(currentSlide);
+        startAutoRotate();
+
+        document.querySelectorAll('.btn-primary, .btn-secondary').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const text = this.textContent.trim();
+                if (text.includes('Sign Up') || text.includes('Request Demo')) {
+                    window.location.href = '/signup';
+                } else if (text.includes('See How')) {
+                    document.querySelector('.capabilities').scrollIntoView({ behavior: 'smooth' });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

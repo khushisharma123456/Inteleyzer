@@ -1,5 +1,5 @@
 /**
- * Auth Logic for MedSafe (Connected to Flask API)
+ * Auth Logic for Inteleyzer (Connected to Flask API)
  */
 
 export const Auth = {
