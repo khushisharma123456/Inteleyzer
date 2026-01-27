@@ -1,102 +1,349 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Alerts - Inteleyzer</title><link rel="stylesheet" href="/static/css/style.css"><script src="https://unpkg.com/lucide@latest"></script><script type="module" src="/static/js/sidebar.js"></script></head><body><div class="dashboard-layout"><app-sidebar></app-sidebar><main class="main-content"><header style="margin-bottom: 2rem;"><h1>Safety Alerts</h1><p>High priority reports and safety notifications</p></header><div class="container" style="padding: 0; max-width: 900px; margin: 0;"><!-- Pharma Alerts --><section style="margin-bottom: 2rem;"><h3 style="margin-bottom: 1rem;">Safety Notifications from Pharmaceutical Companies</h3><div id="pharma-alerts-list" style="display: flex; flex-direction: column; gap: 1rem;"><p>Loading notifications...</p></div></section><!-- Patient Alerts --><section><h3 style="margin-bottom: 1rem;">High Risk Patient Cases</h3><div id="patient-alerts-list" style="display: flex; flex-direction: column; gap: 1rem;"><p>Loading patient alerts...</p></div></section></div></main></div><script type="module">import {
-    DoctorApp
-}
-
-from '/static/js/doctor.js';
-
-import {
-    Auth
-}
-
-from '/static/js/auth.js';
-Auth.requireAuth();
-
-async function init() {
-    // Load pharma alerts
-    try {
-        const response = await fetch('/api/alerts');
-        if (response.ok) {
-            const data = await response.json();
-            if (data.success && data.alerts) {
-                renderPharmaAlerts(data.alerts);
-            }
-        }
-    } catch (error) {
-        console.error('Error loading pharma alerts:', error);
-        document.getElementById('pharma-alerts-list').innerHTML = '<p style="color:red;">Failed to load alerts.</p>';
-    }
-
-    // Load patient alerts
-    const patients = await DoctorApp.getPatients();
-    const patientAlerts = patients.filter(p => p.riskLevel === 'High' || p.riskLevel === 'Medium');
-    renderPatientAlerts(patientAlerts);
-
-    lucide.createIcons();
-}
-
-function renderPharmaAlerts(alerts) {
-    const container = document.getElementById('pharma-alerts-list');
-
-    if (alerts.length === 0) {
-        container.innerHTML = '<div class="card"><p style="text-align: center; padding: 2rem; color: var(--text-muted);">No safety notifications at this time.</p></div>';
-        return;
-    }
-
-    const severityColors = {
-        'Critical': '#DC2626',
-        'High': 'var(--risk-high)',
-        'Medium': 'var(--risk-medium)',
-        'Low': 'var(--risk-low)'
-    };
-
-    container.innerHTML = alerts.map(alert => `
-        <div class="card" style="border-left: 5px solid ${severityColors[alert.severity]};">
-            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
-                <div style="display: flex; align-items: center; gap: 0.75rem;">
-                    <div style="background: ${severityColors[alert.severity]}15; padding: 0.75rem; border-radius: 8px;">
-                        <i data-lucide="alert-triangle" style="width: 24px; height: 24px; color: ${severityColors[alert.severity]};"></i>
-                    </div>
-                    <div>
-                        <h4 style="margin: 0;">${alert.drug_name}</h4>
-                        <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0.25rem 0 0 0;">From: ${alert.sender}</p>
-                    </div>
-                </div>
-                <span class="badge" style="background: ${severityColors[alert.severity]}; color: white;">${alert.severity}</span>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alerts - Doctor Dashboard</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script type="module" src="/static/js/sidebar.js"></script>
+    <style>
+        .dashboard-layout { display: flex; }
+        .main-content { flex: 1; margin-left: var(--sidebar-width); padding: 2rem; background-color: #FAFAF9; transition: margin-left 0.3s ease; overflow: hidden; }
+        body.sidebar-collapsed .main-content { margin-left: 80px; }
+        .header { margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #E2E8F0; }
+        .header h1 { font-size: 2rem; color: var(--primary-dark); margin: 0; }
+        .header p { color: var(--text-muted); margin: 0.5rem 0 0 0; font-size: 0.95rem; }
+        .controls-section { background: white; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); }
+        .search-box { margin-bottom: 1.5rem; }
+        .search-input { width: 100%; padding: 0.75rem 1rem; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 0.95rem; }
+        .search-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(58, 90, 122, 0.1); }
+        .tabs { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .tab-btn { padding: 0.75rem 1.25rem; background-color: #F9FAFB; border: 1px solid #E2E8F0; border-radius: 8px; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: all 0.2s; }
+        .tab-btn.active { background-color: var(--primary); color: white; border-color: var(--primary); }
+        .tab-btn:hover { background-color: var(--secondary); }
+        .alerts-container { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); display: flex; flex-direction: column; height: calc(100vh - 350px); }
+        .table-wrapper { flex: 1; overflow-y: auto; }
+        .alerts-table { width: 100%; border-collapse: collapse; }
+        .alerts-table thead { position: sticky; top: 0; background-color: #F9FAFB; z-index: 10; }
+        .alerts-table th { padding: 1rem; text-align: left; font-weight: 600; color: var(--primary-dark); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #E2E8F0; white-space: nowrap; }
+        .alerts-table td { padding: 1rem; border-bottom: 1px solid #E2E8F0; color: var(--text-main); }
+        .alerts-table tbody tr:hover { background-color: #FAFAF9; }
+        .alert-type-badge { display: inline-block; padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600; }
+        .type-interaction { background-color: #FEF3C7; color: #92400E; }
+        .type-dosage { background-color: #DBEAFE; color: #0C4A6E; }
+        .type-recall { background-color: #FEE2E2; color: #7F1D1D; }
+        .type-request { background-color: #E0E7FF; color: #312E81; }
+        .severity-badge { display: inline-block; padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600; }
+        .severity-low { background-color: #F0FDF4; color: #10B981; }
+        .severity-medium { background-color: #FFFBEB; color: #F59E0B; }
+        .severity-high { background-color: #FEF2F2; color: #DC2626; }
+        .action-btn { padding: 0.5rem 1rem; background-color: var(--primary); color: white; border: none; border-radius: 6px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .action-btn:hover { background-color: var(--primary-dark); }
+        .empty-state { text-align: center; padding: 3rem 2rem; color: var(--text-muted); }
+        .empty-state i { font-size: 2.5rem; color: #D1D5DB; margin-bottom: 1rem; }
+        .side-panel { position: fixed; right: -500px; top: 0; width: 500px; height: 100vh; background: white; box-shadow: -4px 0 12px rgba(0, 0, 0, 0.15); transition: right 0.3s ease; z-index: 1000; overflow-y: auto; }
+        .side-panel.open { right: 0; }
+        .panel-header { padding: 2rem; border-bottom: 1px solid #E2E8F0; display: flex; justify-content: space-between; align-items: center; }
+        .panel-header h2 { margin: 0; color: var(--primary-dark); }
+        .close-panel-btn { background: none; border: none; font-size: 1.5rem; color: var(--text-muted); cursor: pointer; }
+        .panel-content { padding: 2rem; }
+        .detail-row { margin-bottom: 1.5rem; }
+        .detail-label { font-weight: 600; color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem; }
+        .detail-value { color: var(--text-main); font-size: 0.95rem; }
+        .disclaimer { background-color: #F0FDF4; border-left: 4px solid #10B981; padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem; font-size: 0.9rem; color: #166534; }
+        .panel-actions { padding: 2rem; border-top: 1px solid #E2E8F0; display: flex; flex-direction: column; gap: 1rem; }
+        .panel-btn { padding: 0.75rem 1.5rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-primary:hover { background-color: var(--primary-dark); }
+        .btn-secondary { background-color: #E2E8F0; color: var(--text-main); }
+        .btn-secondary:hover { background-color: #CBD5E0; }
+        .btn-danger { background-color: #DC2626; color: white; }
+        .btn-danger:hover { background-color: #991B1B; }
+        @media (max-width: 768px) { .main-content { padding: 1rem; } .side-panel { width: 100%; right: -100%; } .alerts-table { font-size: 0.85rem; } .alerts-table th, .alerts-table td { padding: 0.75rem; } }
+    </style>
+</head>
+<body>
+    <div class="dashboard-layout">
+        <app-sidebar></app-sidebar>
+        <main class="main-content">
+            <div class="header">
+                <h1>Alerts</h1>
+                <p>Review and act on safety-related alerts.</p>
             </div>
-            <p style="margin-bottom: 1rem;">${alert.message}</p>
-            <p style="font-size: 0.85rem; color: var(--text-muted);">${new Date(alert.created_at).toLocaleString()}</p>
+
+            <!-- Controls Section -->
+            <div class="controls-section">
+                <div class="search-box">
+                    <input type="text" class="search-input" id="searchInput" placeholder="Search by drug name, alert type, reason, or organisation...">
+                </div>
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="filterByCategory('all')">All</button>
+                    <button class="tab-btn" onclick="filterByCategory('interactions')">Interactions</button>
+                    <button class="tab-btn" onclick="filterByCategory('dosage')">Dosage</button>
+                    <button class="tab-btn" onclick="filterByCategory('recalls')">Recalls</button>
+                    <button class="tab-btn" onclick="filterByCategory('requests')">Requests</button>
+                </div>
+            </div>
+
+            <!-- Alerts Table -->
+            <div class="alerts-container">
+                <div class="table-wrapper">
+                    <table class="alerts-table">
+                        <thead>
+                            <tr>
+                                <th>Alert Type</th>
+                                <th>Drug Name</th>
+                                <th>Reason</th>
+                                <th>Severity</th>
+                                <th>Date / Time</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="alerts-body">
+                            <tr><td colspan="6" class="empty-state"><i data-lucide="inbox"></i><p>No alerts</p></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Side Panel for Alert Details -->
+    <div id="sidePanel" class="side-panel">
+        <div class="panel-header">
+            <h2>Alert Details</h2>
+            <button class="close-panel-btn" onclick="closePanel()">&times;</button>
         </div>
-    `).join('');
-}
-
-function renderPatientAlerts(alerts) {
-    const container = document.getElementById('patient-alerts-list');
-
-    if (alerts.length === 0) {
-        container.innerHTML = `
-            <div class="card" style="text-align: center; padding: 3rem;">
-                <i data-lucide="check-circle" style="width: 48px; height: 48px; color: var(--primary); margin-bottom: 1rem;"></i>
-                <h3>All Clear</h3>
-                <p>No high-risk patient alerts at this time.</p>
-            </div>`;
-    } else {
-        container.innerHTML = alerts.map(p => `
-            <div class="card" style="border-left: 5px solid ${p.riskLevel === 'High' ? 'var(--risk-high)' : 'var(--risk-medium)'};">
-                <div style="display: flex; justify-content: space-between; align-items: start;">
-                    <div>
-                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
-                            ${DoctorApp.renderRiskBadge(p.riskLevel)}
-                            <span style="font-weight: 600; color: var(--text-muted);">${p.id}</span>
-                        </div>
-                        <h3 style="margin-bottom: 0.25rem;">${p.symptoms}</h3>
-                        <p>Drug: ${p.drugName}</p>
-                    </div>
-                    <a href="/doctor/patients?id=${p.id}" class="btn btn-outline">Review Case</a>
+        <div class="panel-content">
+            <div class="detail-row">
+                <div class="detail-label">Alert Type</div>
+                <div class="detail-value"><span id="detail-type" class="alert-type-badge"></span></div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Drug Name</div>
+                <div class="detail-value" id="detail-drug"></div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Reason</div>
+                <div class="detail-value" id="detail-reason"></div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Severity</div>
+                <div class="detail-value"><span id="detail-severity" class="severity-badge"></span></div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Source</div>
+                <div class="detail-value" id="detail-source"></div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Date / Time</div>
+                <div class="detail-value" id="detail-timestamp"></div>
+            </div>
+            <div id="request-details" style="display: none;">
+                <div class="detail-row">
+                    <div class="detail-label">Requesting Organisation</div>
+                    <div class="detail-value" id="detail-organisation"></div>
+                </div>
+                <div class="disclaimer">
+                    <strong>Note:</strong> Patient contact is optional and at the doctor's discretion.
                 </div>
             </div>
-        `).join('');
-    }
-}
+        </div>
+        <div class="panel-actions" id="panel-actions">
+            <!-- Actions will be populated dynamically -->
+        </div>
+    </div>
 
-init();
-</script></body></html>
+    <script type="module">
+        import { Auth } from '/static/js/auth.js';
+        const user = Auth.requireAuth();
+        lucide.createIcons();
+
+        let allAlerts = [];
+        let filteredAlerts = [];
+        let currentCategory = 'all';
+        let currentAlert = null;
+
+        const sampleAlerts = [
+            {
+                id: 'ALT-001',
+                type: 'Interactions',
+                drug: 'PainAway',
+                reason: 'Potential interaction with patient\'s current medication',
+                severity: 'high',
+                source: 'System',
+                timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
+                category: 'interactions'
+            },
+            {
+                id: 'ALT-002',
+                type: 'Dosage',
+                drug: 'Neurocalm',
+                reason: 'Dosage exceeds recommended limit for patient age group',
+                severity: 'medium',
+                source: 'System',
+                timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000),
+                category: 'dosage'
+            },
+            {
+                id: 'ALT-003',
+                type: 'Recalls',
+                drug: 'Cardiostat',
+                reason: 'Batch recall issued - verify patient batch number',
+                severity: 'high',
+                source: 'PharmaCorp Inc.',
+                timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+                category: 'recalls'
+            },
+            {
+                id: 'ALT-004',
+                type: 'Requests',
+                drug: 'Aspirin',
+                reason: 'Patient contact request for follow-up study',
+                severity: 'low',
+                source: 'HealthCare Pharma',
+                timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+                category: 'requests',
+                organisation: 'HealthCare Pharma'
+            },
+            {
+                id: 'ALT-005',
+                type: 'Interactions',
+                drug: 'Metformin',
+                reason: 'Drug interaction alert with newly prescribed medication',
+                severity: 'medium',
+                source: 'System',
+                timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000),
+                category: 'interactions'
+            }
+        ];
+
+        function renderAlerts(alerts) {
+            const body = document.getElementById('alerts-body');
+
+            if (alerts.length === 0) {
+                body.innerHTML = '<tr><td colspan="6" class="empty-state"><i data-lucide="inbox"></i><p>No alerts found</p></td></tr>';
+                lucide.createIcons();
+                return;
+            }
+
+            body.innerHTML = alerts.map(alert => `
+                <tr>
+                    <td><span class="alert-type-badge type-${alert.category}">${alert.type}</span></td>
+                    <td>${alert.drug}</td>
+                    <td>${alert.reason}</td>
+                    <td><span class="severity-badge severity-${alert.severity.toLowerCase()}">${alert.severity}</span></td>
+                    <td>${alert.timestamp.toLocaleString()}</td>
+                    <td><button class="action-btn" onclick="openPanel('${alert.id}')">Review</button></td>
+                </tr>
+            `).join('');
+
+            lucide.createIcons();
+        }
+
+        function filterByCategory(category) {
+            currentCategory = category;
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            if (category === 'all') {
+                filteredAlerts = allAlerts;
+            } else {
+                filteredAlerts = allAlerts.filter(a => a.category === category);
+            }
+
+            applySearch();
+        }
+
+        function applySearch() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const results = filteredAlerts.filter(alert =>
+                alert.drug.toLowerCase().includes(query) ||
+                alert.type.toLowerCase().includes(query) ||
+                alert.reason.toLowerCase().includes(query) ||
+                (alert.organisation && alert.organisation.toLowerCase().includes(query))
+            );
+            renderAlerts(results);
+        }
+
+        document.getElementById('searchInput').addEventListener('input', applySearch);
+
+        function openPanel(alertId) {
+            currentAlert = allAlerts.find(a => a.id === alertId);
+            if (!currentAlert) return;
+
+            document.getElementById('detail-type').textContent = currentAlert.type;
+            document.getElementById('detail-type').className = `alert-type-badge type-${currentAlert.category}`;
+            document.getElementById('detail-drug').textContent = currentAlert.drug;
+            document.getElementById('detail-reason').textContent = currentAlert.reason;
+            document.getElementById('detail-severity').textContent = currentAlert.severity;
+            document.getElementById('detail-severity').className = `severity-badge severity-${currentAlert.severity.toLowerCase()}`;
+            document.getElementById('detail-source').textContent = currentAlert.source;
+            document.getElementById('detail-timestamp').textContent = currentAlert.timestamp.toLocaleString();
+
+            const requestDetails = document.getElementById('request-details');
+            if (currentAlert.category === 'requests') {
+                requestDetails.style.display = 'block';
+                document.getElementById('detail-organisation').textContent = currentAlert.organisation;
+            } else {
+                requestDetails.style.display = 'none';
+            }
+
+            populateActions();
+            document.getElementById('sidePanel').classList.add('open');
+        }
+
+        function closePanel() {
+            document.getElementById('sidePanel').classList.remove('open');
+            currentAlert = null;
+        }
+
+        function populateActions() {
+            const actionsDiv = document.getElementById('panel-actions');
+            let html = '';
+
+            if (currentAlert.category === 'requests') {
+                html = `
+                    <button class="panel-btn btn-primary" onclick="takeAction('acknowledge-contact')">Acknowledge & Contact Patient</button>
+                    <button class="panel-btn btn-secondary" onclick="takeAction('decline')">Decline Request</button>
+                    <button class="panel-btn btn-secondary" onclick="takeAction('defer')">Review Later</button>
+                `;
+            } else {
+                html = `
+                    <button class="panel-btn btn-primary" onclick="takeAction('acknowledge')">Acknowledge</button>
+                    <button class="panel-btn btn-secondary" onclick="takeAction('defer')">Defer</button>
+                    <button class="panel-btn btn-secondary" onclick="takeAction('close')">Close</button>
+                `;
+            }
+
+            actionsDiv.innerHTML = html;
+        }
+
+        window.takeAction = function(action) {
+            if (!currentAlert) return;
+
+            const actionText = {
+                'acknowledge': 'Alert acknowledged',
+                'acknowledge-contact': 'Request acknowledged - patient contact initiated',
+                'decline': 'Request declined',
+                'defer': 'Alert deferred',
+                'close': 'Alert closed'
+            };
+
+            alert(`${actionText[action]}: ${currentAlert.drug}`);
+            closePanel();
+            allAlerts = allAlerts.filter(a => a.id !== currentAlert.id);
+            applySearch();
+        };
+
+        window.openPanel = openPanel;
+        window.closePanel = closePanel;
+        window.filterByCategory = filterByCategory;
+
+        allAlerts = sampleAlerts;
+        filteredAlerts = allAlerts;
+        renderAlerts(allAlerts);
+    </script>
+</body>
+</html>
