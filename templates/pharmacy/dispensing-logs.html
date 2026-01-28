@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dispensing Logs - Pharmacy Dashboard</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script type="module" src="/static/js/sidebar.js"></script>
+    <style>
+        .dashboard-layout { display: flex; }
+        .main-content { flex: 1; margin-left: var(--sidebar-width); padding: 2rem; background-color: #FAFAF9; transition: margin-left 0.3s ease; overflow-y: auto; }
+        body.sidebar-collapsed .main-content { margin-left: 80px; }
+        
+        .header { margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid #E2E8F0; }
+        .header h1 { font-size: 2rem; color: var(--primary-dark); margin: 0; text-align: center; }
+        .header p { color: var(--text-muted); margin: 0.5rem 0 0 0; font-size: 0.95rem; text-align: center; }
+        
+        .controls-section { background: white; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); }
+        .search-box { margin-bottom: 1.5rem; }
+        .search-input { width: 100%; max-width: 500px; padding: 0.75rem 1rem; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 0.95rem; box-sizing: border-box; }
+        .search-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(58, 90, 122, 0.1); }
+        
+        .filter-tabs { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .filter-btn { padding: 0.75rem 1.25rem; background-color: #F9FAFB; border: 1px solid #E2E8F0; border-radius: 8px; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: all 0.2s; }
+        .filter-btn.active { background-color: var(--primary); color: white; border-color: var(--primary); }
+        .filter-btn:hover { background-color: var(--secondary); }
+        
+        .logs-container { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); display: flex; flex-direction: column; }
+        .table-wrapper { flex: 1; overflow-y: auto; }
+        .logs-table { width: 100%; border-collapse: collapse; }
+        .logs-table thead { position: sticky; top: 0; background-color: #F9FAFB; z-index: 10; }
+        .logs-table th { padding: 1rem; text-align: left; font-weight: 600; color: var(--primary-dark); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #E2E8F0; white-space: nowrap; }
+        .logs-table td { padding: 1rem; border-bottom: 1px solid #E2E8F0; color: var(--text-main); }
+        .logs-table tbody tr:hover { background-color: #FAFAF9; }
+        
+        .status-badge { display: inline-block; padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600; }
+        .status-completed { background-color: #F0FDF4; color: #10B981; }
+        .status-pending { background-color: #FFFBEB; color: #F59E0B; }
+        .status-failed { background-color: #FEE2E2; color: #DC2626; }
+        
+        .empty-state { text-align: center; padding: 3rem 2rem; color: var(--text-muted); }
+        .empty-state i { font-size: 2.5rem; color: #D1D5DB; margin-bottom: 1rem; }
+        
+        .action-btn { padding: 0.5rem 1rem; background-color: var(--primary); color: white; border: none; border-radius: 6px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+        .action-btn:hover { background-color: var(--primary-dark); }
+        
+        .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+        .stat-card { background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); }
+        .stat-card h3 { margin: 0 0 0.5rem 0; font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-card .value { font-size: 2rem; font-weight: 700; color: var(--primary-dark); margin: 0; }
+        
+        @media (max-width: 768px) {
+            .main-content { padding: 1rem; }
+            .logs-table { font-size: 0.85rem; }
+            .logs-table th, .logs-table td { padding: 0.75rem; }
+            .search-input { max-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-layout">
+        <app-sidebar></app-sidebar>
+        
+        <main class="main-content">
+            <div class="header">
+                <h1>Dispensing Logs</h1>
+                <p>Track and manage all dispensing events and inventory movements</p>
+            </div>
+
+            <!-- Statistics Row -->
+            <div class="stats-row">
+                <div class="stat-card">
+                    <h3>Total Dispensed Today</h3>
+                    <p class="value" id="stat-today">0</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Dispensed This Month</h3>
+                    <p class="value" id="stat-month">0</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Pending Logs</h3>
+                    <p class="value" id="stat-pending">0</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Failed Entries</h3>
+                    <p class="value" id="stat-failed">0</p>
+                </div>
+            </div>
+
+            <!-- Controls Section -->
+            <div class="controls-section">
+                <div class="search-box">
+                    <input type="text" class="search-input" id="searchInput" placeholder="Search by drug name, patient ID, or batch number...">
+                </div>
+                <div class="filter-tabs">
+                    <button class="filter-btn active" onclick="filterByStatus('all')">All</button>
+                    <button class="filter-btn" onclick="filterByStatus('completed')">Completed</button>
+                    <button class="filter-btn" onclick="filterByStatus('pending')">Pending</button>
+                    <button class="filter-btn" onclick="filterByStatus('failed')">Failed</button>
+                </div>
+            </div>
+
+            <!-- Logs Table -->
+            <div class="logs-container">
+                <div class="table-wrapper">
+                    <table class="logs-table">
+                        <thead>
+                            <tr>
+                                <th>Date / Time</th>
+                                <th>Drug Name</th>
+                                <th>Batch Number</th>
+                                <th>Quantity</th>
+                                <th>Patient ID</th>
+                                <th>Dispensed By</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logs-body">
+                            <tr><td colspan="8" class="empty-state"><i data-lucide="inbox"></i><p>No dispensing logs available.</p></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        import { Auth } from '/static/js/auth.js';
+
+        const user = Auth.requireAuth();
+        if (!user || user.role !== 'pharmacy') {
+            window.location.href = '/login';
+        }
+
+        lucide.createIcons();
+
+        let allLogs = [];
+        let filteredLogs = [];
+        let currentStatus = 'all';
+
+        // Sample dispensing logs data
+        const sampleLogs = [
+            {
+                id: 'DL-001',
+                timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
+                drug: 'Aspirin',
+                batch: 'ASP-2024-001',
+                quantity: 10,
+                patientId: 'P-12345',
+                dispensedBy: 'John Smith',
+                status: 'completed'
+            },
+            {
+                id: 'DL-002',
+                timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
+                drug: 'Metformin',
+                batch: 'MET-2024-002',
+                quantity: 30,
+                patientId: 'P-12346',
+                dispensedBy: 'Sarah Johnson',
+                status: 'completed'
+            },
+            {
+                id: 'DL-003',
+                timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000),
+                drug: 'Lisinopril',
+                batch: 'LIS-2024-003',
+                quantity: 20,
+                patientId: 'P-12347',
+                dispensedBy: 'Mike Davis',
+                status: 'pending'
+            },
+            {
+                id: 'DL-004',
+                timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000),
+                drug: 'Atorvastatin',
+                batch: 'ATO-2024-004',
+                quantity: 15,
+                patientId: 'P-12348',
+                dispensedBy: 'Emily Brown',
+                status: 'completed'
+            },
+            {
+                id: 'DL-005',
+                timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000),
+                drug: 'Amoxicillin',
+                batch: 'AMX-2024-005',
+                quantity: 5,
+                patientId: 'P-12349',
+                dispensedBy: 'John Smith',
+                status: 'failed'
+            }
+        ];
+
+        function renderLogs(logs) {
+            const body = document.getElementById('logs-body');
+
+            if (logs.length === 0) {
+                body.innerHTML = '<tr><td colspan="8" class="empty-state"><i data-lucide="inbox"></i><p>No dispensing logs found.</p></td></tr>';
+                lucide.createIcons();
+                return;
+            }
+
+            body.innerHTML = logs.map(log => `
+                <tr>
+                    <td>${log.timestamp.toLocaleString()}</td>
+                    <td><strong>${log.drug}</strong></td>
+                    <td>${log.batch}</td>
+                    <td>${log.quantity}</td>
+                    <td>${log.patientId}</td>
+                    <td>${log.dispensedBy}</td>
+                    <td><span class="status-badge status-${log.status}">${log.status.charAt(0).toUpperCase() + log.status.slice(1)}</span></td>
+                    <td><button class="action-btn" onclick="viewDetails('${log.id}')">View</button></td>
+                </tr>
+            `).join('');
+
+            lucide.createIcons();
+        }
+
+        function filterByStatus(status) {
+            currentStatus = status;
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            if (status === 'all') {
+                filteredLogs = allLogs;
+            } else {
+                filteredLogs = allLogs.filter(log => log.status === status);
+            }
+
+            applySearch();
+        }
+
+        function applySearch() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const results = filteredLogs.filter(log =>
+                log.drug.toLowerCase().includes(query) ||
+                log.batch.toLowerCase().includes(query) ||
+                log.patientId.toLowerCase().includes(query)
+            );
+            renderLogs(results);
+        }
+
+        document.getElementById('searchInput').addEventListener('input', applySearch);
+
+        window.filterByStatus = filterByStatus;
+        window.viewDetails = function(logId) {
+            const log = allLogs.find(l => l.id === logId);
+            if (log) {
+                alert(`Dispensing Log Details:\n\nDrug: ${log.drug}\nBatch: ${log.batch}\nQuantity: ${log.quantity}\nPatient ID: ${log.patientId}\nDispensed By: ${log.dispensedBy}\nStatus: ${log.status}`);
+            }
+        };
+
+        // Load statistics
+        function loadStats() {
+            const today = new Date();
+            const todayLogs = allLogs.filter(log => log.timestamp.toDateString() === today.toDateString());
+            const monthLogs = allLogs.filter(log => 
+                log.timestamp.getMonth() === today.getMonth() && 
+                log.timestamp.getFullYear() === today.getFullYear()
+            );
+            const pendingLogs = allLogs.filter(log => log.status === 'pending');
+            const failedLogs = allLogs.filter(log => log.status === 'failed');
+
+            document.getElementById('stat-today').textContent = todayLogs.length;
+            document.getElementById('stat-month').textContent = monthLogs.length;
+            document.getElementById('stat-pending').textContent = pendingLogs.length;
+            document.getElementById('stat-failed').textContent = failedLogs.length;
+        }
+
+        // Initialize
+        allLogs = sampleLogs;
+        filteredLogs = allLogs;
+        renderLogs(allLogs);
+        loadStats();
+    </script>
+</body>
+</html>

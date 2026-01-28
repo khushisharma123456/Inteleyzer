@@ -38,7 +38,20 @@ export class Sidebar extends HTMLElement {
             { icon: 'user-check', text: 'Patient Recall', link: '/pharma/patient-recall' },
         ];
 
-        return this.role === 'pharma' ? pharmaItems : doctorItems;
+        const pharmacyItems = [
+            { icon: 'home', text: 'Dashboard', link: '/pharmacy/dashboard' },
+            { icon: 'file-text', text: 'Reports', link: '/pharmacy/reports' },
+            { icon: 'package', text: 'Dispensing Logs', link: '/pharmacy/dispensing-logs' },
+            { icon: 'alert-triangle', text: 'Alerts', link: '/pharmacy/alerts' },
+        ];
+
+        if (this.role === 'pharma') {
+            return pharmaItems;
+        } else if (this.role === 'pharmacy') {
+            return pharmacyItems;
+        } else {
+            return doctorItems;
+        }
     }
 
     render() {
@@ -228,7 +241,7 @@ export class Sidebar extends HTMLElement {
                 </nav>
 
                 <div class="footer-section">
-                    <a href="/doctor/settings" class="settings-btn">
+                    <a href="${this.role === 'pharmacy' ? '/pharmacy/settings' : this.role === 'pharma' ? '/pharma/settings' : '/doctor/settings'}" class="settings-btn">
                         <i data-lucide="settings"></i>
                         <span class="nav-text">Settings</span>
                     </a>
@@ -236,7 +249,7 @@ export class Sidebar extends HTMLElement {
                         <i data-lucide="log-out"></i>
                         <span class="nav-text">Logout</span>
                     </button>
-                    <div class="doctor-name">${localStorage.getItem('user_name') || 'Doctor'}</div>
+                    <div class="doctor-name">${localStorage.getItem('user_name') || 'User'}</div>
                     <div class="doctor-email">${localStorage.getItem('user_email') || ''}</div>
                 </div>
             </aside>
