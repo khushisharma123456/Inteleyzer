@@ -696,48 +696,24 @@
                 </div>
 
                 <!-- Active Recall Requests Table -->
-                <h4 style="margin-top: 30px; margin-bottom: 15px; color: var(--hospital-blue); font-weight: 600;">Active Recall Requests</h4>
+                <h4 style="margin-top: 30px; margin-bottom: 15px; color: var(--hospital-blue); font-weight: 600;">Recalled Patients</h4>
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th>Request ID</th>
+                            <th>Patient ID</th>
+                            <th>Name</th>
                             <th>Drug</th>
-                            <th>Exposure Period</th>
-                            <th>Reason</th>
-                            <th>Sponsor</th>
-                            <th>Sponsorship Details</th>
-                            <th>Action</th>
+                            <th>Risk Level</th>
+                            <th>Recall Reason</th>
+                            <th>Recall Date</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="recalled-patients-tbody">
                         <tr>
-                            <td><strong>REC-001</strong></td>
-                            <td>PainAway</td>
-                            <td>May–June 2023</td>
-                            <td>Post-market safety monitoring</td>
-                            <td>PharmaCorp Inc.</td>
-                            <td>
-                                <div class="sponsorship-details">
-                                    <span class="detail-item"><i class="fas fa-heartbeat"></i> Free Treatment</span>
-                                    <span class="detail-item"><i class="fas fa-plane"></i> Free Travel</span>
-                                    <span class="detail-item"><i class="fas fa-hotel"></i> Hostel Accommodation</span>
-                                </div>
-                            </td>
-                            <td>
-                                <button class="btn btn-success" style="padding: 6px 12px; font-size: 12px; margin-right: 5px;" onclick="handleRecallAction('REC-001', 'yes')">Yes</button>
-                                <button class="btn btn-danger" style="padding: 6px 12px; font-size: 12px;" onclick="handleRecallAction('REC-001', 'no')">No</button>
-                            </td>
+                            <td colspan="6" style="text-align: center; padding: 20px;">Loading recalled patients...</td>
                         </tr>
-                        <tr>
-                            <td><strong>REC-002</strong></td>
-                            <td>Neurocalm</td>
-                            <td>August–September 2023</td>
-                            <td>Adverse event follow-up</td>
-                            <td>NeuroPharm Ltd.</td>
-                            <td>
-                                <div class="sponsorship-details">
-                                    <span class="detail-item"><i class="fas fa-heartbeat"></i> Free Treatment</span>
-                                    <span class="detail-item"><i class="fas fa-plane"></i> Free Travel</span>
+                    </tbody>
+                </table>
                                     <span class="detail-item"><i class="fas fa-hotel"></i> Hostel Accommodation</span>
                                     <span class="detail-item"><i class="fas fa-money-bill"></i> Daily Allowance</span>
                                 </div>
@@ -803,6 +779,31 @@
     </div>
 
     <script>
+        // Load recalled patients from API
+        fetch('/api/hospital/recalled-patients')
+            .then(r => r.json())
+            .then(data => {
+                const tbody = document.getElementById('recalled-patients-tbody');
+                if (data.success && data.patients && data.patients.length > 0) {
+                    tbody.innerHTML = data.patients.map(patient => `
+                        <tr>
+                            <td><strong>${patient.id}</strong></td>
+                            <td>${patient.name}</td>
+                            <td>${patient.drugName}</td>
+                            <td><span class="badge badge-${patient.riskLevel.toLowerCase()}">${patient.riskLevel}</span></td>
+                            <td>${patient.recallReason || 'N/A'}</td>
+                            <td>${patient.recallDate ? new Date(patient.recallDate).toLocaleDateString() : 'N/A'}</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">No recalled patients found</td></tr>';
+                }
+            })
+            .catch(err => {
+                console.error('Error loading recalled patients:', err);
+                document.getElementById('recalled-patients-tbody').innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #E74C3C;">Error loading recalled patients</td></tr>';
+            });
+
         // Sidebar Toggle
         document.addEventListener('DOMContentLoaded', function() {
             const sidebar = document.getElementById('sidebar');
@@ -821,69 +822,6 @@
                 });
             }
         });
-
-        // Recall Action Handler
-        function handleRecallAction(requestId, action) {
-            if (action === 'yes') {
-                showSuccessMessage(`Assurance delivered to the company for recall request ${requestId}.`);
-            } else if (action === 'no') {
-                openRejectionModal(requestId);
-            }
-        }
-
-        // Open Rejection Modal
-        function openRejectionModal(requestId) {
-            const modal = document.getElementById('rejectionModal');
-            const table = document.querySelector('.data-table tbody');
-            const row = Array.from(table.querySelectorAll('tr')).find(r => r.querySelector('td').textContent.includes(requestId));
-            
-            if (row) {
-                const cells = row.querySelectorAll('td');
-                document.getElementById('requestId').value = requestId;
-                document.getElementById('pharmaCompany').value = cells[4].textContent;
-            }
-            
-            modal.style.display = 'block';
-        }
-
-        // Close Rejection Modal
-        function closeRejectionModal() {
-            const modal = document.getElementById('rejectionModal');
-            modal.style.display = 'none';
-            document.getElementById('rejectionForm').reset();
-        }
-
-        // Handle Form Submission
-        document.getElementById('rejectionForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const requestId = document.getElementById('requestId').value;
-            const reason = document.getElementById('rejectionReason').value;
-            
-            if (reason.trim()) {
-                showSuccessMessage(`Recall request ${requestId} has been declined. Reason recorded.`);
-                closeRejectionModal();
-            } else {
-                alert('Please provide a reason for declining.');
-            }
-        });
-
-        // Show Success Message
-        function showSuccessMessage(message) {
-            const msgElement = document.getElementById('successMessage');
-            document.getElementById('successText').textContent = message;
-            msgElement.style.display = 'flex';
-            setTimeout(() => {
-                msgElement.style.display = 'none';
-            }, 3000);
-        }
-
-        // Close modal when clicking outside
-        window.onclick = function(event) {
-            const modal = document.getElementById('rejectionModal');
-            if (event.target === modal) {
-                modal.style.display = 'none';
-            }
-        };
     </script>
 </body>
 

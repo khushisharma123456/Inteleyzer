@@ -7,7 +7,7 @@ Run on: http://127.0.0.1:5000
 
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from flask_cors import CORS
-from models import db, User, Patient, Drug, Alert
+from models import db, User, Patient, Drug, Alert, SideEffectReport, hospital_doctor, hospital_drug, hospital_pharmacy, doctor_patient
 from pv_backend.services.case_matching import match_new_case, should_accept_case
 import os
 import random
@@ -105,6 +105,10 @@ def pharma_reports():
 @app.route('/pharma/analysis')
 def pharma_analysis():
     return render_template('pharma/analysis.html')
+
+@app.route('/pharma/patient-recall')
+def pharma_patient_recall():
+    return render_template('pharma/patient-recall.html')
 
 # Pharmacy Routes
 @app.route('/pharmacy/dashboard')
@@ -210,6 +214,76 @@ def get_patients():
         'riskLevel': p.risk_level,
         'createdAt': p.created_at.isoformat()
     } for p in patients])
+
+@app.route('/api/patients', methods=['POST'])
+def create_patient():
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authenticated'}), 401
+    
+    user = User.query.get(session['user_id'])
+    if user.role != 'doctor':
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+    
+    try:
+        data = request.json
+        
+        # Simple risk logic
+        risk = 'Low'
+        symptoms = data.get('symptoms', '').lower()
+        if len(symptoms) > 20:
+            risk = 'Medium'
+        if 'heart' in symptoms or 'breath' in symptoms or 'severe' in symptoms:
+            risk = 'High'
+        
+        # Check if patient exists by phone
+        existing_patient = Patient.query.filter_by(phone=data.get('phone')).first()
+        
+        if existing_patient:
+            patient = existing_patient
+            # Update fields
+            patient.drug_name = data['drugName']
+            if data.get('symptoms'):
+                patient.symptoms = data.get('symptoms')
+            patient.risk_level = risk
+            patient.age = int(data['age'])
+            # Ensure link to this doctor
+            if user not in patient.doctors:
+                patient.doctors.append(user)
+        else:
+            patient = Patient(
+                id='PT-' + str(random.randint(1000, 9999)),
+                created_by=session['user_id'],
+                name=data['name'],
+                phone=data.get('phone'),
+                age=int(data['age']),
+                gender=data['gender'],
+                drug_name=data['drugName'],
+                symptoms=data.get('symptoms'),
+                risk_level=risk
+            )
+            # Link to doctor
+            patient.doctors.append(user)
+            db.session.add(patient)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'patient': {
+                'id': patient.id,
+                'name': patient.name,
+                'age': patient.age,
+                'gender': patient.gender,
+                'drugName': patient.drug_name,
+                'symptoms': patient.symptoms,
+                'riskLevel': patient.risk_level,
+                'phone': patient.phone,
+                'createdAt': patient.created_at.isoformat()
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/api/patients/<patient_id>', methods=['GET'])
 def get_patient(patient_id):
@@ -345,6 +419,61 @@ def add_drug():
         }
     })
 
+# Patient Recall APIs
+@app.route('/api/patients/<patient_id>/recall', methods=['POST'])
+def recall_patient(patient_id):
+    """Recall a patient for testing due to adverse effects"""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authenticated'}), 401
+    
+    user = User.query.get(session['user_id'])
+    if user.role != 'pharma':
+        return jsonify({'success': False, 'message': 'Only pharmaceutical companies can recall patients'}), 403
+    
+    patient = Patient.query.get(patient_id)
+    if not patient:
+        return jsonify({'success': False, 'message': 'Patient not found'}), 404
+    
+    # Verify this patient is taking a drug from this company
+    company_drugs = [d.name for d in Drug.query.filter_by(company_id=user.id).all()]
+    if patient.drug_name not in company_drugs:
+        return jsonify({'success': False, 'message': 'Patient is not taking your company\'s drugs'}), 403
+    
+    try:
+        data = request.json
+        patient.recalled = True
+        patient.recalled_by = user.id
+        patient.recall_reason = data.get('reason', 'Further testing required')
+        patient.recall_date = datetime.utcnow()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'patient': patient.to_dict()
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/patients/recalled', methods=['GET'])
+def get_recalled_patients():
+    """Get all patients recalled by the pharma company"""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authenticated'}), 401
+    
+    user = User.query.get(session['user_id'])
+    if user.role != 'pharma':
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+    
+    # Get all patients recalled by this company
+    recalled = Patient.query.filter_by(recalled=True, recalled_by=user.id).order_by(Patient.recall_date.desc()).all()
+    
+    return jsonify({
+        'success': True,
+        'patients': [p.to_dict() for p in recalled]
+    })
+
 # Alert APIs
 @app.route('/api/alerts', methods=['GET'])
 def get_alerts():
@@ -365,21 +494,52 @@ def get_alerts():
 
 @app.route('/api/alerts', methods=['POST'])
 def create_alert():
+    """Enhanced alert creation - broadcasts to ALL doctors and hospitals"""
     if 'user_id' not in session:
-        return jsonify({'success': False}), 403
+        return jsonify({'success': False, 'message': 'Not authenticated'}), 401
     
-    data = request.json
-    alert = Alert(
-        drug_name=data['drug_name'],
-        message=data['message'],
-        severity=data['severity'],
-        sender_id=session['user_id']
-    )
+    user = User.query.get(session['user_id'])
+    if user.role != 'pharma':
+        return jsonify({'success': False, 'message': 'Only pharma companies can send alerts'}), 403
     
-    db.session.add(alert)
-    db.session.commit()
-    
-    return jsonify({'success': True, 'alert_id': alert.id})
+    try:
+        data = request.json
+        # Support both camelCase and snake_case for compatibility
+        drug_name = data.get('drugName') or data.get('drug_name')
+        
+        if not drug_name:
+            return jsonify({'success': False, 'message': 'Drug name is required'}), 400
+        
+        # Create the alert
+        alert = Alert(
+            drug_name=drug_name,
+            title=data.get('title', f'{drug_name} Safety Alert'),
+            message=data['message'],
+            severity=data['severity'],
+            sender_id=session['user_id'],
+            recipient_type='all'  # Broadcasts to everyone
+        )
+        
+        db.session.add(alert)
+        db.session.commit()
+        
+        # Count recipients
+        doctors_count = User.query.filter_by(role='doctor').count()
+        hospitals_count = User.query.filter_by(role='hospital').count()
+        
+        return jsonify({
+            'success': True, 
+            'alert_id': alert.id, 
+            'message': 'Alert sent successfully',
+            'recipients': {
+                'doctors': doctors_count,
+                'hospitals': hospitals_count,
+                'total': doctors_count + hospitals_count
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/api/alerts/<int:alert_id>/read', methods=['POST'])
 def mark_alert_read(alert_id):
@@ -751,6 +911,18 @@ def hospital_patient_recall():
         return redirect(url_for('login_page'))
     return render_template('hospital/patient-recall.html', active_page='patient-recall')
 
+@app.route('/hospital/doctors')
+def hospital_doctors():
+    if 'user_id' not in session or session.get('role') != 'hospital':
+        return redirect(url_for('login_page'))
+    return render_template('hospital/doctors.html', active_page='doctors')
+
+@app.route('/hospital/drugs')
+def hospital_drugs():
+    if 'user_id' not in session or session.get('role') != 'hospital':
+        return redirect(url_for('login_page'))
+    return render_template('hospital/drugs.html', active_page='drugs')
+
 @app.route('/hospital/settings')
 def hospital_settings():
     if 'user_id' not in session or session.get('role') != 'hospital':
@@ -767,6 +939,71 @@ def get_hospital_info():
         'success': True,
         'hospitalName': session.get('hospital_name', 'General Hospital'),
         'hospitalId': session.get('user_id')
+    })
+
+@app.route('/api/hospital/patients', methods=['GET'])
+def get_hospital_patients():
+    """Get all patients treated by doctors at this hospital"""
+    if 'user_id' not in session or session.get('role') != 'hospital':
+        return jsonify({'success': False, 'message': 'Not authorized'}), 403
+    
+    hospital = User.query.get(session['user_id'])
+    if not hospital:
+        return jsonify({'success': False, 'message': 'Hospital not found'}), 404
+    
+    # Get all doctors at this hospital
+    doctor_ids = db.session.query(hospital_doctor.c.doctor_id).filter(
+        hospital_doctor.c.hospital_id == hospital.id
+    ).all()
+    doctor_ids = [did[0] for did in doctor_ids]
+    
+    # Get all patients treated by these doctors
+    patients_set = set()
+    for doctor_id in doctor_ids:
+        patient_ids = db.session.query(doctor_patient.c.patient_id).filter(
+            doctor_patient.c.doctor_id == doctor_id
+        ).all()
+        patients_set.update([pid[0] for pid in patient_ids])
+    
+    patients = Patient.query.filter(Patient.id.in_(patients_set)).all() if patients_set else []
+    
+    return jsonify({
+        'success': True,
+        'patients': [p.to_dict() for p in patients]
+    })
+
+@app.route('/api/hospital/recalled-patients', methods=['GET'])
+def get_hospital_recalled_patients():
+    """Get all patients that have been recalled by pharma companies"""
+    if 'user_id' not in session or session.get('role') != 'hospital':
+        return jsonify({'success': False, 'message': 'Not authorized'}), 403
+    
+    hospital = User.query.get(session['user_id'])
+    if not hospital:
+        return jsonify({'success': False, 'message': 'Hospital not found'}), 404
+    
+    # Get all doctors at this hospital
+    doctor_ids = db.session.query(hospital_doctor.c.doctor_id).filter(
+        hospital_doctor.c.hospital_id == hospital.id
+    ).all()
+    doctor_ids = [did[0] for did in doctor_ids]
+    
+    # Get recalled patients treated by these doctors
+    patients_set = set()
+    for doctor_id in doctor_ids:
+        patient_ids = db.session.query(doctor_patient.c.patient_id).filter(
+            doctor_patient.c.doctor_id == doctor_id
+        ).all()
+        patients_set.update([pid[0] for pid in patient_ids])
+    
+    recalled_patients = Patient.query.filter(
+        Patient.id.in_(patients_set),
+        Patient.recalled == True
+    ).all() if patients_set else []
+    
+    return jsonify({
+        'success': True,
+        'patients': [p.to_dict() for p in recalled_patients]
     })
 
 @app.route('/api/hospital/drugs')
@@ -902,5 +1139,256 @@ def save_doctor_notification_settings():
     
     return jsonify({'success': False, 'message': 'User not found'}), 404
 
+# ========================================================================
+# HOSPITAL MANAGEMENT APIs
+# ========================================================================
+
+@app.route('/api/hospital/doctors', methods=['GET'])
+def get_hospital_doctors():
+    """Get all doctors registered under this hospital"""
+    if 'user_id' not in session or session.get('role') != 'hospital':
+        return jsonify({'success': False, 'message': 'Not authorized'}), 403
+    
+    hospital = User.query.get(session['user_id'])
+    if not hospital:
+        return jsonify({'success': False, 'message': 'Hospital not found'}), 404
+    
+    # Get doctors linked to this hospital via hospital_doctor table
+    # Query association table directly to avoid ambiguous foreign key error
+    doctor_ids = db.session.query(hospital_doctor.c.doctor_id).filter(
+        hospital_doctor.c.hospital_id == hospital.id
+    ).all()
+    doctor_ids = [did[0] for did in doctor_ids]
+    
+    doctors = User.query.filter(User.id.in_(doctor_ids), User.role == 'doctor').all()
+    
+    doctors_list = [{
+        'id': doc.id,
+        'name': doc.name,
+        'email': doc.email,
+        'specialization': doc.hospital_name  # Can be repurposed for specialization
+    } for doc in doctors]
+    
+    return jsonify({'success': True, 'doctors': doctors_list})
+
+@app.route('/api/hospital/drugs-in-use', methods=['GET'])
+def get_hospital_drugs_in_use():
+    """Get all drugs in use at this hospital"""
+    if 'user_id' not in session or session.get('role') != 'hospital':
+        return jsonify({'success': False, 'message': 'Not authorized'}), 403
+    
+    hospital = User.query.get(session['user_id'])
+    if not hospital:
+        return jsonify({'success': False, 'message': 'Hospital not found'}), 404
+    
+    # Get drugs linked to this hospital via hospital_drug table
+    # Query association table directly to avoid ambiguous foreign key issues
+    drug_ids = db.session.query(hospital_drug.c.drug_id).filter(
+        hospital_drug.c.hospital_id == hospital.id
+    ).all()
+    drug_ids = [did[0] for did in drug_ids]
+    
+    drugs = Drug.query.filter(Drug.id.in_(drug_ids)).all()
+    
+    drugs_list = [drug.to_dict() for drug in drugs]
+    
+    return jsonify({'success': True, 'drugs': drugs_list})
+
+@app.route('/api/hospital/pharmacies', methods=['GET'])
+def get_hospital_pharmacies():
+    """Get all pharmacies in contact with this hospital"""
+    if 'user_id' not in session or session.get('role') != 'hospital':
+        return jsonify({'success': False, 'message': 'Not authorized'}), 403
+    
+    hospital = User.query.get(session['user_id'])
+    if not hospital:
+        return jsonify({'success': False, 'message': 'Hospital not found'}), 404
+    
+    # Get pharmacies linked to this hospital via hospital_pharmacy table
+    # Query association table directly to avoid ambiguous foreign key error
+    pharmacy_ids = db.session.query(hospital_pharmacy.c.pharmacy_id).filter(
+        hospital_pharmacy.c.hospital_id == hospital.id
+    ).all()
+    pharmacy_ids = [pid[0] for pid in pharmacy_ids]
+    
+    pharmacies = User.query.filter(User.id.in_(pharmacy_ids), User.role == 'pharmacy').all()
+    
+    pharmacies_list = [{
+        'id': pharm.id,
+        'name': pharm.name,
+        'email': pharm.email
+    } for pharm in pharmacies]
+    
+    return jsonify({'success': True, 'pharmacies': pharmacies_list})
+
+@app.route('/api/hospital/side-effect-reports', methods=['GET'])
+def get_hospital_side_effect_reports():
+    """Get all side effect reports received by this hospital"""
+    if 'user_id' not in session or session.get('role') != 'hospital':
+        return jsonify({'success': False, 'message': 'Not authorized'}), 403
+    
+    reports = SideEffectReport.query.filter_by(hospital_id=session['user_id']).order_by(
+        SideEffectReport.created_at.desc()
+    ).all()
+    
+    reports_list = [report.to_dict() for report in reports]
+    
+    return jsonify({'success': True, 'reports': reports_list})
+
+@app.route('/api/hospital/analytics', methods=['GET'])
+def get_hospital_analytics():
+    """Get comprehensive analytics for hospital dashboard"""
+    if 'user_id' not in session or session.get('role') != 'hospital':
+        return jsonify({'success': False, 'message': 'Not authorized'}), 403
+    
+    hospital_id = session['user_id']
+    
+    # Get hospital doctors by querying the association table
+    doctor_ids = db.session.query(hospital_doctor.c.doctor_id).filter(
+        hospital_doctor.c.hospital_id == hospital_id
+    ).all()
+    doctor_ids = [d[0] for d in doctor_ids]
+    doctors = User.query.filter(User.id.in_(doctor_ids), User.role == 'doctor').all()
+    
+    # Get drugs in use by querying the association table
+    drug_ids = db.session.query(hospital_drug.c.drug_id).filter(
+        hospital_drug.c.hospital_id == hospital_id
+    ).all()
+    drug_ids = [d[0] for d in drug_ids]
+    drugs = Drug.query.filter(Drug.id.in_(drug_ids)).all()
+    
+    # Get pharmacies by querying the association table
+    pharmacy_ids = db.session.query(hospital_pharmacy.c.pharmacy_id).filter(
+        hospital_pharmacy.c.hospital_id == hospital_id
+    ).all()
+    pharmacy_ids = [p[0] for p in pharmacy_ids]
+    pharmacies = User.query.filter(User.id.in_(pharmacy_ids), User.role == 'pharmacy').all()
+    
+    # Get patients from hospital doctors
+    patients = []
+    for doctor in doctors:
+        patients.extend(doctor.patients)
+    
+    # Get alerts sent to this hospital
+    hospital_alerts = Alert.query.filter(
+        (Alert.recipient_type == 'hospital') | (Alert.recipient_type == 'all')
+    ).order_by(Alert.created_at.desc()).all()
+    
+    # Get side effect reports
+    side_effect_reports = SideEffectReport.query.filter_by(hospital_id=hospital_id).all()
+    
+    # Calculate risk distribution in patients
+    risk_distribution = {'High': 0, 'Medium': 0, 'Low': 0}
+    for patient in patients:
+        risk_level = patient.risk_level or 'Low'
+        risk_distribution[risk_level] = risk_distribution.get(risk_level, 0) + 1
+    
+    # Calculate drug companies distribution
+    company_drug_count = {}
+    for drug in drugs:
+        company_name = drug.company.name if drug.company else 'Unknown'
+        company_drug_count[company_name] = company_drug_count.get(company_name, 0) + 1
+    
+    # Calculate severity distribution in alerts
+    severity_distribution = {'Critical': 0, 'High': 0, 'Medium': 0, 'Low': 0}
+    for alert in hospital_alerts:
+        severity = alert.severity or 'Low'
+        severity_distribution[severity] = severity_distribution.get(severity, 0) + 1
+    
+    # Doctor specialties distribution
+    specialty_distribution = {}
+    for doctor in doctors:
+        # Extract specialty from name if present (e.g., "Dr. Emily Chen (Cardiology)")
+        if '(' in doctor.name and ')' in doctor.name:
+            specialty = doctor.name.split('(')[1].split(')')[0]
+            specialty_distribution[specialty] = specialty_distribution.get(specialty, 0) + 1
+    
+    analytics = {
+        'total_doctors': len(doctors),
+        'total_drugs': len(drugs),
+        'total_pharmacies': len(pharmacies),
+        'total_patients': len(patients),
+        'total_alerts': len(hospital_alerts),
+        'total_side_effects': len(side_effect_reports),
+        'risk_distribution': risk_distribution,
+        'company_drug_count': company_drug_count,
+        'severity_distribution': severity_distribution,
+        'specialty_distribution': specialty_distribution,
+        'recent_alerts': [alert.to_dict() for alert in hospital_alerts[:10]],
+        'doctors_list': [{'id': d.id, 'name': d.name, 'email': d.email} for d in doctors[:10]],
+        'top_drugs': [{'id': d.id, 'name': d.name, 'company': d.company.name if d.company else 'Unknown'} for d in drugs[:15]]
+    }
+    
+    return jsonify({'success': True, 'analytics': analytics})
+
+# ========================================================================
+# SIDE EFFECT REPORTING APIs
+# ========================================================================
+
+@app.route('/api/report-side-effect', methods=['POST'])
+def report_side_effect():
+    """Doctor reports a side effect - sends to hospital AND pharma company"""
+    if 'user_id' not in session or session.get('role') != 'doctor':
+        return jsonify({'success': False, 'message': 'Not authorized'}), 403
+    
+    data = request.json
+    doctor = User.query.get(session['user_id'])
+    
+    # Check if doctor is registered under a hospital
+    hospital = db.session.query(User).join(hospital_doctor).filter(
+        hospital_doctor.c.doctor_id == doctor.id,
+        User.role == 'hospital'
+    ).first()
+    
+    # Find the drug and its company
+    drug = Drug.query.filter_by(name=data.get('drug_name')).first()
+    
+    # Create side effect report
+    report = SideEffectReport(
+        patient_id=data.get('patient_id'),
+        doctor_id=doctor.id,
+        hospital_id=hospital.id if hospital else None,
+        drug_name=data.get('drug_name'),
+        drug_id=drug.id if drug else None,
+        side_effect=data.get('side_effect'),
+        severity=data.get('severity', 'Medium'),
+        company_notified=True if drug else False,
+        hospital_notified=True if hospital else False
+    )
+    
+    db.session.add(report)
+    db.session.commit()
+    
+    return jsonify({
+        'success': True, 
+        'message': 'Side effect reported successfully',
+        'report_id': report.id,
+        'hospital_notified': report.hospital_notified,
+        'company_notified': report.company_notified
+    })
+
 if __name__ == '__main__':
+    # ========================================================================
+    # AUTOMATIC DATABASE POPULATION
+    # ========================================================================
+    # Automatically populate database on first run or if empty
+    with app.app_context():
+        # Check if database is empty
+        from models import User
+        user_count = User.query.count()
+        
+        if user_count == 0:
+            print("\n" + "="*80)
+            print("DATABASE IS EMPTY - STARTING AUTOMATIC POPULATION")
+            print("="*80)
+            from populate_enhanced_data import populate_database
+            populate_database()
+            print("\n" + "="*80)
+            print("DATABASE POPULATION COMPLETE - Starting Flask server...")
+            print("="*80 + "\n")
+        else:
+            print(f"\n✓ Database already populated ({user_count} users found)")
+    
+    # ========================================================================
+    
     app.run(debug=True, host='127.0.0.1', port=5000)

@@ -250,28 +250,14 @@
                                     <th>Age</th>
                                     <th>Gender</th>
                                     <th>Drug Name</th>
-                                    <th>Adverse Event</th>
-                                    <th>Outcome</th>
-                                    <th>Actions</th>
+                                    <th>Symptoms</th>
+                                    <th>Risk Level</th>
+                                    <th>Created</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="identity-patients-tbody">
                                 <tr>
-                                    <td>Rajesh Kumar</td>
-                                    <td>9876543210</td>
-                                    <td>123 Main Street</td>
-                                    <td>Maharashtra</td>
-                                    <td>Mumbai</td>
-                                    <td>P001</td>
-                                    <td>45</td>
-                                    <td>Male</td>
-                                    <td>Aspirin</td>
-                                    <td>Nausea</td>
-                                    <td>Recovered</td>
-                                    <td>
-                                        <button class="btn-action view-btn" onclick="viewPatient(this, 'identity')">View</button>
-                                        <button class="btn-action change-btn" onclick="changeOutcome(this, 'identity')">Change</button>
-                                    </td>
+                                    <td colspan="12" style="text-align: center; padding: 20px;">Loading patients...</td>
                                 </tr>
                                 <tr>
                                     <td>Priya Sharma</td>
@@ -1068,6 +1054,37 @@
                 });
             }
         });
+
+        // Load patients from API
+        fetch('/api/hospital/patients')
+            .then(r => r.json())
+            .then(data => {
+                const tbody = document.getElementById('identity-patients-tbody');
+                if (data.success && data.patients && data.patients.length > 0) {
+                    tbody.innerHTML = data.patients.map(patient => `
+                        <tr>
+                            <td>${patient.name || 'N/A'}</td>
+                            <td>${patient.phone || 'N/A'}</td>
+                            <td>N/A</td>
+                            <td>N/A</td>
+                            <td>N/A</td>
+                            <td><strong>${patient.id}</strong></td>
+                            <td>${patient.age}</td>
+                            <td>${patient.gender}</td>
+                            <td>${patient.drugName}</td>
+                            <td>${patient.symptoms || 'N/A'}</td>
+                            <td><span class="badge badge-${patient.riskLevel.toLowerCase()}">${patient.riskLevel}</span></td>
+                            <td>${new Date(patient.created_at).toLocaleDateString()}</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="12" style="text-align: center; padding: 20px;">No patients found</td></tr>';
+                }
+            })
+            .catch(err => {
+                console.error('Error loading patients:', err);
+                document.getElementById('identity-patients-tbody').innerHTML = '<tr><td colspan="12" style="text-align: center; padding: 20px; color: #E74C3C;">Error loading patients</td></tr>';
+            });
     </script>
 </body>
 

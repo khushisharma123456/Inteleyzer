@@ -19,7 +19,6 @@
             --text-main: #333333;
             --text-muted: #666666;
             --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            --sidebar-width: 250px;
         }
 
         * {
@@ -36,15 +35,9 @@
         }
 
         .container {
-            display: flex;
-            min-height: 100vh;
-        }
-
-        .main-content {
-            flex: 1;
-            margin-left: var(--sidebar-width);
+            max-width: 1400px;
+            margin: 0 auto;
             padding: 2rem;
-            transition: margin-left 0.3s ease;
         }
 
         .header {
@@ -100,7 +93,7 @@
 
         .chart-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
             gap: 2rem;
             margin-bottom: 2rem;
         }
@@ -116,9 +109,6 @@
             font-size: 1.25rem;
             color: var(--primary);
             margin-bottom: 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
         }
 
         .chart-container {
@@ -138,9 +128,6 @@
             font-size: 1.25rem;
             color: var(--primary);
             margin-bottom: 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
         }
 
         table {
@@ -166,145 +153,179 @@
             background-color: #f7fafc;
         }
 
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            background-color: var(--primary);
+            color: white;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn:hover {
+            background-color: var(--primary-dark);
+        }
+
+        .btn-secondary {
+            background-color: var(--secondary);
+            color: var(--primary);
+        }
+
+        .btn-secondary:hover {
+            background-color: #c8d0db;
+        }
+
         .loading {
             text-align: center;
             padding: 3rem;
             color: var(--text-muted);
         }
 
-        @media (max-width: 768px) {
-            .main-content {
-                margin-left: 0;
-                padding: 1rem;
-            }
-            
-            .chart-grid {
-                grid-template-columns: 1fr;
-            }
+        .nav-bar {
+            background: white;
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1rem;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Sidebar -->
-        {% include 'hospital/sidebar.html' %}
+        <div class="nav-bar">
+            <div class="nav-links">
+                <a href="/hospital/dashboard" class="btn">Dashboard</a>
+                <a href="/hospital/patient-data" class="btn-secondary btn">Patient Data</a>
+                <a href="/hospital/pharma-alerts" class="btn-secondary btn">Pharma Alerts</a>
+            </div>
+            <a href="/logout" class="btn-secondary btn">Logout</a>
+        </div>
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <div class="header">
-                <h1>{{ session.get('hospital_name', 'Hospital Dashboard') }}</h1>
-                <p>Comprehensive analytics and hospital management</p>
+        <div class="header">
+            <h1 id="hospital-name">Hospital Dashboard</h1>
+            <p>Comprehensive analytics and hospital management</p>
+        </div>
+
+        <div id="loading" class="loading">
+            <i class="fas fa-spinner fa-spin fa-3x"></i>
+            <p>Loading analytics...</p>
+        </div>
+
+        <div id="content" style="display: none;">
+            <!-- Stats Grid -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Total Doctors</h3>
+                    <div class="value" id="total-doctors">0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Drugs In Use</h3>
+                    <div class="value" id="total-drugs">0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Pharmacy Partners</h3>
+                    <div class="value" id="total-pharmacies">0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Patients</h3>
+                    <div class="value" id="total-patients">0</div>
+                </div>
+                <div class="stat-card high">
+                    <h3>Active Alerts</h3>
+                    <div class="value" id="total-alerts">0</div>
+                </div>
+                <div class="stat-card medium">
+                    <h3>Side Effect Reports</h3>
+                    <div class="value" id="total-side-effects">0</div>
+                </div>
             </div>
 
-            <div id="loading" class="loading">
-                <i class="fas fa-spinner fa-spin fa-3x"></i>
-                <p>Loading analytics...</p>
-            </div>
-
-            <div id="content" style="display: none;">
-                <!-- Stats Grid -->
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <h3>Total Doctors</h3>
-                        <div class="value" id="total-doctors">0</div>
-                    </div>
-                    <div class="stat-card">
-                        <h3>Drugs In Use</h3>
-                        <div class="value" id="total-drugs">0</div>
-                    </div>
-                    <div class="stat-card">
-                        <h3>Pharmacy Partners</h3>
-                        <div class="value" id="total-pharmacies">0</div>
-                    </div>
-                    <div class="stat-card">
-                        <h3>Total Patients</h3>
-                        <div class="value" id="total-patients">0</div>
-                    </div>
-                    <div class="stat-card high">
-                        <h3>Active Alerts</h3>
-                        <div class="value" id="total-alerts">0</div>
-                    </div>
-                    <div class="stat-card medium">
-                        <h3>Side Effect Reports</h3>
-                        <div class="value" id="total-side-effects">0</div>
+            <!-- Charts Grid -->
+            <div class="chart-grid">
+                <div class="chart-card">
+                    <h3><i class="fas fa-chart-pie"></i> Patient Risk Distribution</h3>
+                    <div class="chart-container">
+                        <canvas id="risk-chart"></canvas>
                     </div>
                 </div>
 
-                <!-- Charts Grid -->
-                <div class="chart-grid">
-                    <div class="chart-card">
-                        <h3><i class="fas fa-chart-pie"></i> Patient Risk Distribution</h3>
-                        <div class="chart-container">
-                            <canvas id="risk-chart"></canvas>
-                        </div>
-                    </div>
-
-                    <div class="chart-card">
-                        <h3><i class="fas fa-chart-bar"></i> Drugs by Company</h3>
-                        <div class="chart-container">
-                            <canvas id="company-chart"></canvas>
-                        </div>
-                    </div>
-
-                    <div class="chart-card">
-                        <h3><i class="fas fa-exclamation-triangle"></i> Alert Severity</h3>
-                        <div class="chart-container">
-                            <canvas id="severity-chart"></canvas>
-                        </div>
-                    </div>
-
-                    <div class="chart-card">
-                        <h3><i class="fas fa-chart-line"></i> Reports Over Time</h3>
-                        <div class="chart-container">
-                            <canvas id="trend-chart"></canvas>
-                        </div>
+                <div class="chart-card">
+                    <h3><i class="fas fa-chart-bar"></i> Drugs by Company</h3>
+                    <div class="chart-container">
+                        <canvas id="company-chart"></canvas>
                     </div>
                 </div>
 
-                <!-- Tables -->
-                <div class="table-card">
-                    <h3><i class="fas fa-user-md"></i> Registered Doctors</h3>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Name</th>
-                                <th>Email</th>
-                            </tr>
-                        </thead>
-                        <tbody id="doctors-table"></tbody>
-                    </table>
+                <div class="chart-card">
+                    <h3><i class="fas fa-exclamation-triangle"></i> Alert Severity</h3>
+                    <div class="chart-container">
+                        <canvas id="severity-chart"></canvas>
+                    </div>
                 </div>
 
-                <div class="table-card">
-                    <h3><i class="fas fa-pills"></i> Top Drugs In Use</h3>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Drug Name</th>
-                                <th>Company</th>
-                            </tr>
-                        </thead>
-                        <tbody id="drugs-table"></tbody>
-                    </table>
-                </div>
-
-                <div class="table-card">
-                    <h3><i class="fas fa-bell"></i> Recent Alerts</h3>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Drug Name</th>
-                                <th>Message</th>
-                                <th>Severity</th>
-                                <th>Date</th>
-                            </tr>
-                        </thead>
-                        <tbody id="alerts-table"></tbody>
-                    </table>
+                <div class="chart-card">
+                    <h3><i class="fas fa-user-md"></i> Doctors by Specialty</h3>
+                    <div class="chart-container">
+                        <canvas id="specialty-chart"></canvas>
+                    </div>
                 </div>
             </div>
-        </main>
+
+            <!-- Tables -->
+            <div class="table-card">
+                <h3><i class="fas fa-user-md"></i> Registered Doctors</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                        </tr>
+                    </thead>
+                    <tbody id="doctors-table"></tbody>
+                </table>
+            </div>
+
+            <div class="table-card">
+                <h3><i class="fas fa-pills"></i> Top Drugs In Use</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Drug Name</th>
+                            <th>Company</th>
+                        </tr>
+                    </thead>
+                    <tbody id="drugs-table"></tbody>
+                </table>
+            </div>
+
+            <div class="table-card">
+                <h3><i class="fas fa-bell"></i> Recent Alerts</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Drug Name</th>
+                            <th>Message</th>
+                            <th>Severity</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody id="alerts-table"></tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -317,12 +338,12 @@
                 if (data.success) {
                     displayAnalytics(data.analytics);
                 } else {
-                    document.getElementById('loading').innerHTML = '<i class="fas fa-exclamation-triangle fa-3x" style="color: var(--risk-high);"></i><p>Failed to load analytics</p>';
+                    alert('Failed to load analytics');
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                document.getElementById('loading').innerHTML = '<i class="fas fa-exclamation-triangle fa-3x" style="color: var(--risk-high);"></i><p>Error loading analytics</p>';
+                alert('Error loading analytics');
             });
 
         function displayAnalytics(analytics) {
@@ -342,7 +363,7 @@
             renderRiskChart(analytics.risk_distribution);
             renderCompanyChart(analytics.company_drug_count);
             renderSeverityChart(analytics.severity_distribution);
-            renderTrendChart();
+            renderSpecialtyChart(analytics.specialty_distribution);
 
             // Render tables
             renderDoctorsTable(analytics.doctors_list);
@@ -391,11 +412,6 @@
                     maintainAspectRatio: false,
                     plugins: {
                         legend: { display: false }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
                     }
                 }
             });
@@ -422,37 +438,21 @@
             });
         }
 
-        function renderTrendChart() {
-            const ctx = document.getElementById('trend-chart').getContext('2d');
+        function renderSpecialtyChart(data) {
+            const ctx = document.getElementById('specialty-chart').getContext('2d');
+            const labels = Object.keys(data);
+            const values = Object.values(data);
             
-            // Generate last 6 months of data
-            const months = [];
-            const reports = [];
-            const today = new Date();
-            
-            for (let i = 5; i >= 0; i--) {
-                const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
-                months.push(date.toLocaleDateString('en-US', { month: 'short' }));
-                // Generate realistic trend data (increasing slightly over time)
-                reports.push(Math.floor(15 + Math.random() * 10 + (5 - i) * 2));
-            }
-            
-            charts.trend = new Chart(ctx, {
-                type: 'line',
+            charts.specialty = new Chart(ctx, {
+                type: 'radar',
                 data: {
-                    labels: months,
+                    labels: labels,
                     datasets: [{
-                        label: 'Side Effect Reports',
-                        data: reports,
+                        label: 'Doctors',
+                        data: values,
+                        backgroundColor: 'rgba(58, 90, 122, 0.2)',
                         borderColor: '#3A5A7A',
-                        backgroundColor: 'rgba(58, 90, 122, 0.1)',
-                        borderWidth: 3,
-                        tension: 0.4,
-                        fill: true,
-                        pointRadius: 5,
-                        pointBackgroundColor: '#3A5A7A',
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 2
+                        borderWidth: 2
                     }]
                 },
                 options: {
@@ -460,14 +460,6 @@
                     maintainAspectRatio: false,
                     plugins: {
                         legend: { display: false }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                stepSize: 5
-                            }
-                        }
                     }
                 }
             });
@@ -476,10 +468,6 @@
         function renderDoctorsTable(doctors) {
             const tbody = document.getElementById('doctors-table');
             tbody.innerHTML = '';
-            if (doctors.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-muted);">No doctors registered</td></tr>';
-                return;
-            }
             doctors.forEach(doc => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
@@ -494,10 +482,6 @@
         function renderDrugsTable(drugs) {
             const tbody = document.getElementById('drugs-table');
             tbody.innerHTML = '';
-            if (drugs.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: var(--text-muted);">No drugs in use</td></tr>';
-                return;
-            }
             drugs.forEach(drug => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
@@ -511,10 +495,6 @@
         function renderAlertsTable(alerts) {
             const tbody = document.getElementById('alerts-table');
             tbody.innerHTML = '';
-            if (alerts.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No recent alerts</td></tr>';
-                return;
-            }
             alerts.forEach(alert => {
                 const row = document.createElement('tr');
                 row.innerHTML = `

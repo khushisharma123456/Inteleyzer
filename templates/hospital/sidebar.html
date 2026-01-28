@@ -219,6 +219,18 @@
                 <span>Patient Recall</span>
             </a>
         </li>
+        <li class="nav-item">
+            <a href="{{ url_for('hospital_doctors') }}" class="nav-link {% if active_page == 'doctors' %}active{% endif %}" data-tab="doctors">
+                <i class="fas fa-user-md"></i>
+                <span>Registered Doctors</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="{{ url_for('hospital_drugs') }}" class="nav-link {% if active_page == 'drugs' %}active{% endif %}" data-tab="drugs">
+                <i class="fas fa-pills"></i>
+                <span>Drugs In Use</span>
+            </a>
+        </li>
     </ul>
 
     <div class="sidebar-footer">

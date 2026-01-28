@@ -504,30 +504,12 @@
                             <th>Drug</th>
                             <th>Issued By</th>
                             <th>Date</th>
-                            <th>Action</th>
+                            <th>Severity</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="alerts-tbody">
                         <tr>
-                            <td>High Dosage Risk</td>
-                            <td><strong>PainAway</strong></td>
-                            <td>PharmaCorp Inc.</td>
-                            <td>2024-01-15</td>
-                            <td><button class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;">View Guidance</button></td>
-                        </tr>
-                        <tr>
-                            <td>Drug-Drug Interaction</td>
-                            <td><strong>Neurocalm</strong></td>
-                            <td>NeuroPharm Ltd.</td>
-                            <td>2024-01-10</td>
-                            <td><button class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;">View Guidance</button></td>
-                        </tr>
-                        <tr>
-                            <td>Adverse Effect Report</td>
-                            <td><strong>Cardiostat</strong></td>
-                            <td>CardioHealth Pharma</td>
-                            <td>2024-01-05</td>
-                            <td><button class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;">View Guidance</button></td>
+                            <td colspan="5" style="text-align: center; padding: 20px;">Loading alerts...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -569,6 +551,30 @@
     </div>
 
     <script>
+        // Load alerts from API
+        fetch('/api/alerts')
+            .then(r => r.json())
+            .then(data => {
+                const tbody = document.getElementById('alerts-tbody');
+                if (data.success && data.alerts && data.alerts.length > 0) {
+                    tbody.innerHTML = data.alerts.map(alert => `
+                        <tr>
+                            <td>${alert.message || 'Alert'}</td>
+                            <td><strong>${alert.drug_name}</strong></td>
+                            <td>${alert.sender || 'System'}</td>
+                            <td>${new Date(alert.created_at).toLocaleDateString()}</td>
+                            <td><span class="badge badge-${alert.severity.toLowerCase()}">${alert.severity}</span></td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">No alerts found</td></tr>';
+                }
+            })
+            .catch(err => {
+                console.error('Error loading alerts:', err);
+                document.getElementById('alerts-tbody').innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #E74C3C;">Error loading alerts</td></tr>';
+            });
+
         // Sidebar Toggle
         document.addEventListener('DOMContentLoaded', function() {
             const sidebar = document.getElementById('sidebar');
