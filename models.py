@@ -281,8 +281,7 @@ class PharmacySettings(db.Model):
             'complianceOfficer': self.compliance_officer or '',
             'autoReport': self.auto_report
         }
-
-
+        
 # === STEP 10: AI AGENT ORCHESTRATION ===
 
 class CaseAgent(db.Model):
