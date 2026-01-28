@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="/static/css/style.css">
     <script src="https://unpkg.com/lucide@latest"></script>
     <script type="module" src="/static/js/sidebar.js"></script>
+    <script src="/static/js/reports.js"></script>
     <style>
         .dashboard-layout { display: flex; }
         .main-content { flex: 1; margin-left: var(--sidebar-width); padding: 2rem; background-color: #FAFAF9; transition: margin-left 0.3s ease; overflow-y: auto; }
@@ -246,6 +247,16 @@
                             <p class="form-description">Be specific about timing, severity, and any actions taken</p>
                         </div>
                         <div class="form-group">
+                            <label class="form-label">Severity <span class="required">*</span></label>
+                            <select id="severitySelect" class="form-control" required>
+                                <option value="">Select severity</option>
+                                <option value="Low">Low - Minor discomfort, no impact</option>
+                                <option value="Medium">Medium - Moderate discomfort, manageable</option>
+                                <option value="High">High - Significant impact, requires attention</option>
+                                <option value="Critical">Critical - Severe/life-threatening</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
                             <label class="form-label">Onset Date</label>
                             <input type="date" class="form-control">
                         </div>
@@ -276,10 +287,10 @@
 
                     <!-- Submit Button -->
                     <div class="button-group">
-                        <button class="btn btn-primary" onclick="submitReport()">
+                        <button type="button" class="btn btn-primary" onclick="submitReport()">
                             <i data-lucide="send"></i> Submit
                         </button>
-                        <button class="btn btn-secondary" onclick="resetForm()">
+                        <button type="button" class="btn btn-secondary" onclick="resetForm()">
                             <i data-lucide="x"></i> Clear Form
                         </button>
                     </div>
@@ -433,6 +444,24 @@
         }
 
         function submitReport() {
+            console.log('submitReport() called, currentReportType:', currentReportType);
+            
+            // Check if report type is selected
+            if (!currentReportType) {
+                const errorModal = document.createElement('div');
+                errorModal.className = 'modal show';
+                errorModal.innerHTML = `
+                    <div class="modal-content">
+                        <h2 class="modal-title">Report Type Required</h2>
+                        <p class="modal-message">Please select a report type (Patient-linked or Anonymised) before submitting.</p>
+                        <button class="modal-btn" onclick="this.closest('.modal').remove()">OK</button>
+                    </div>
+                `;
+                document.body.appendChild(errorModal);
+                lucide.createIcons();
+                return;
+            }
+            
             // Validate all required fields
             const requiredFields = [
                 { selector: 'input[placeholder="e.g., Aspirin, Metformin"]', name: 'Drug Name' },
@@ -499,23 +528,36 @@
                 return;
             }
 
-            // All fields filled - show success modal
-            const message = currentReportType === 'patient-linked'
-                ? 'This patient-linked report has been recorded and linked to the patient\'s record. It will appear in My Patients and may trigger alerts if severity thresholds are met.'
-                : 'This anonymised report has been recorded for safety monitoring. No patient record was created.';
+            // All fields filled - submit to database first
+            const patientId = currentReportType === 'patient-linked' ? 
+                (document.getElementById('existingPatientMode').classList.contains('show') ? 
+                    document.getElementById('patientSelect').value : null) : null;
+            
+            submitReportToDatabase(currentReportType, patientId).then(success => {
+                if (success) {
+                    // Show success modal
+                    const message = currentReportType === 'patient-linked'
+                        ? 'This patient-linked report has been recorded and linked to the patient\'s record. It will appear in My Patients and may trigger alerts if severity thresholds are met.'
+                        : 'This anonymised report has been recorded for safety monitoring. No patient record was created.';
 
-            const detail = currentReportType === 'patient-linked'
-                ? 'Report Type: Patient-linked | Visibility: My Patients, Alerts'
-                : 'Report Type: Anonymised | Visibility: Safety Analytics, Aggregate Alerts';
+                    const detail = currentReportType === 'patient-linked'
+                        ? 'Report Type: Patient-linked | Visibility: My Patients, Alerts'
+                        : 'Report Type: Anonymised | Visibility: Safety Analytics, Aggregate Alerts';
 
-            document.getElementById('confirmationMessage').textContent = message;
-            document.getElementById('confirmationDetail').textContent = detail;
-            document.getElementById('confirmationModal').classList.add('show');
+                    document.getElementById('confirmationMessage').textContent = message;
+                    document.getElementById('confirmationDetail').textContent = detail;
+                    document.getElementById('confirmationModal').classList.add('show');
+                } else {
+                    alert('Failed to submit report. Please try again.');
+                }
+            });
         }
 
         function closeConfirmation() {
             document.getElementById('confirmationModal').classList.remove('show');
             resetForm();
+            // Refresh submission history
+            loadSubmissionHistory();
         }
 
         function resetForm() {

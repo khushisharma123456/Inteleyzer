@@ -255,6 +255,84 @@ def get_patients():
         'createdAt': p.created_at.isoformat()
     } for p in patients])
 
+@app.route('/api/patients', methods=['POST'])
+def create_patient():
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authenticated'}), 401
+    
+    try:
+        data = request.get_json()
+        mode = data.get('mode', 'identity')
+        
+        # Create patient based on mode
+        if mode == 'identity':
+            patient = Patient(
+                id=data.get('patientId'),
+                name=data.get('name'),
+                phone=data.get('contactDetails'),
+                age=int(data.get('age')),
+                gender=data.get('gender'),
+                drug_name=data.get('medication') or 'Not Specified',
+                symptoms=data.get('symptoms', ''),
+                risk_level=data.get('riskLevel', 'Low'),
+                case_status='Active',
+                created_by=session['user_id']
+            )
+        else:  # anonymized mode
+            # Parse age group to get middle value
+            age_group = data.get('ageGroup', '31-45')
+            if '-' in age_group:
+                age_parts = age_group.split('-')
+                age = (int(age_parts[0]) + int(age_parts[1])) // 2
+            else:
+                age = 35
+            
+            patient = Patient(
+                id=data.get('anonId'),
+                name='Anonymized Patient',
+                age=age,
+                gender=data.get('gender'),
+                drug_name='Not Specified',
+                symptoms=data.get('notes', ''),
+                risk_level=data.get('riskCategory', 'Low'),
+                case_status='Active',
+                created_by=session['user_id']
+            )
+        
+        db.session.add(patient)
+        
+        # Link patient to doctor if user is a doctor
+        user = User.query.get(session['user_id'])
+        if user.role == 'doctor':
+            db.session.execute(
+                doctor_patient.insert().values(
+                    doctor_id=user.id,
+                    patient_id=patient.id
+                )
+            )
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'patient': {
+                'id': patient.id,
+                'name': patient.name,
+                'age': patient.age,
+                'gender': patient.gender,
+                'drug_name': patient.drug_name,
+                'symptoms': patient.symptoms,
+                'risk_level': patient.risk_level,
+                'created_at': patient.created_at.isoformat() if patient.created_at else datetime.utcnow().isoformat()
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error creating patient: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @app.route('/api/patients/<patient_id>', methods=['GET'])
 def get_patient(patient_id):
     patient = Patient.query.get(patient_id)
@@ -424,6 +502,65 @@ def create_alert():
     db.session.commit()
     
     return jsonify({'success': True, 'alert_id': alert.id})
+
+@app.route('/api/drug-advisories', methods=['GET'])
+def get_drug_advisories():
+    drugs = Drug.query.order_by(Drug.created_at.desc()).limit(100).all()
+    
+    advisories = []
+    for drug in drugs:
+        # Map AI risk assessment to advisory type and severity
+        advisory_type = 'advisory'
+        severity = drug.ai_risk_assessment.lower() if drug.ai_risk_assessment else 'low'
+        
+        if severity == 'high':
+            advisory_type = 'blackbox'
+        elif severity == 'medium':
+            advisory_type = 'contraindication'
+        elif drug.ai_risk_details and 'monitor' in drug.ai_risk_details.lower():
+            advisory_type = 'monitoring'
+        
+        # Create summary from risk details or use default
+        summary = drug.ai_risk_details[:100] + '...' if drug.ai_risk_details and len(drug.ai_risk_details) > 100 else (drug.ai_risk_details or 'Review drug information for safety considerations')
+        
+        advisories.append({
+            'id': drug.id,
+            'type': advisory_type,
+            'drug': drug.name,
+            'summary': summary,
+            'description': drug.ai_risk_details or drug.description or 'No detailed information available.',
+            'severity': severity if severity in ['low', 'medium', 'high'] else 'medium',
+            'source': drug.company.name if drug.company else 'Pharma Company',
+            'date': drug.created_at.isoformat(),
+            'reference': None
+        })
+    
+    return jsonify({
+        'success': True,
+        'advisories': advisories
+    })
+
+@app.route('/api/side-effect-reports', methods=['GET'])
+def get_side_effect_reports():
+    if 'user_id' not in session or session.get('role') != 'doctor':
+        return jsonify({'success': False, 'message': 'Not authorized'}), 403
+    
+    doctor_id = session['user_id']
+    reports = SideEffectReport.query.filter_by(doctor_id=doctor_id).order_by(SideEffectReport.created_at.desc()).all()
+    
+    return jsonify({
+        'success': True,
+        'reports': [{
+            'id': r.id,
+            'reportType': 'patient-linked' if r.patient_id else 'anonymised',
+            'drugName': r.drug_name,
+            'dateSubmitted': r.created_at.isoformat(),
+            'status': 'Submitted',
+            'patientId': r.patient_id
+        } for r in reports]
+    })
+
+
 
 @app.route('/api/alerts/<int:alert_id>/read', methods=['POST'])
 def mark_alert_read(alert_id):
@@ -1693,63 +1830,89 @@ def report_side_effect():
     if 'user_id' not in session or session.get('role') != 'doctor':
         return jsonify({'success': False, 'message': 'Not authorized'}), 403
     
-    data = request.json
-    doctor = User.query.get(session['user_id'])
-    
-    # Check if doctor is registered under a hospital
-    hospital = db.session.query(User).join(hospital_doctor).filter(
-        hospital_doctor.c.doctor_id == doctor.id,
-        User.role == 'hospital'
-    ).first()
-    
-    # Find the drug and its company
-    drug = Drug.query.filter_by(name=data.get('drug_name')).first()
-    
-    # Create side effect report
-    report = SideEffectReport(
-        patient_id=data.get('patient_id'),
-        doctor_id=doctor.id,
-        hospital_id=hospital.id if hospital else None,
-        drug_name=data.get('drug_name'),
-        drug_id=drug.id if drug else None,
-        side_effect=data.get('side_effect'),
-        severity=data.get('severity', 'Medium'),
-        company_notified=True if drug else False,
-        hospital_notified=True if hospital else False
-    )
-    
-    db.session.add(report)
-    db.session.commit()
-    
-    return jsonify({
-        'success': True, 
-        'message': 'Side effect reported successfully',
-        'report_id': report.id,
-        'hospital_notified': report.hospital_notified,
-        'company_notified': report.company_notified
-    })
+    try:
+        data = request.json
+        doctor = User.query.get(session['user_id'])
+        
+        # Find the drug and its company
+        drug = Drug.query.filter_by(name=data.get('drug_name')).first()
+        
+        # Create side effect report
+        report = SideEffectReport(
+            patient_id=data.get('patient_id'),
+            doctor_id=doctor.id,
+            hospital_id=None,  # Set to None for now
+            drug_name=data.get('drug_name'),
+            drug_id=drug.id if drug else None,
+            side_effect=data.get('side_effect'),
+            severity=data.get('severity', 'Medium'),
+            company_notified=True if drug else False,
+            hospital_notified=False
+        )
+        
+        db.session.add(report)
+        db.session.commit()
+        
+        # Send alert to pharma company if drug is found
+        if drug and drug.company:
+            severity_level = data.get('severity', 'Medium')
+            alert_message = f"Side Effect Report: {data.get('drug_name')} - {data.get('side_effect')[:100]}"
+            
+            company_alert = Alert(
+                drug_name=data.get('drug_name'),
+                message=alert_message,
+                severity=severity_level,
+                sender_id=doctor.id,
+                recipient_id=drug.company_id,
+                recipient_type='pharma',
+                is_read=False
+            )
+            db.session.add(company_alert)
+            db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': 'Side effect reported and alert sent to company',
+            'report_id': report.id,
+            'hospital_notified': report.hospital_notified,
+            'company_notified': report.company_notified
+        })
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error in report_side_effect: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 
 # ========================================================================
 # AUTOMATIC DATABASE POPULATION
 # ========================================================================
 # Automatically populate database on first run or if empty
-with app.app_context():
-    # Check if database is empty
-    from models import User
-    user_count = User.query.count()
+if os.environ.get('SKIP_AUTO_POPULATE') != '1':
+    with app.app_context():
+        # Create all database tables
+        db.create_all()
+        
+        # Check if database is empty
+        from models import User
+        user_count = User.query.count()
     
     if user_count == 0:
         print("\n" + "="*80)
         print("DATABASE IS EMPTY - STARTING AUTOMATIC POPULATION")
         print("="*80)
         from populate_enhanced_data import populate_database
-        populate_database()
+        populate_database(app, db)
         print("\n" + "="*80)
         print("DATABASE POPULATION COMPLETE - Starting Flask server...")
         print("="*80 + "\n")
     else:
         print(f"\nDatabase already populated ({user_count} users found)")
+else:
+    # Skip auto-population
+    with app.app_context():
+        db.create_all()
 
 # ========================================================================
 

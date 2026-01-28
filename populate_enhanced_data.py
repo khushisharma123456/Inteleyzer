@@ -7,8 +7,7 @@ ENHANCED Database Population Script for Novartis MedSafe Platform
 - Full Excel export
 """
 
-from app import app, db
-from models import User, Drug, Patient, Alert, hospital_doctor, hospital_drug, hospital_pharmacy
+from models import db, User, Drug, Patient, Alert, hospital_doctor, hospital_drug, hospital_pharmacy
 from datetime import datetime, timedelta
 import random
 import pandas as pd
@@ -324,17 +323,23 @@ def export_to_excel(companies, doctors, hospitals, pharmacies, drugs, patients, 
             hospital_data = []
             for h in hospitals:
                 # Get doctors registered under this hospital
-                hospital_doctors = db.session.query(User).join(hospital_doctor).filter(
+                hospital_doctors = db.session.query(User).join(
+                    hospital_doctor, hospital_doctor.c.doctor_id == User.id
+                ).filter(
                     hospital_doctor.c.hospital_id == h.id
                 ).all()
                 
                 # Get drugs in use
-                hospital_drugs = db.session.query(Drug).join(hospital_drug).filter(
+                hospital_drugs = db.session.query(Drug).join(
+                    hospital_drug, hospital_drug.c.drug_id == Drug.id
+                ).filter(
                     hospital_drug.c.hospital_id == h.id
                 ).all()
                 
                 # Get pharmacies in contact
-                hospital_pharmacies = db.session.query(User).join(hospital_pharmacy).filter(
+                hospital_pharmacies = db.session.query(User).join(
+                    hospital_pharmacy, hospital_pharmacy.c.pharmacy_id == User.id
+                ).filter(
                     hospital_pharmacy.c.hospital_id == h.id,
                     User.role == 'pharmacy'
                 ).all()
@@ -354,7 +359,9 @@ def export_to_excel(companies, doctors, hospitals, pharmacies, drugs, patients, 
             # Hospital-Doctor Relationships
             hospital_doctor_data = []
             for h in hospitals:
-                hospital_doctors = db.session.query(User).join(hospital_doctor).filter(
+                hospital_doctors = db.session.query(User).join(
+                    hospital_doctor, hospital_doctor.c.doctor_id == User.id
+                ).filter(
                     hospital_doctor.c.hospital_id == h.id
                 ).all()
                 for doc in hospital_doctors:
@@ -371,7 +378,9 @@ def export_to_excel(companies, doctors, hospitals, pharmacies, drugs, patients, 
             # Hospital-Drug Relationships
             hospital_drug_data = []
             for h in hospitals:
-                hospital_drugs = db.session.query(Drug).join(hospital_drug).filter(
+                hospital_drugs = db.session.query(Drug).join(
+                    hospital_drug, hospital_drug.c.drug_id == Drug.id
+                ).filter(
                     hospital_drug.c.hospital_id == h.id
                 ).all()
                 for drug in hospital_drugs:
@@ -388,7 +397,9 @@ def export_to_excel(companies, doctors, hospitals, pharmacies, drugs, patients, 
             # Hospital-Pharmacy Relationships
             hospital_pharmacy_data = []
             for h in hospitals:
-                hospital_pharmacies = db.session.query(User).join(hospital_pharmacy).filter(
+                hospital_pharmacies = db.session.query(User).join(
+                    hospital_pharmacy, hospital_pharmacy.c.pharmacy_id == User.id
+                ).filter(
                     hospital_pharmacy.c.hospital_id == h.id
                 ).all()
                 for pharm in hospital_pharmacies:
@@ -537,25 +548,249 @@ def create_hospital_relationships(hospitals, doctors, drugs, pharmacies):
     print(f"  - Each hospital has 50-100 drugs in use")
     print(f"  - Each hospital has 3-5 pharmacy contacts")
 
-def populate_database():
-    """Main function to populate database"""
+def import_from_excel(app, db, excel_file):
+    """Import data from Excel file"""
     print("="*80)
-    print("ENHANCED DATABASE POPULATION")
+    print(f"IMPORTING DATA FROM: {excel_file}")
     print("="*80)
     
     with app.app_context():
-        clear_database()
-        companies, doctors, hospitals, pharmacies = create_users()
-        drugs = create_drugs(companies)
+        # Clear existing database
+        print("\n=== Clearing Database ===")
+        db.session.query(Alert).delete()
+        db.session.query(Patient).delete()
+        db.session.query(Drug).delete()
+        db.session.query(User).delete()
+        db.session.commit()
+        print("✓ Database cleared")
         
-        # Create hospital relationships before patients
-        create_hospital_relationships(hospitals, doctors, drugs, pharmacies)
+        # Read Excel sheets
+        excel_data = pd.read_excel(excel_file, sheet_name=None)
         
-        patients = create_patients(doctors, hospitals, pharmacies, drugs)
-        alerts = create_alerts(companies, drugs)
-        excel_file = export_to_excel(companies, doctors, hospitals, pharmacies, drugs, patients, alerts)
-        print_summary(companies, doctors, hospitals, pharmacies, drugs, patients, alerts)
-        print(f"\n✅ Complete! Excel: {excel_file}")
+        # Import Users
+        print("\n=== Importing Users ===")
+        if 'Users' in excel_data:
+            users_df = excel_data['Users']
+            user_name_to_id = {}
+            
+            for _, row in users_df.iterrows():
+                password = 'password123'
+                if '@' in row['Email']:
+                    password = row['Email'].split('@')[0].replace('.', '').lower() + '2024'
+                
+                user = User(
+                    id=int(row['ID']),
+                    name=row['Name'],
+                    email=row['Email'],
+                    password=password,
+                    role=row['Role'],
+                    hospital_name=row['Hospital Name'] if pd.notna(row.get('Hospital Name')) else None
+                )
+                db.session.add(user)
+                user_name_to_id[row['Name']] = int(row['ID'])
+            
+            db.session.commit()
+            pharma_count = len(users_df[users_df['Role'] == 'pharma'])
+            doctor_count = len(users_df[users_df['Role'] == 'doctor'])
+            hospital_count = len(users_df[users_df['Role'] == 'hospital'])
+            pharmacy_count = len(users_df[users_df['Role'] == 'pharmacy'])
+            
+            print(f"✓ Imported {len(users_df)} users:")
+            print(f"  - {pharma_count} pharma companies")
+            print(f"  - {doctor_count} doctors")
+            print(f"  - {hospital_count} hospitals")
+            print(f"  - {pharmacy_count} pharmacies")
+        
+        # Import Drugs
+        if 'Drugs' in excel_data:
+            print("\n=== Importing Drugs ===")
+            drugs_df = excel_data['Drugs']
+            for _, row in drugs_df.iterrows():
+                company_name = row['Company']
+                company_id = user_name_to_id.get(company_name)
+                
+                if company_id:
+                    drug = Drug(
+                        id=int(row['ID']),
+                        name=row['Name'],
+                        company_id=company_id,
+                        description=row.get('Description', ''),
+                        active_ingredients=row.get('Active Ingredients', ''),
+                        ai_risk_assessment=row.get('AI Risk Assessment', 'Analyzing'),
+                        ai_risk_details=row.get('AI Risk Details', '')
+                    )
+                    db.session.add(drug)
+            db.session.commit()
+            print(f"✓ Imported {len(drugs_df)} drugs")
+        
+        # Import Hospital Relationships
+        print("\n=== Importing Hospital Relationships ===")
+        from models import hospital_doctor, hospital_drug, hospital_pharmacy, doctor_patient
+        
+        if 'Hospital-Doctor Links' in excel_data:
+            hd_df = excel_data['Hospital-Doctor Links']
+            for _, row in hd_df.iterrows():
+                try:
+                    db.session.execute(
+                        hospital_doctor.insert().values(
+                            hospital_id=int(row['Hospital ID']),
+                            doctor_id=int(row['Doctor ID'])
+                        )
+                    )
+                except:
+                    pass
+            db.session.commit()
+            print(f"✓ Imported {len(hd_df)} hospital-doctor relationships")
+        
+        if 'Hospital-Drug Links' in excel_data:
+            hdr_df = excel_data['Hospital-Drug Links']
+            for _, row in hdr_df.iterrows():
+                try:
+                    db.session.execute(
+                        hospital_drug.insert().values(
+                            hospital_id=int(row['Hospital ID']),
+                            drug_id=int(row['Drug ID'])
+                        )
+                    )
+                except:
+                    pass
+            db.session.commit()
+            print(f"✓ Imported {len(hdr_df)} hospital-drug relationships")
+        
+        if 'Hospital-Pharmacy Links' in excel_data:
+            hp_df = excel_data['Hospital-Pharmacy Links']
+            for _, row in hp_df.iterrows():
+                try:
+                    db.session.execute(
+                        hospital_pharmacy.insert().values(
+                            hospital_id=int(row['Hospital ID']),
+                            pharmacy_id=int(row['Pharmacy ID'])
+                        )
+                    )
+                except:
+                    pass
+            db.session.commit()
+            print(f"✓ Imported {len(hp_df)} hospital-pharmacy relationships")
+        
+        # Import Patients
+        if 'Patients' in excel_data:
+            print("\n=== Importing Patients ===")
+            patients_df = excel_data['Patients']
+            for _, row in patients_df.iterrows():
+                created_by_name = row.get('Created By')
+                created_by_id = user_name_to_id.get(created_by_name) if pd.notna(created_by_name) else None
+                
+                patient = Patient(
+                    id=row['ID'],
+                    name=row['Name'],
+                    phone=str(row['Phone']) if pd.notna(row['Phone']) else None,
+                    age=int(row['Age']),
+                    gender=row['Gender'],
+                    drug_name=row['Drug Name'],
+                    symptoms=row.get('Symptoms', ''),
+                    risk_level=row.get('Risk Level', 'Low'),
+                    case_status=row.get('Case Status', 'Active'),
+                    created_by=created_by_id
+                )
+                db.session.add(patient)
+            db.session.commit()
+            print(f"✓ Imported {len(patients_df)} patients")
+            
+            if 'Doctor-Patient Links' in excel_data:
+                dp_df = excel_data['Doctor-Patient Links']
+                for _, row in dp_df.iterrows():
+                    try:
+                        db.session.execute(
+                            doctor_patient.insert().values(
+                                doctor_id=int(row['Doctor ID']),
+                                patient_id=row['Patient ID']
+                            )
+                        )
+                    except:
+                        pass
+                db.session.commit()
+                print(f"✓ Imported {len(dp_df)} doctor-patient relationships")
+        
+        # Import Alerts
+        if 'Alerts' in excel_data:
+            print("\n=== Importing Alerts ===")
+            alerts_df = excel_data['Alerts']
+            for _, row in alerts_df.iterrows():
+                sender_name = row.get('Sender')
+                sender_id = user_name_to_id.get(sender_name)
+                drug_name = row.get('Drug Name')
+                
+                if sender_id and drug_name:
+                    try:
+                        alert = Alert(
+                            id=int(row['ID']),
+                            drug_name=drug_name,
+                            title=row.get('Title') if pd.notna(row.get('Title')) else None,
+                            message=row['Message'],
+                            severity=row.get('Severity', 'Medium'),
+                            sender_id=sender_id,
+                            recipient_type=row.get('Recipient Type', 'all'),
+                            is_read=True if row.get('Is Read') == 'Yes' else False,
+                            created_at=pd.to_datetime(row['Created At']) if pd.notna(row.get('Created At')) else datetime.utcnow()
+                        )
+                        db.session.add(alert)
+                    except Exception as e:
+                        print(f"  ! Skipping alert {row.get('ID')}: {str(e)}")
+            db.session.commit()
+            print(f"✓ Imported alerts")
+        
+        # Fix passwords after import
+        print("\n=== Fixing Passwords ===")
+        users = User.query.all()
+        for user in users:
+            if user.role == 'doctor':
+                user.password = 'doctor123'
+            elif user.role == 'pharma':
+                company_name = user.email.split('@')[0]
+                user.password = f'{company_name}2024'
+            elif user.role == 'hospital':
+                user.password = 'hospital123'
+            elif user.role == 'pharmacy':
+                user.password = 'pharmacy123'
+        db.session.commit()
+        print("✓ Passwords fixed")
+        
+        print("\n" + "="*80)
+        print("✅ IMPORT COMPLETE!")
+        print("="*80)
+
+
+def populate_database(app, db):
+    """Main function to populate database - checks for Excel first, otherwise generates new data"""
+    import os
+    import glob
+    
+    # Check for existing Excel files (most recent first)
+    excel_files = sorted(glob.glob('InteLeYzer_Database_*.xlsx'), reverse=True)
+    
+    if excel_files:
+        print(f"\n📁 Found Excel backup: {excel_files[0]}")
+        print("Importing data from Excel file...")
+        import_from_excel(app, db, excel_files[0])
+    else:
+        print("="*80)
+        print("ENHANCED DATABASE POPULATION - Generating New Data")
+        print("="*80)
+        
+        with app.app_context():
+            clear_database()
+            companies, doctors, hospitals, pharmacies = create_users()
+            drugs = create_drugs(companies)
+            
+            # Create hospital relationships before patients
+            create_hospital_relationships(hospitals, doctors, drugs, pharmacies)
+            
+            patients = create_patients(doctors, hospitals, pharmacies, drugs)
+            alerts = create_alerts(companies, drugs)
+            excel_file = export_to_excel(companies, doctors, hospitals, pharmacies, drugs, patients, alerts)
+            print_summary(companies, doctors, hospitals, pharmacies, drugs, patients, alerts)
+            print(f"\n✅ Complete! Excel: {excel_file}")
 
 if __name__ == '__main__':
-    populate_database()
+    from app import app, db
+    populate_database(app, db)

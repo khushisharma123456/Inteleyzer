@@ -188,7 +188,7 @@ class Alert(db.Model):
 
 class SideEffectReport(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    patient_id = db.Column(db.String(20), db.ForeignKey('patient.id'), nullable=False)
+    patient_id = db.Column(db.String(20), db.ForeignKey('patient.id'), nullable=True)  # Nullable for anonymised reports
     doctor_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     hospital_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True) # Hospital if doctor is registered
     drug_name = db.Column(db.String(100), nullable=False)

@@ -29,32 +29,52 @@ async function init() {
         const patients=await DoctorApp.getPatients();
 
         const total=patients.length;
-        const highRisk=patients.filter(p=> p.riskLevel==='High').length;
+        
+        // Fetch actual safety alerts from pharma companies
+        const alertsResponse = await fetch('/api/alerts');
+        const alertsData = await alertsResponse.json();
+        const alerts = alertsData.alerts || [];
+        
+        // Count high and critical severity alerts
+        const highRiskAlerts = alerts.filter(a => a.severity === 'High' || a.severity === 'Critical').length;
 
         document.getElementById('stat-total').textContent=total;
-        document.getElementById('stat-high').textContent=highRisk;
+        document.getElementById('stat-high').textContent=highRiskAlerts;
         document.getElementById('stat-pending').textContent=Math.floor(total * 0.2);
-
-        const highRiskPatients=patients.filter(p=> p.riskLevel==='High');
+        
         const container=document.getElementById('alerts-container');
 
-        if (highRiskPatients.length > 0) {
+        if (alerts.length > 0) {
+            // Show recent safety alerts (limit to 5)
+            const recentAlerts = alerts.slice(0, 5);
             container.innerHTML=`<div style="display: flex; flex-direction: column; gap: 1rem;">${
-                highRiskPatients.map(p=> ` <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; border: 1px solid #E2E8F0; border-radius: 8px;" > <div style="display: flex; gap: 1rem; align-items: center;" > <div style="background: #FEF2F2; padding: 0.5rem; border-radius: 50%; color: #DC2626;" > <i data-lucide="alert-octagon" ></i> </div> <div> <strong style="display: block;" >High Risk Detected</strong> <span style="font-size: 0.9rem; color: var(--text-muted);" >Patient ${
-                        p.id
-                    }
-
-                    - ${
-                        p.drugName || 'Unknown Drug'
-                    }
-
-                    </span> </div> </div> <a href="/doctor/patients?id=${p.id}" class="btn btn-outline" style="font-size: 0.85rem;" >Review Case</a> </div> `).join('')
-            }
-
-            </div>`;
+                recentAlerts.map(alert=> {
+                    const severityColor = alert.severity === 'High' || alert.severity === 'Critical' ? '#DC2626' : 
+                                         alert.severity === 'Medium' ? '#F59E0B' : '#10B981';
+                    const severityBg = alert.severity === 'High' || alert.severity === 'Critical' ? '#FEF2F2' : 
+                                      alert.severity === 'Medium' ? '#FEF3C7' : '#D1FAE5';
+                    return `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; border: 1px solid #E2E8F0; border-radius: 8px;">
+                        <div style="display: flex; gap: 1rem; align-items: center;">
+                            <div style="background: ${severityBg}; padding: 0.5rem; border-radius: 50%; color: ${severityColor};">
+                                <i data-lucide="alert-circle"></i>
+                            </div>
+                            <div>
+                                <strong style="display: block;">${alert.drug_name}</strong>
+                                <span style="font-size: 0.9rem; color: var(--text-muted);">${alert.message.substring(0, 80)}${alert.message.length > 80 ? '...' : ''}</span>
+                                <div style="margin-top: 0.25rem;">
+                                    <span style="font-size: 0.8rem; color: ${severityColor}; font-weight: 600;">${alert.severity} Severity</span>
+                                    <span style="font-size: 0.8rem; color: var(--text-muted); margin-left: 1rem;">From: ${alert.sender}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <a href="/doctor/alerts" class="btn btn-outline" style="font-size: 0.85rem;">View Details</a>
+                    </div>
+                    `;
+                }).join('')
+            }</div>`;
             lucide.createIcons();
         }
-
         else {
             container.innerHTML='<p style="text-align: center; padding: 2rem;">No active alerts required your attention.</p>';
         }}
