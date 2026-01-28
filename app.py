@@ -7,10 +7,11 @@ Run on: http://127.0.0.1:5000
 
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from flask_cors import CORS
-from models import db, User, Patient, Drug, Alert, CaseAgent, FollowUp
+from models import db, User, Patient, Drug, Alert, CaseAgent, FollowUp, SideEffectReport, hospital_doctor, hospital_drug, hospital_pharmacy, doctor_patient
 from pv_backend.services.case_matching import match_new_case, should_accept_case
 from pv_backend.services.case_scoring import CaseScoringEngine, evaluate_case, score_case, check_followup
 from pv_backend.services.quality_agent import QualityAgentOrchestrator, FollowUpManager
+from auth_config import JWTConfig, token_required, session_required, SESSION_TIMEOUT_MINUTES, TOKEN_EXPIRY_HOURS
 import os
 import random
 from datetime import datetime, timedelta
@@ -1509,5 +1510,256 @@ def save_doctor_notification_settings():
     
     return jsonify({'success': False, 'message': 'User not found'}), 404
 
-if __name__ == '__main__':
+# ========================================================================
+# HOSPITAL MANAGEMENT APIs
+# ========================================================================
+
+@app.route('/api/hospital/doctors', methods=['GET'])
+def get_hospital_doctors():
+    """Get all doctors registered under this hospital"""
+    if 'user_id' not in session or session.get('role') != 'hospital':
+        return jsonify({'success': False, 'message': 'Not authorized'}), 403
+    
+    hospital = User.query.get(session['user_id'])
+    if not hospital:
+        return jsonify({'success': False, 'message': 'Hospital not found'}), 404
+    
+    # Get doctors linked to this hospital via hospital_doctor table
+    # Query association table directly to avoid ambiguous foreign key error
+    doctor_ids = db.session.query(hospital_doctor.c.doctor_id).filter(
+        hospital_doctor.c.hospital_id == hospital.id
+    ).all()
+    doctor_ids = [did[0] for did in doctor_ids]
+    
+    doctors = User.query.filter(User.id.in_(doctor_ids), User.role == 'doctor').all()
+    
+    doctors_list = [{
+        'id': doc.id,
+        'name': doc.name,
+        'email': doc.email,
+        'specialization': doc.hospital_name  # Can be repurposed for specialization
+    } for doc in doctors]
+    
+    return jsonify({'success': True, 'doctors': doctors_list})
+
+@app.route('/api/hospital/drugs-in-use', methods=['GET'])
+def get_hospital_drugs_in_use():
+    """Get all drugs in use at this hospital"""
+    if 'user_id' not in session or session.get('role') != 'hospital':
+        return jsonify({'success': False, 'message': 'Not authorized'}), 403
+    
+    hospital = User.query.get(session['user_id'])
+    if not hospital:
+        return jsonify({'success': False, 'message': 'Hospital not found'}), 404
+    
+    # Get drugs linked to this hospital via hospital_drug table
+    # Query association table directly to avoid ambiguous foreign key issues
+    drug_ids = db.session.query(hospital_drug.c.drug_id).filter(
+        hospital_drug.c.hospital_id == hospital.id
+    ).all()
+    drug_ids = [did[0] for did in drug_ids]
+    
+    drugs = Drug.query.filter(Drug.id.in_(drug_ids)).all()
+    
+    drugs_list = [drug.to_dict() for drug in drugs]
+    
+    return jsonify({'success': True, 'drugs': drugs_list})
+
+@app.route('/api/hospital/pharmacies', methods=['GET'])
+def get_hospital_pharmacies():
+    """Get all pharmacies in contact with this hospital"""
+    if 'user_id' not in session or session.get('role') != 'hospital':
+        return jsonify({'success': False, 'message': 'Not authorized'}), 403
+    
+    hospital = User.query.get(session['user_id'])
+    if not hospital:
+        return jsonify({'success': False, 'message': 'Hospital not found'}), 404
+    
+    # Get pharmacies linked to this hospital via hospital_pharmacy table
+    # Query association table directly to avoid ambiguous foreign key error
+    pharmacy_ids = db.session.query(hospital_pharmacy.c.pharmacy_id).filter(
+        hospital_pharmacy.c.hospital_id == hospital.id
+    ).all()
+    pharmacy_ids = [pid[0] for pid in pharmacy_ids]
+    
+    pharmacies = User.query.filter(User.id.in_(pharmacy_ids), User.role == 'pharmacy').all()
+    
+    pharmacies_list = [{
+        'id': pharm.id,
+        'name': pharm.name,
+        'email': pharm.email
+    } for pharm in pharmacies]
+    
+    return jsonify({'success': True, 'pharmacies': pharmacies_list})
+
+@app.route('/api/hospital/side-effect-reports', methods=['GET'])
+def get_hospital_side_effect_reports():
+    """Get all side effect reports received by this hospital"""
+    if 'user_id' not in session or session.get('role') != 'hospital':
+        return jsonify({'success': False, 'message': 'Not authorized'}), 403
+    
+    reports = SideEffectReport.query.filter_by(hospital_id=session['user_id']).order_by(
+        SideEffectReport.created_at.desc()
+    ).all()
+    
+    reports_list = [report.to_dict() for report in reports]
+    
+    return jsonify({'success': True, 'reports': reports_list})
+
+@app.route('/api/hospital/analytics', methods=['GET'])
+def get_hospital_analytics():
+    """Get comprehensive analytics for hospital dashboard"""
+    if 'user_id' not in session or session.get('role') != 'hospital':
+        return jsonify({'success': False, 'message': 'Not authorized'}), 403
+    
+    hospital_id = session['user_id']
+    
+    # Get hospital doctors by querying the association table
+    doctor_ids = db.session.query(hospital_doctor.c.doctor_id).filter(
+        hospital_doctor.c.hospital_id == hospital_id
+    ).all()
+    doctor_ids = [d[0] for d in doctor_ids]
+    doctors = User.query.filter(User.id.in_(doctor_ids), User.role == 'doctor').all()
+    
+    # Get drugs in use by querying the association table
+    drug_ids = db.session.query(hospital_drug.c.drug_id).filter(
+        hospital_drug.c.hospital_id == hospital_id
+    ).all()
+    drug_ids = [d[0] for d in drug_ids]
+    drugs = Drug.query.filter(Drug.id.in_(drug_ids)).all()
+    
+    # Get pharmacies by querying the association table
+    pharmacy_ids = db.session.query(hospital_pharmacy.c.pharmacy_id).filter(
+        hospital_pharmacy.c.hospital_id == hospital_id
+    ).all()
+    pharmacy_ids = [p[0] for p in pharmacy_ids]
+    pharmacies = User.query.filter(User.id.in_(pharmacy_ids), User.role == 'pharmacy').all()
+    
+    # Get patients from hospital doctors
+    patients = []
+    for doctor in doctors:
+        patients.extend(doctor.patients)
+    
+    # Get alerts sent to this hospital
+    hospital_alerts = Alert.query.filter(
+        (Alert.recipient_type == 'hospital') | (Alert.recipient_type == 'all')
+    ).order_by(Alert.created_at.desc()).all()
+    
+    # Get side effect reports
+    side_effect_reports = SideEffectReport.query.filter_by(hospital_id=hospital_id).all()
+    
+    # Calculate risk distribution in patients
+    risk_distribution = {'High': 0, 'Medium': 0, 'Low': 0}
+    for patient in patients:
+        risk_level = patient.risk_level or 'Low'
+        risk_distribution[risk_level] = risk_distribution.get(risk_level, 0) + 1
+    
+    # Calculate drug companies distribution
+    company_drug_count = {}
+    for drug in drugs:
+        company_name = drug.company.name if drug.company else 'Unknown'
+        company_drug_count[company_name] = company_drug_count.get(company_name, 0) + 1
+    
+    # Calculate severity distribution in alerts
+    severity_distribution = {'Critical': 0, 'High': 0, 'Medium': 0, 'Low': 0}
+    for alert in hospital_alerts:
+        severity = alert.severity or 'Low'
+        severity_distribution[severity] = severity_distribution.get(severity, 0) + 1
+    
+    # Doctor specialties distribution
+    specialty_distribution = {}
+    for doctor in doctors:
+        # Extract specialty from name if present (e.g., "Dr. Emily Chen (Cardiology)")
+        if '(' in doctor.name and ')' in doctor.name:
+            specialty = doctor.name.split('(')[1].split(')')[0]
+            specialty_distribution[specialty] = specialty_distribution.get(specialty, 0) + 1
+    
+    analytics = {
+        'total_doctors': len(doctors),
+        'total_drugs': len(drugs),
+        'total_pharmacies': len(pharmacies),
+        'total_patients': len(patients),
+        'total_alerts': len(hospital_alerts),
+        'total_side_effects': len(side_effect_reports),
+        'risk_distribution': risk_distribution,
+        'company_drug_count': company_drug_count,
+        'severity_distribution': severity_distribution,
+        'specialty_distribution': specialty_distribution,
+        'recent_alerts': [alert.to_dict() for alert in hospital_alerts[:10]],
+        'doctors_list': [{'id': d.id, 'name': d.name, 'email': d.email} for d in doctors[:10]],
+        'top_drugs': [{'id': d.id, 'name': d.name, 'company': d.company.name if d.company else 'Unknown'} for d in drugs[:15]]
+    }
+    
+    return jsonify({'success': True, 'analytics': analytics})
+
+# ========================================================================
+# SIDE EFFECT REPORTING APIs
+# ========================================================================
+
+@app.route('/api/report-side-effect', methods=['POST'])
+def report_side_effect():
+    """Doctor reports a side effect - sends to hospital AND pharma company"""
+    if 'user_id' not in session or session.get('role') != 'doctor':
+        return jsonify({'success': False, 'message': 'Not authorized'}), 403
+    
+    data = request.json
+    doctor = User.query.get(session['user_id'])
+    
+    # Check if doctor is registered under a hospital
+    hospital = db.session.query(User).join(hospital_doctor).filter(
+        hospital_doctor.c.doctor_id == doctor.id,
+        User.role == 'hospital'
+    ).first()
+    
+    # Find the drug and its company
+    drug = Drug.query.filter_by(name=data.get('drug_name')).first()
+    
+    # Create side effect report
+    report = SideEffectReport(
+        patient_id=data.get('patient_id'),
+        doctor_id=doctor.id,
+        hospital_id=hospital.id if hospital else None,
+        drug_name=data.get('drug_name'),
+        drug_id=drug.id if drug else None,
+        side_effect=data.get('side_effect'),
+        severity=data.get('severity', 'Medium'),
+        company_notified=True if drug else False,
+        hospital_notified=True if hospital else False
+    )
+    
+    db.session.add(report)
+    db.session.commit()
+    
+    return jsonify({
+        'success': True, 
+        'message': 'Side effect reported successfully',
+        'report_id': report.id,
+        'hospital_notified': report.hospital_notified,
+        'company_notified': report.company_notified
+    })
+
+
+    # ========================================================================
+    # AUTOMATIC DATABASE POPULATION
+    # ========================================================================
+    # Automatically populate database on first run or if empty
+    with app.app_context():
+        # Check if database is empty
+        from models import User
+        user_count = User.query.count()
+        
+        if user_count == 0:
+            print("\n" + "="*80)
+            print("DATABASE IS EMPTY - STARTING AUTOMATIC POPULATION")
+            print("="*80)
+            from populate_enhanced_data import populate_database
+            populate_database()
+            print("\n" + "="*80)
+            print("DATABASE POPULATION COMPLETE - Starting Flask server...")
+            print("="*80 + "\n")
+        else:
+            print(f"\nΓ£ô Database already populated ({user_count} users found)")
+    
+    # ========================================================================
+    
     app.run(debug=True, host='127.0.0.1', port=5000)
