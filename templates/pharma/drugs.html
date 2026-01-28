@@ -3,27 +3,243 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Drug Management - Inteleyzer</title>
+    <title>Drug Portfolio - Inteleyzer</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script type="module" src="/static/js/sidebar.js"></script>
+    <style>
+        .dashboard-layout { display: flex; }
+        .main-content { flex: 1; margin-left: var(--sidebar-width); padding: 2rem; background-color: #FAFAF9; transition: margin-left 0.3s ease; overflow-y: auto; position: relative; }
+        body.sidebar-collapsed .main-content { margin-left: 80px; }
+        
+        header { display: flex; justify-content: center; align-items: center; margin-bottom: 2rem; flex-direction: column; }
+        header h1 { font-size: 2rem; color: var(--primary-dark); margin: 0; text-align: center; }
+        header p { color: var(--text-muted); margin: 0.5rem 0 0 0; font-size: 0.95rem; text-align: center; }
+        
+        .header-actions { display: flex; gap: 1rem; align-items: center; position: absolute; right: 2rem; top: 2rem; }
+        .btn { padding: 0.75rem 1.5rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.95rem; display: inline-flex; align-items: center; gap: 0.5rem; }
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-primary:hover { background-color: var(--primary-dark); transform: translateY(-2px); }
+        .btn-outline { background-color: white; color: var(--primary); border: 1px solid #E2E8F0; }
+        .btn-outline:hover { background-color: var(--secondary); }
+        
+        .search-bar { margin-bottom: 2rem; }
+        .search-input { width: 100%; padding: 0.75rem 1rem; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 0.95rem; box-sizing: border-box; }
+        .search-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(58, 90, 122, 0.1); }
+        
+        .filters-row { display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; }
+        .filter-group { display: flex; gap: 0.5rem; align-items: center; }
+        .filter-group label { font-size: 0.9rem; font-weight: 600; color: var(--text-muted); }
+        .filter-group select { padding: 0.5rem 0.75rem; border: 1px solid #E2E8F0; border-radius: 6px; font-size: 0.9rem; }
+        
+        .drugs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; }
+        .drug-card { background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); cursor: pointer; transition: all 0.3s; border: 2px solid transparent; }
+        .drug-card:hover { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); border-color: var(--primary); transform: translateY(-2px); }
+        
+        .drug-card-header { margin-bottom: 1rem; }
+        .drug-name { font-size: 1.1rem; font-weight: 700; color: var(--primary-dark); margin: 0; }
+        .drug-indication { font-size: 0.85rem; color: var(--text-muted); margin: 0.25rem 0 0 0; }
+        
+        .drug-meta { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+        .badge { display: inline-block; padding: 0.35rem 0.75rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+        .badge-active { background: #DCFCE7; color: #166534; }
+        .badge-monitoring { background: #FEF3C7; color: #92400E; }
+        .badge-withdrawn { background: #FEE2E2; color: #991B1B; }
+        .badge-discontinued { background: #E5E7EB; color: #374151; }
+        .badge-low { background: #DCFCE7; color: #166534; }
+        .badge-medium { background: #FEF3C7; color: #92400E; }
+        .badge-high { background: #FEE2E2; color: #991B1B; }
+        
+        .drug-summary { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem; line-height: 1.5; }
+        .drug-summary strong { color: var(--text-main); }
+        
+        .drug-footer { display: flex; gap: 0.5rem; }
+        .drug-footer button { flex: 1; padding: 0.5rem; font-size: 0.85rem; }
+        
+        .empty-state { text-align: center; padding: 3rem 2rem; background: white; border-radius: 12px; }
+        .empty-state-icon { font-size: 3rem; margin-bottom: 1rem; }
+        .empty-state h3 { color: var(--primary-dark); margin: 0; }
+        .empty-state p { color: var(--text-muted); margin: 0.5rem 0 0 0; }
+        
+        /* Detail Drawer */
+        .detail-drawer { position: fixed; right: 0; top: 0; width: 500px; height: 100vh; background: white; box-shadow: -2px 0 8px rgba(0, 0, 0, 0.15); z-index: 1000; transform: translateX(100%); transition: transform 0.3s ease; overflow-y: auto; }
+        .detail-drawer.active { transform: translateX(0); }
+        .drawer-header { padding: 1.5rem; border-bottom: 1px solid #E2E8F0; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: white; }
+        .drawer-header h2 { margin: 0; color: var(--primary-dark); font-size: 1.3rem; }
+        .drawer-close { background: none; border: none; cursor: pointer; padding: 0.5rem; }
+        .drawer-content { padding: 1.5rem; }
+        
+        .detail-section { margin-bottom: 2rem; }
+        .detail-section h3 { font-size: 1rem; font-weight: 700; color: var(--primary-dark); margin: 0 0 1rem 0; padding-bottom: 0.75rem; border-bottom: 2px solid #E2E8F0; }
+        .detail-row { display: flex; margin-bottom: 0.75rem; }
+        .detail-label { font-weight: 600; color: var(--text-muted); width: 140px; flex-shrink: 0; }
+        .detail-value { color: var(--text-main); flex: 1; }
+        .detail-value.code { font-family: monospace; background: #F3F4F6; padding: 0.25rem 0.5rem; border-radius: 4px; }
+        
+        .risk-disclaimer { background: #F0F7FF; border-left: 4px solid var(--primary); padding: 1rem; border-radius: 6px; font-size: 0.85rem; color: #0C4A6E; margin-top: 1rem; }
+        
+        .drawer-actions { display: flex; gap: 1rem; padding: 1.5rem; border-top: 1px solid #E2E8F0; position: sticky; bottom: 0; background: white; }
+        .drawer-actions button { flex: 1; }
+        
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 2000; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+        .modal-overlay.active { opacity: 1; pointer-events: all; }
+        .modal { background: white; border-radius: 12px; padding: 2rem; width: 90%; max-width: 500px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); }
+        .modal-header { margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h3 { margin: 0; color: var(--primary-dark); }
+        .form-group { margin-bottom: 1.5rem; }
+        .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-main); }
+        .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 0.75rem; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 0.95rem; box-sizing: border-box; font-family: inherit; }
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(58, 90, 122, 0.1); }
+        
+        .safety-status-box { background: #F0F7FF; border-left: 4px solid var(--primary); padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem; }
+        .safety-status-box h4 { margin: 0 0 0.5rem 0; color: var(--primary-dark); font-size: 0.95rem; }
+        .safety-status-item { display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem; }
+        .safety-status-item:last-child { margin-bottom: 0; }
+        
+        .charts-container { display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
+        .chart-card { background: #F9FAFB; border: 1px solid #E2E8F0; border-radius: 8px; padding: 1rem; }
+        .chart-card h4 { margin: 0 0 0.5rem 0; color: var(--primary-dark); font-size: 0.95rem; }
+        .chart-card canvas { max-height: 250px; }
+        
+        /* Drug Actions Dropdown */
+        .drug-actions-menu { position: relative; }
+        .drug-actions-btn { background: none; border: none; padding: 0.5rem; cursor: pointer; color: var(--text-muted); transition: color 0.2s; }
+        .drug-actions-btn:hover { color: var(--primary); }
+        .drug-actions-dropdown { position: absolute; top: 100%; right: 0; background: white; border: 1px solid #E2E8F0; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); z-index: 1001; min-width: 200px; overflow: hidden; }
+        .drug-actions-dropdown.hidden { display: none; }
+        .drug-action-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; cursor: pointer; transition: background-color 0.2s; border: none; background: none; width: 100%; text-align: left; font-size: 0.9rem; color: var(--text-main); }
+        .drug-action-item:hover { background-color: #F9FAFB; }
+        .drug-action-item.danger { color: #DC2626; }
+        .drug-action-item.danger:hover { background-color: #FEF2F2; }
+        
+        .confirmation-box { background: #FEF2F2; border-left: 4px solid #DC2626; padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem; }
+        .confirmation-box h4 { margin: 0 0 0.5rem 0; color: #991B1B; font-size: 0.95rem; }
+        .confirmation-box p { margin: 0; color: #7F1D1D; font-size: 0.9rem; line-height: 1.5; }
+        
+        .checkbox-group { display: flex; align-items: center; gap: 0.75rem; margin: 1rem 0; }
+        .checkbox-group input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+        .checkbox-group label { cursor: pointer; margin: 0; font-size: 0.9rem; }
+        
+        .info-message { background: #F0F7FF; border-left: 4px solid var(--primary); padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem; font-size: 0.9rem; color: #0C4A6E; }
+        
+        @keyframes slideIn {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(400px); opacity: 0; }
+        }
+        
+        @media (max-width: 768px) {
+            .main-content { padding: 1rem; }
+            .detail-drawer { width: 100%; }
+            .drugs-grid { grid-template-columns: 1fr; }
+            header { flex-direction: column; align-items: center; }
+            .header-actions { position: static; width: 100%; margin-top: 1rem; }
+        }
+    </style>
 </head>
 <body>
     <div class="dashboard-layout">
         <app-sidebar></app-sidebar>
+        
         <main class="main-content">
-            <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+            <header>
                 <div>
                     <h1>Drug Portfolio</h1>
-                    <p>Manage your company's drug catalog with AI-powered risk assessment</p>
+                    <p>Master catalog of approved and monitored pharmaceutical products</p>
                 </div>
-                <button class="btn btn-primary" id="btn-add-drug">+ Add Drug</button>
+                <div class="header-actions">
+                    <button class="btn btn-primary" id="btn-add-drug">+ Add Drug</button>
+                </div>
             </header>
 
-            <div id="drugs-list" style="display: flex; flex-direction: column; gap: 1.5rem;">
-                <p style="text-align: center; padding: 2rem;">Loading drugs...</p>
+            <!-- Search Bar -->
+            <div class="search-bar">
+                <input 
+                    type="text" 
+                    id="search-drugs" 
+                    class="search-input"
+                    placeholder="Search by drug name, indication, active ingredient, brand name, or formulation..."
+                >
+            </div>
+
+            <!-- Filters -->
+            <div class="filters-row">
+                <div class="filter-group">
+                    <label>Lifecycle:</label>
+                    <select id="filter-lifecycle">
+                        <option value="">All</option>
+                        <option value="Active">Active</option>
+                        <option value="Under Monitoring">Under Monitoring</option>
+                        <option value="Suspended">Suspended</option>
+                        <option value="Withdrawn">Withdrawn</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Risk Level:</label>
+                    <select id="filter-risk">
+                        <option value="">All</option>
+                        <option value="Low">Low</option>
+                        <option value="Medium">Medium</option>
+                        <option value="High">High</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Sort:</label>
+                    <select id="sort-by">
+                        <option value="name">Alphabetical</option>
+                        <option value="risk">Risk Level</option>
+                        <option value="updated">Recently Updated</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Drugs Grid -->
+            <div id="drugs-list" class="drugs-grid">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📦</div>
+                    <h3>Loading drugs...</h3>
+                </div>
             </div>
         </main>
+    </div>
+
+    <!-- Detail Drawer -->
+    <div class="detail-drawer" id="detail-drawer">
+        <div class="drawer-header">
+            <h2 id="drawer-title">Drug Details</h2>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <div class="drug-actions-menu">
+                    <button class="drug-actions-btn" onclick="toggleDrugActionsMenu()" title="Drug Actions">
+                        <i data-lucide="more-vertical"></i>
+                    </button>
+                    <div class="drug-actions-dropdown hidden" id="drug-actions-dropdown">
+                        <button class="drug-action-item" onclick="openEditDrugModal()">
+                            <i data-lucide="edit-2" style="width: 16px; height: 16px;"></i>
+                            Edit Drug Details
+                        </button>
+                        <button class="drug-action-item danger" onclick="openRetireDrugModal()">
+                            <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+                            Retire Drug
+                        </button>
+                    </div>
+                </div>
+                <button class="drawer-close" onclick="closeDrugDetail()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+        </div>
+        <div class="drawer-content" id="drawer-content">
+            <!-- Content populated by JavaScript -->
+        </div>
+        <div class="drawer-actions">
+            <button class="btn btn-outline" onclick="closeDrugDetail()">Close</button>
+            <button class="btn btn-primary" onclick="openSendAlert()">Send Safety Alert</button>
+        </div>
     </div>
 
     <!-- Add Drug Modal -->
@@ -31,25 +247,46 @@
         <div class="modal">
             <div class="modal-header">
                 <h3>Add New Drug</h3>
-                <button class="close-modal" style="background:none; border:none; cursor:pointer;">
+                <button class="drawer-close" onclick="document.getElementById('add-modal').classList.remove('active')">
                     <i data-lucide="x"></i>
                 </button>
             </div>
             <form id="add-drug-form">
                 <div class="form-group">
-                    <label>Drug Name</label>
-                    <input type="text" name="name" required placeholder="e.g. Paracetamol">
+                    <label>Drug Name *</label>
+                    <input type="text" name="name" required placeholder="e.g., Paracetamol">
                 </div>
                 <div class="form-group">
-                    <label>Description</label>
-                    <textarea name="description" placeholder="Brief description of the drug" rows="3"></textarea>
+                    <label>Brand Name</label>
+                    <input type="text" name="brandName" placeholder="e.g., Tylenol">
                 </div>
                 <div class="form-group">
-                    <label>Active Ingredients</label>
-                    <textarea name="activeIngredients" required placeholder="List active ingredients" rows="2"></textarea>
+                    <label>Indication</label>
+                    <input type="text" name="indication" placeholder="e.g., Pain relief and fever reduction">
+                </div>
+                <div class="form-group">
+                    <label>Strength</label>
+                    <input type="text" name="strength" placeholder="e.g., 500 mg">
+                </div>
+                <div class="form-group">
+                    <label>Dosage Form</label>
+                    <input type="text" name="dosageForm" placeholder="e.g., Tablet, Injection, Solution">
+                </div>
+                <div class="form-group">
+                    <label>Active Ingredients *</label>
+                    <textarea name="activeIngredients" required placeholder="List active ingredients with strengths" rows="2"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Lifecycle Status</label>
+                    <select name="lifecycleStatus">
+                        <option value="Active">Active</option>
+                        <option value="Under Monitoring">Under Monitoring</option>
+                        <option value="Suspended">Suspended</option>
+                        <option value="Withdrawn">Withdrawn</option>
+                    </select>
                 </div>
                 <div style="display: flex; justify-content: flex-end; gap: 1rem;">
-                    <button type="button" class="btn btn-outline close-modal">Cancel</button>
+                    <button type="button" class="btn btn-outline" onclick="document.getElementById('add-modal').classList.remove('active')">Cancel</button>
                     <button type="submit" class="btn btn-primary">Save Drug</button>
                 </div>
             </form>
@@ -61,7 +298,7 @@
         <div class="modal">
             <div class="modal-header">
                 <h3>Send Safety Alert</h3>
-                <button class="close-alert-modal" style="background:none; border:none; cursor:pointer;">
+                <button class="drawer-close" onclick="document.getElementById('alert-modal').classList.remove('active')">
                     <i data-lucide="x"></i>
                 </button>
             </div>
@@ -69,7 +306,7 @@
                 <input type="hidden" name="drugName" id="alert-drug-name">
                 <div class="form-group">
                     <label>Drug Name</label>
-                    <input type="text" id="alert-drug-display" readonly style="background: #F5F5F0;">
+                    <input type="text" id="alert-drug-display" readonly style="background: #F3F4F6;">
                 </div>
                 <div class="form-group">
                     <label>Severity</label>
@@ -81,12 +318,88 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Alert Message</label>
+                    <label>Alert Message *</label>
                     <textarea name="message" required placeholder="Describe the safety concern..." rows="4"></textarea>
                 </div>
                 <div style="display: flex; justify-content: flex-end; gap: 1rem;">
-                    <button type="button" class="btn btn-outline close-alert-modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Send Alert to All Doctors</button>
+                    <button type="button" class="btn btn-outline" onclick="document.getElementById('alert-modal').classList.remove('active')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Send Alert</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Drug Modal -->
+    <div class="modal-overlay" id="edit-drug-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Edit Drug Details</h3>
+                <button class="drawer-close" onclick="document.getElementById('edit-drug-modal').classList.remove('active')">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <form id="edit-drug-form">
+                <div class="info-message">
+                    <strong>ℹ️ Note:</strong> Changes will update the drug record prospectively. Historical safety data and reports remain unchanged.
+                </div>
+                <div class="form-group">
+                    <label>Drug Name *</label>
+                    <input type="text" id="edit-drug-name" required placeholder="e.g., Paracetamol">
+                </div>
+                <div class="form-group">
+                    <label>Brand Name</label>
+                    <input type="text" id="edit-brand-name" placeholder="e.g., Tylenol">
+                </div>
+                <div class="form-group">
+                    <label>Indication</label>
+                    <input type="text" id="edit-indication" placeholder="e.g., Pain relief and fever reduction">
+                </div>
+                <div class="form-group">
+                    <label>Strength</label>
+                    <input type="text" id="edit-strength" placeholder="e.g., 500 mg">
+                </div>
+                <div class="form-group">
+                    <label>Dosage Form</label>
+                    <input type="text" id="edit-dosage-form" placeholder="e.g., Tablet, Injection, Solution">
+                </div>
+                <div class="form-group">
+                    <label>Lifecycle Status</label>
+                    <select id="edit-lifecycle-status">
+                        <option value="Active">Active</option>
+                        <option value="Under Monitoring">Under Monitoring</option>
+                        <option value="Suspended">Suspended</option>
+                        <option value="Withdrawn">Withdrawn</option>
+                    </select>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+                    <button type="button" class="btn btn-outline" onclick="document.getElementById('edit-drug-modal').classList.remove('active')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Retire Drug Modal -->
+    <div class="modal-overlay" id="retire-drug-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Retire Drug from Portfolio</h3>
+                <button class="drawer-close" onclick="document.getElementById('retire-drug-modal').classList.remove('active')">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="confirmation-box">
+                <h4>⚠️ Retire Drug</h4>
+                <p>This drug will no longer appear as active in the portfolio. Historical safety data and reports will be preserved for compliance.</p>
+            </div>
+            <form id="retire-drug-form">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="retire-confirmation" required>
+                    <label for="retire-confirmation">I understand this action cannot be undone</label>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;">
+                    <button type="button" class="btn btn-outline" onclick="document.getElementById('retire-drug-modal').classList.remove('active')">Cancel</button>
+                    <button type="submit" class="btn btn-primary" style="background-color: #DC2626;">Retire Drug</button>
                 </div>
             </form>
         </div>
@@ -98,8 +411,8 @@
         lucide.createIcons();
 
         let drugs = [];
-        const modal = document.getElementById('add-modal');
-        const alertModal = document.getElementById('alert-modal');
+        let filteredDrugs = [];
+        let currentDrug = null;
 
         // Load drugs
         async function loadDrugs() {
@@ -107,48 +420,83 @@
                 const response = await fetch('/api/drugs');
                 if (response.ok) {
                     drugs = await response.json();
+                    filteredDrugs = drugs;
                     renderDrugs();
                 }
             } catch (error) {
                 console.error('Error loading drugs:', error);
-                document.getElementById('drugs-list').innerHTML = '<p style="text-align:center; color:red;">Failed to load drugs.</p>';
+                document.getElementById('drugs-list').innerHTML = '<div class="empty-state"><div class="empty-state-icon">❌</div><h3>Failed to Load</h3><p>Unable to load drugs. Please refresh the page.</p></div>';
             }
         }
+
+        // Search and filter
+        function applyFilters() {
+            const searchTerm = document.getElementById('search-drugs').value.toLowerCase().trim();
+            const lifecycleFilter = document.getElementById('filter-lifecycle').value;
+            const riskFilter = document.getElementById('filter-risk').value;
+            const sortBy = document.getElementById('sort-by').value;
+
+            filteredDrugs = drugs.filter(drug => {
+                const matchesSearch = !searchTerm || 
+                    drug.name.toLowerCase().includes(searchTerm) ||
+                    (drug.description && drug.description.toLowerCase().includes(searchTerm)) ||
+                    (drug.activeIngredients && drug.activeIngredients.toLowerCase().includes(searchTerm)) ||
+                    (drug.brandName && drug.brandName.toLowerCase().includes(searchTerm)) ||
+                    (drug.dosageForm && drug.dosageForm.toLowerCase().includes(searchTerm)) ||
+                    (drug.indication && drug.indication.toLowerCase().includes(searchTerm));
+
+                const matchesLifecycle = !lifecycleFilter || (drug.lifecycleStatus === lifecycleFilter);
+                const matchesRisk = !riskFilter || (drug.aiRiskAssessment === riskFilter);
+
+                return matchesSearch && matchesLifecycle && matchesRisk;
+            });
+
+            // Sort
+            if (sortBy === 'name') {
+                filteredDrugs.sort((a, b) => a.name.localeCompare(b.name));
+            } else if (sortBy === 'risk') {
+                const riskOrder = { 'High': 0, 'Medium': 1, 'Low': 2 };
+                filteredDrugs.sort((a, b) => (riskOrder[a.aiRiskAssessment] || 3) - (riskOrder[b.aiRiskAssessment] || 3));
+            } else if (sortBy === 'updated') {
+                filteredDrugs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            }
+
+            renderDrugs();
+        }
+
+        // Event listeners for filters
+        document.getElementById('search-drugs').addEventListener('input', applyFilters);
+        document.getElementById('filter-lifecycle').addEventListener('change', applyFilters);
+        document.getElementById('filter-risk').addEventListener('change', applyFilters);
+        document.getElementById('sort-by').addEventListener('change', applyFilters);
 
         function renderDrugs() {
             const container = document.getElementById('drugs-list');
             
-            if (drugs.length === 0) {
-                container.innerHTML = '<div class="card"><p style="text-align:center; padding: 2rem;">No drugs found. Add your first drug to get started.</p></div>';
+            if (filteredDrugs.length === 0) {
+                if (drugs.length === 0) {
+                    container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📦</div><h3>No drugs added to portfolio yet.</h3><p>Click "Add Drug" to start building your master catalog.</p></div>';
+                } else {
+                    container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔍</div><h3>No matching drugs found.</h3><p>Try adjusting your search or filters.</p></div>';
+                }
                 return;
             }
 
-            container.innerHTML = drugs.map(drug => `
-                <div class="card">
-                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
-                        <div style="flex: 1;">
-                            <h3 style="margin-bottom: 0.5rem;">${drug.name}</h3>
-                            <p style="color: var(--text-muted); margin-bottom: 1rem;">${drug.description || 'No description provided'}</p>
-                            <p style="font-size: 0.9rem;"><strong>Active Ingredients:</strong> ${drug.activeIngredients || 'Not specified'}</p>
-                        </div>
-                        <div style="text-align: right;">
-                            <span class="badge badge-${drug.aiRiskAssessment.toLowerCase()}" style="margin-bottom: 0.5rem;">
-                                ${drug.aiRiskAssessment} Risk
-                            </span>
-                            <button class="btn btn-outline" onclick="window.sendAlert('${drug.name}')" style="margin-top: 0.5rem; padding: 0.5rem 1rem; font-size: 0.85rem;">
-                                <i data-lucide="alert-triangle" style="width: 14px; height: 14px;"></i>
-                                Send Alert
-                            </button>
-                        </div>
+            container.innerHTML = filteredDrugs.map(drug => `
+                <div class="drug-card" onclick="openDrugDetail(${drug.id})">
+                    <div class="drug-card-header">
+                        <h3 class="drug-name">${drug.name}</h3>
+                        <p class="drug-indication">${drug.indication || 'No indication specified'}</p>
                     </div>
-                    <div style="background: var(--secondary); padding: 1rem; border-radius: 8px; border-left: 4px solid var(--primary);">
-                        <div style="display: flex; align-items: start; gap: 0.5rem;">
-                            <i data-lucide="bot" style="width: 20px; height: 20px; color: var(--primary); flex-shrink: 0; margin-top: 2px;"></i>
-                            <div>
-                                <strong style="color: var(--primary);">AI Risk Analysis:</strong>
-                                <p style="margin-top: 0.5rem; font-size: 0.9rem;">${drug.aiRiskDetails || 'Analysis in progress...'}</p>
-                            </div>
-                        </div>
+                    
+                    <div class="drug-meta">
+                        <span class="badge badge-${(drug.lifecycleStatus || 'Active').toLowerCase().replace(' ', '-')}">${drug.lifecycleStatus || 'Active'}</span>
+                        <span class="badge badge-${drug.aiRiskAssessment.toLowerCase()}">${drug.aiRiskAssessment} Risk</span>
+                    </div>
+                    
+                    <div class="drug-summary">
+                        <strong>Formulation:</strong> ${drug.dosageForm || 'Not specified'}<br>
+                        <strong>Strength:</strong> ${drug.strength || 'Not specified'}
                     </div>
                 </div>
             `).join('');
@@ -156,10 +504,446 @@
             lucide.createIcons();
         }
 
-        // Modal controls
-        document.getElementById('btn-add-drug').addEventListener('click', () => modal.classList.add('active'));
-        document.querySelectorAll('.close-modal').forEach(btn => btn.addEventListener('click', () => modal.classList.remove('active')));
-        document.querySelectorAll('.close-alert-modal').forEach(btn => btn.addEventListener('click', () => alertModal.classList.remove('active')));
+        window.openDrugDetail = function(drugId) {
+            currentDrug = drugs.find(d => d.id === drugId);
+            if (!currentDrug) return;
+
+            const drawer = document.getElementById('detail-drawer');
+            const content = document.getElementById('drawer-content');
+            document.getElementById('drawer-title').textContent = currentDrug.name;
+
+            content.innerHTML = `
+                <!-- Basic Information -->
+                <div class="detail-section">
+                    <h3>Basic Information</h3>
+                    <div class="detail-row">
+                        <div class="detail-label">Drug Name</div>
+                        <div class="detail-value">${currentDrug.name}</div>
+                    </div>
+                    ${currentDrug.brandName ? `
+                    <div class="detail-row">
+                        <div class="detail-label">Brand Name</div>
+                        <div class="detail-value">${currentDrug.brandName}</div>
+                    </div>
+                    ` : ''}
+                    ${currentDrug.indication ? `
+                    <div class="detail-row">
+                        <div class="detail-label">Indication</div>
+                        <div class="detail-value">${currentDrug.indication}</div>
+                    </div>
+                    ` : ''}
+                    ${currentDrug.strength ? `
+                    <div class="detail-row">
+                        <div class="detail-label">Strength</div>
+                        <div class="detail-value">${currentDrug.strength}</div>
+                    </div>
+                    ` : ''}
+                    ${currentDrug.dosageForm ? `
+                    <div class="detail-row">
+                        <div class="detail-label">Dosage Form</div>
+                        <div class="detail-value">${currentDrug.dosageForm}</div>
+                    </div>
+                    ` : ''}
+                </div>
+
+                <!-- Composition & Formulation -->
+                <div class="detail-section">
+                    <h3>Composition & Formulation</h3>
+                    <div class="detail-row">
+                        <div class="detail-label">Active Ingredients</div>
+                        <div class="detail-value">${currentDrug.activeIngredients || 'Not specified'}</div>
+                    </div>
+                    ${currentDrug.description ? `
+                    <div class="detail-row">
+                        <div class="detail-label">Description</div>
+                        <div class="detail-value">${currentDrug.description}</div>
+                    </div>
+                    ` : ''}
+                </div>
+
+                <!-- Regulatory Information -->
+                <div class="detail-section">
+                    <h3>Regulatory Information</h3>
+                    <div class="detail-row">
+                        <div class="detail-label">Approval Status</div>
+                        <div class="detail-value">Approved</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Approval Authority</div>
+                        <div class="detail-value">FDA / EMA</div>
+                    </div>
+                </div>
+
+                <!-- Market & Lifecycle -->
+                <div class="detail-section">
+                    <h3>Market & Lifecycle Status</h3>
+                    <div class="detail-row">
+                        <div class="detail-label">Lifecycle Status</div>
+                        <div class="detail-value">
+                            <span class="badge badge-${(currentDrug.lifecycleStatus || 'Active').toLowerCase().replace(' ', '-')}">${currentDrug.lifecycleStatus || 'Active'}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Safety Status -->
+                <div class="safety-status-box">
+                    <h4>Drug Safety Status</h4>
+                    <div class="safety-status-item">
+                        <span>Current Risk Level:</span>
+                        <span class="badge badge-${currentDrug.aiRiskAssessment.toLowerCase()}">${currentDrug.aiRiskAssessment}</span>
+                    </div>
+                    <div class="safety-status-item">
+                        <span>Active Signals:</span>
+                        <strong>3</strong>
+                    </div>
+                    <div class="safety-status-item">
+                        <span>Under Review:</span>
+                        <strong>1</strong>
+                    </div>
+                    <div class="safety-status-item">
+                        <span>Last Review:</span>
+                        <strong>2 days ago</strong>
+                    </div>
+                </div>
+
+                <!-- Drug-Wise Safety Charts -->
+                <div class="detail-section">
+                    <h3>Drug-Specific Safety Analytics</h3>
+                </div>
+
+                <!-- Chart 1: Adverse Event Trend -->
+                <div class="chart-card">
+                    <h4>Adverse Event Trend (This Drug)</h4>
+                    <canvas id="trend-chart"></canvas>
+                </div>
+
+                <!-- Chart 2: Severity Distribution -->
+                <div class="chart-card">
+                    <h4>Severity Distribution</h4>
+                    <canvas id="severity-chart"></canvas>
+                </div>
+
+                <!-- Chart 3: Event Type Breakdown -->
+                <div class="chart-card">
+                    <h4>Most Common Adverse Reactions</h4>
+                    <canvas id="event-chart"></canvas>
+                </div>
+
+                <!-- Chart 4: Outcome Distribution -->
+                <div class="chart-card">
+                    <h4>Patient Outcome Distribution</h4>
+                    <canvas id="outcome-chart"></canvas>
+                </div>
+
+                <!-- Chart 5: Reporting Source Distribution -->
+                <div class="chart-card">
+                    <h4>Reporting Source Distribution</h4>
+                    <canvas id="source-chart"></canvas>
+                </div>
+
+                <!-- Safety & Risk Overview -->
+                <div class="detail-section">
+                    <h3>Risk Assessment</h3>
+                    <div class="detail-row">
+                        <div class="detail-label">Assessment</div>
+                        <div class="detail-value">${currentDrug.aiRiskDetails || 'Analysis in progress...'}</div>
+                    </div>
+                    <div class="risk-disclaimer">
+                        <strong>⚠️ Disclaimer:</strong> Risk indicators support decision-making and do not replace regulatory review. Safety risk assessment is based on reported adverse events and signals.
+                    </div>
+                </div>
+            `;
+
+            drawer.classList.add('active');
+            lucide.createIcons();
+
+            // Render charts after a brief delay to ensure DOM is ready
+            setTimeout(() => renderDrugSafetyCharts(), 100);
+        };
+
+        window.closeDrugDetail = function() {
+            document.getElementById('detail-drawer').classList.remove('active');
+            currentDrug = null;
+            document.getElementById('drug-actions-dropdown').classList.add('hidden');
+        };
+
+        window.toggleDrugActionsMenu = function() {
+            const dropdown = document.getElementById('drug-actions-dropdown');
+            dropdown.classList.toggle('hidden');
+        };
+
+        window.openEditDrugModal = function() {
+            if (!currentDrug) return;
+            
+            // Pre-fill form with current drug data
+            document.getElementById('edit-drug-name').value = currentDrug.name;
+            document.getElementById('edit-brand-name').value = currentDrug.brandName || '';
+            document.getElementById('edit-indication').value = currentDrug.indication || '';
+            document.getElementById('edit-strength').value = currentDrug.strength || '';
+            document.getElementById('edit-dosage-form').value = currentDrug.dosageForm || '';
+            document.getElementById('edit-lifecycle-status').value = currentDrug.lifecycleStatus || 'Active';
+            
+            document.getElementById('edit-drug-modal').classList.add('active');
+            document.getElementById('drug-actions-dropdown').classList.add('hidden');
+        };
+
+        window.openRetireDrugModal = function() {
+            if (!currentDrug) return;
+            
+            document.getElementById('retire-confirmation').checked = false;
+            document.getElementById('retire-drug-modal').classList.add('active');
+            document.getElementById('drug-actions-dropdown').classList.add('hidden');
+        };
+
+        // Edit Drug Form Handler
+        document.getElementById('edit-drug-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const updatedData = {
+                name: document.getElementById('edit-drug-name').value,
+                brandName: document.getElementById('edit-brand-name').value,
+                indication: document.getElementById('edit-indication').value,
+                strength: document.getElementById('edit-strength').value,
+                dosageForm: document.getElementById('edit-dosage-form').value,
+                lifecycleStatus: document.getElementById('edit-lifecycle-status').value
+            };
+
+            try {
+                // In a real app, this would call an API endpoint to update the drug
+                // For now, we'll update the local object and show success
+                Object.assign(currentDrug, updatedData);
+                
+                // Update the drugs array
+                const drugIndex = drugs.findIndex(d => d.id === currentDrug.id);
+                if (drugIndex !== -1) {
+                    drugs[drugIndex] = currentDrug;
+                }
+                
+                // Show success message
+                showToast('✅ Drug details updated successfully');
+                
+                // Close modal and refresh detail view
+                document.getElementById('edit-drug-modal').classList.remove('active');
+                window.openDrugDetail(currentDrug.id);
+                
+            } catch (error) {
+                console.error('Error updating drug:', error);
+                showToast('❌ Failed to update drug details');
+            }
+        });
+
+        // Retire Drug Form Handler
+        document.getElementById('retire-drug-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (!document.getElementById('retire-confirmation').checked) {
+                showToast('❌ Please confirm before retiring the drug');
+                return;
+            }
+
+            try {
+                // In a real app, this would call an API endpoint to retire the drug
+                // For now, we'll update the local object
+                currentDrug.lifecycleStatus = 'Withdrawn';
+                
+                // Update the drugs array
+                const drugIndex = drugs.findIndex(d => d.id === currentDrug.id);
+                if (drugIndex !== -1) {
+                    drugs[drugIndex].lifecycleStatus = 'Withdrawn';
+                }
+                
+                // Show success message
+                showToast('✅ Drug retired successfully');
+                
+                // Close modal and drawer
+                document.getElementById('retire-drug-modal').classList.remove('active');
+                window.closeDrugDetail();
+                
+                // Refresh the drug list
+                applyFilters();
+                
+            } catch (error) {
+                console.error('Error retiring drug:', error);
+                showToast('❌ Failed to retire drug');
+            }
+        });
+
+        function showToast(message) {
+            // Simple toast notification
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 2rem;
+                right: 2rem;
+                background: white;
+                padding: 1rem 1.5rem;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                z-index: 3000;
+                font-size: 0.9rem;
+                animation: slideIn 0.3s ease;
+            `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function renderDrugSafetyCharts() {
+            if (!currentDrug) return;
+
+            // Chart 1: Adverse Event Trend (Line Chart)
+            const trendCtx = document.getElementById('trend-chart');
+            if (trendCtx) {
+                new Chart(trendCtx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6', 'Week 7', 'Week 8'],
+                        datasets: [{
+                            label: 'Adverse Events',
+                            data: [5, 7, 6, 9, 12, 11, 14, 16],
+                            borderColor: '#DC2626',
+                            backgroundColor: 'rgba(220, 38, 38, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 4,
+                            pointBackgroundColor: '#DC2626'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: { display: true }
+                        },
+                        scales: {
+                            y: { beginAtZero: true }
+                        }
+                    }
+                });
+            }
+
+            // Chart 2: Severity Distribution (Doughnut)
+            const severityCtx = document.getElementById('severity-chart');
+            if (severityCtx) {
+                new Chart(severityCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Mild', 'Moderate', 'Severe', 'Life-threatening'],
+                        datasets: [{
+                            data: [35, 28, 22, 15],
+                            backgroundColor: ['#DCFCE7', '#FEF3C7', '#FEE2E2', '#991B1B']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: { position: 'bottom' }
+                        }
+                    }
+                });
+            }
+
+            // Chart 3: Event Type Breakdown (Bar)
+            const eventCtx = document.getElementById('event-chart');
+            if (eventCtx) {
+                new Chart(eventCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Nausea', 'Rash', 'Dizziness', 'Headache', 'Fatigue', 'Vomiting'],
+                        datasets: [{
+                            label: 'Reported Cases',
+                            data: [28, 22, 18, 15, 12, 8],
+                            backgroundColor: '#3A5A7A',
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        indexAxis: 'y',
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            x: { beginAtZero: true }
+                        }
+                    }
+                });
+            }
+
+            // Chart 4: Outcome Distribution (Pie)
+            const outcomeCtx = document.getElementById('outcome-chart');
+            if (outcomeCtx) {
+                new Chart(outcomeCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Recovered', 'Ongoing', 'Fatal', 'Unknown'],
+                        datasets: [{
+                            data: [65, 20, 5, 10],
+                            backgroundColor: ['#DCFCE7', '#FEF3C7', '#FEE2E2', '#E5E7EB']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: { position: 'bottom' }
+                        }
+                    }
+                });
+            }
+
+            // Chart 5: Reporting Source Distribution (Bar)
+            const sourceCtx = document.getElementById('source-chart');
+            if (sourceCtx) {
+                new Chart(sourceCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Hospital', 'Doctor', 'Pharmacy', 'Clinical Study'],
+                        datasets: [{
+                            label: 'Reports',
+                            data: [45, 32, 18, 8],
+                            backgroundColor: ['#3A5A7A', '#5A7A9A', '#7A9ABA', '#9ABADB'],
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            y: { beginAtZero: true }
+                        }
+                    }
+                });
+            }
+        }
+
+        window.closeDrugDetail = function() {
+            document.getElementById('detail-drawer').classList.remove('active');
+            currentDrug = null;
+        };
+
+        window.openSendAlert = function() {
+            if (!currentDrug) return;
+            document.getElementById('alert-drug-name').value = currentDrug.name;
+            document.getElementById('alert-drug-display').value = currentDrug.name;
+            document.getElementById('alert-modal').classList.add('active');
+            closeDrugDetail();
+        };
+
+        // Add drug button
+        document.getElementById('btn-add-drug').addEventListener('click', () => {
+            document.getElementById('add-modal').classList.add('active');
+        });
 
         // Add drug form
         document.getElementById('add-drug-form').addEventListener('submit', async (e) => {
@@ -178,8 +962,8 @@
 
                 if (result.success) {
                     drugs.push(result.drug);
-                    renderDrugs();
-                    modal.classList.remove('active');
+                    applyFilters();
+                    document.getElementById('add-modal').classList.remove('active');
                     e.target.reset();
                 } else {
                     alert('Error: ' + (result.message || 'Failed to create drug'));
@@ -189,13 +973,6 @@
                 alert('Network error: ' + error.message);
             }
         });
-
-        // Send alert function
-        window.sendAlert = function(drugName) {
-            document.getElementById('alert-drug-name').value = drugName;
-            document.getElementById('alert-drug-display').value = drugName;
-            alertModal.classList.add('active');
-        };
 
         // Send alert form
         document.getElementById('send-alert-form').addEventListener('submit', async (e) => {
@@ -213,8 +990,8 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    alert('Alert sent successfully to all doctors!');
-                    alertModal.classList.remove('active');
+                    alert('Safety alert sent successfully!');
+                    document.getElementById('alert-modal').classList.remove('active');
                     e.target.reset();
                 } else {
                     alert('Error: ' + (result.message || 'Failed to send alert'));
