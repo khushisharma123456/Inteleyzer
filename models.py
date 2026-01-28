@@ -156,10 +156,14 @@ class Alert(db.Model):
     severity = db.Column(db.String(20), default='Medium') # Low, Medium, High, Critical
     sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False) # Pharma company
     recipient_type = db.Column(db.String(20), default='all') # 'all', 'doctors', 'hospitals'
+    status = db.Column(db.String(20), default='new') # new, acknowledged, resolved
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    acknowledged_at = db.Column(db.DateTime, nullable=True)
+    acknowledged_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True) # Pharmacy that acknowledged
     is_read = db.Column(db.Boolean, default=False)
     
-    sender = db.relationship('User', backref=db.backref('sent_alerts', lazy=True))
+    sender = db.relationship('User', foreign_keys=[sender_id], backref=db.backref('sent_alerts', lazy=True))
+    acknowledger = db.relationship('User', foreign_keys=[acknowledged_by], backref=db.backref('acknowledged_alerts', lazy=True))
     
     def to_dict(self):
         return {
@@ -173,8 +177,13 @@ class Alert(db.Model):
             'senderId': self.sender_id,
             'sender': self.sender.name if self.sender else 'Unknown',
             'senderName': self.sender.name if self.sender else 'Unknown',
+            'status': self.status,
             'created_at': self.created_at.isoformat(),
-            'isRead': self.is_read
+            'acknowledged_at': self.acknowledged_at.isoformat() if self.acknowledged_at else None,
+            'isRead': self.is_read,
+            'type': 'safety',  # Default type
+            'reason': 'Safety monitoring',  # Default reason
+            'impact': 'Review recommended'  # Default impact
         }
 
 class SideEffectReport(db.Model):
@@ -210,6 +219,69 @@ class SideEffectReport(db.Model):
             'doctor_name': self.doctor.name if self.doctor else 'Unknown',
             'hospital_name': self.hospital.name if self.hospital else 'N/A'
         }
+
+
+class PharmacySettings(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    pharmacy_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, unique=True)
+    
+    # Account settings
+    phone = db.Column(db.String(20), nullable=True)
+    address = db.Column(db.String(200), nullable=True)
+    license = db.Column(db.String(100), nullable=True)
+    
+    # Privacy settings
+    share_reports = db.Column(db.Boolean, default=True)
+    share_dispensing = db.Column(db.Boolean, default=True)
+    anonymize_data = db.Column(db.Boolean, default=False)
+    retention_period = db.Column(db.String(10), default='12')
+    
+    # Notification settings
+    alert_frequency = db.Column(db.String(20), default='immediate')
+    notify_email = db.Column(db.Boolean, default=True)
+    notify_sms = db.Column(db.Boolean, default=False)
+    notify_dashboard = db.Column(db.Boolean, default=True)
+    alert_recalls = db.Column(db.Boolean, default=True)
+    alert_safety = db.Column(db.Boolean, default=True)
+    alert_interactions = db.Column(db.Boolean, default=True)
+    alert_dosage = db.Column(db.Boolean, default=True)
+    
+    # Compliance settings
+    reporting_authority = db.Column(db.String(100), nullable=True)
+    reporting_threshold = db.Column(db.String(20), default='all')
+    compliance_officer = db.Column(db.String(120), nullable=True)
+    auto_report = db.Column(db.Boolean, default=True)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    pharmacy = db.relationship('User', backref=db.backref('settings', uselist=False))
+    
+    def to_dict(self):
+        return {
+            'pharmacyName': self.pharmacy.name if self.pharmacy else '',
+            'email': self.pharmacy.email if self.pharmacy else '',
+            'phone': self.phone or '',
+            'address': self.address or '',
+            'license': self.license or '',
+            'shareReports': self.share_reports,
+            'shareDispensing': self.share_dispensing,
+            'anonymizeData': self.anonymize_data,
+            'retentionPeriod': self.retention_period,
+            'alertFrequency': self.alert_frequency,
+            'notifyEmail': self.notify_email,
+            'notifySms': self.notify_sms,
+            'notifyDashboard': self.notify_dashboard,
+            'alertRecalls': self.alert_recalls,
+            'alertSafety': self.alert_safety,
+            'alertInteractions': self.alert_interactions,
+            'alertDosage': self.alert_dosage,
+            'reportingAuthority': self.reporting_authority or '',
+            'reportingThreshold': self.reporting_threshold,
+            'complianceOfficer': self.compliance_officer or '',
+            'autoReport': self.auto_report
+        }
+
 
 # === STEP 10: AI AGENT ORCHESTRATION ===
 
