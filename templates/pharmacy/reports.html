@@ -8,124 +8,178 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         .dashboard-layout { display: flex; }
-        .main-content { flex: 1; margin-left: var(--sidebar-width); padding: 2rem; background-color: #FAFAF9; transition: margin-left 0.3s ease; overflow-y: auto; }
+        .main-content { flex: 1; margin-left: var(--sidebar-width); padding: 2rem; background-color: #FAFAF9; transition: margin-left 0.3s ease; overflow-y: auto; display: flex; justify-content: center; }
         body.sidebar-collapsed .main-content { margin-left: 80px; }
         
-        .header-section { margin-bottom: 2rem; }
-        .header-section h1 { font-size: 2rem; color: var(--primary-dark); margin: 0; }
-        .header-section p { color: var(--text-muted); margin: 0.5rem 0 0 0; font-size: 0.95rem; }
+        .header-section { margin-bottom: 2rem; text-align: center; }
+        .header-section h1 { font-size: 1.75rem; color: var(--primary-dark); margin: 0; font-weight: 700; }
+        .header-section p { color: var(--text-muted); margin: 0.5rem 0 0 0; font-size: 0.9rem; }
         
-        /* Three-Section Layout */
-        .reports-container { display: flex; flex-direction: column; gap: 2rem; }
-        
-        .section { background: white; border-radius: 12px; padding: 2rem; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); }
-        .section-title { font-size: 1.2rem; font-weight: 700; color: var(--primary-dark); margin: 0 0 1.5rem 0; display: flex; align-items: center; gap: 0.75rem; }
-        .section-title i { color: var(--primary); }
-        
-        /* Step Indicator */
-        .step-indicator { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
-        .step-badge { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: var(--secondary); color: var(--text-muted); font-weight: 600; font-size: 0.9rem; }
-        .step-badge.active { background: var(--primary); color: white; }
-        .step-badge.completed { background: var(--accent); color: white; }
-        .step-line { flex: 1; height: 2px; background: var(--secondary-dark); }
-        
-        /* Data Type Selector */
-        .selector-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
-        .selector-card { 
-            padding: 1.5rem; 
-            border: 2px solid var(--secondary-dark); 
-            border-radius: 8px; 
-            cursor: pointer; 
-            transition: all 0.2s;
-            background: white;
+        /* Centered Form Container */
+        .reports-container { 
+            background: white; 
+            border-radius: 12px; 
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            max-width: 760px;
+            width: 100%;
         }
-        .selector-card:hover { border-color: var(--primary); background: #F9FAFB; }
-        .selector-card.selected { border-color: var(--primary); background: #F0F7FF; }
-        .selector-card input[type="radio"] { display: none; }
-        .selector-card-title { font-weight: 600; color: var(--primary-dark); margin-bottom: 0.5rem; }
-        .selector-card-desc { font-size: 0.9rem; color: var(--text-muted); line-height: 1.4; }
-        .selector-card-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
+        
+        /* Compact Sections */
+        .form-section { 
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid #E5E7EB;
+            display: flex;
+            align-items: flex-start;
+            gap: 1.5rem;
+        }
+        
+        .form-section:last-child { border-bottom: none; }
+        .form-section.expanded { display: block; }
+        
+        /* Step Number */
+        .step-number { 
+            font-weight: 700;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            min-width: 20px;
+            padding-top: 0.25rem;
+        }
+        
+        .form-section.active .step-number { 
+            color: var(--primary);
+            font-size: 1rem;
+        }
+        
+        /* Section Content */
+        .section-content { flex: 1; }
+        .section-label { 
+            font-weight: 600;
+            color: var(--primary-dark);
+            font-size: 0.95rem;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .section-label .help-icon {
+            width: 16px;
+            height: 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--secondary);
+            border-radius: 50%;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            cursor: help;
+        }
+        
+        /* Radio Button Rows */
+        .radio-row { 
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem 0;
+            cursor: pointer;
+        }
+        
+        .radio-row input[type="radio"] { 
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+        }
+        
+        .radio-label { 
+            flex: 1;
+            cursor: pointer;
+        }
+        
+        .radio-title { 
+            font-weight: 500;
+            color: var(--primary-dark);
+            font-size: 0.95rem;
+        }
+        
+        .radio-desc { 
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 0.1rem;
+        }
         
         /* Warning Box */
         .warning-box { 
             background: #FFFBEB; 
             border-left: 4px solid #F59E0B; 
-            padding: 1rem; 
+            padding: 0.75rem 1rem;
             border-radius: 6px; 
-            margin-top: 1rem;
+            margin-top: 0.75rem;
             display: none;
+            font-size: 0.9rem;
         }
         .warning-box.show { display: block; }
         .warning-box strong { color: #92400E; }
-        .warning-box p { margin: 0.5rem 0 0 0; color: #78350F; font-size: 0.9rem; }
-        
-        /* Entry Mode Selector */
-        .mode-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
-        .mode-card { 
-            padding: 1.5rem; 
-            border: 2px solid var(--secondary-dark); 
-            border-radius: 8px; 
-            cursor: pointer; 
-            transition: all 0.2s;
-            background: white;
-        }
-        .mode-card:hover { border-color: var(--primary); background: #F9FAFB; }
-        .mode-card.selected { border-color: var(--primary); background: #F0F7FF; }
-        .mode-card input[type="radio"] { display: none; }
-        .mode-card-title { font-weight: 600; color: var(--primary-dark); margin-bottom: 0.5rem; }
-        .mode-card-desc { font-size: 0.9rem; color: var(--text-muted); }
-        .mode-card-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
+        .warning-box p { margin: 0; color: #78350F; }
         
         /* Form Fields */
-        .form-group { margin-bottom: 1.5rem; }
-        .form-group label { display: block; font-weight: 600; color: var(--primary-dark); margin-bottom: 0.5rem; }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; font-weight: 500; color: var(--primary-dark); margin-bottom: 0.4rem; font-size: 0.9rem; }
         .form-group label .required { color: #DC2626; }
         .form-group input, .form-group select, .form-group textarea { 
             width: 100%; 
-            padding: 0.75rem; 
+            padding: 0.6rem; 
             border: 1px solid var(--secondary-dark); 
             border-radius: 6px; 
             font-family: inherit;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
         }
         .form-group input:focus, .form-group select:focus, .form-group textarea:focus { 
             outline: none; 
             border-color: var(--primary); 
             box-shadow: 0 0 0 3px rgba(141, 163, 153, 0.1);
         }
-        .form-group textarea { resize: vertical; min-height: 100px; }
-        .form-group .help-text { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem; }
+        .form-group textarea { resize: vertical; min-height: 80px; }
+        
+        /* Two-Column Grid */
+        .form-grid { 
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        
+        @media (max-width: 768px) {
+            .form-grid { grid-template-columns: 1fr; }
+        }
         
         /* Dynamic Form Rows */
-        .form-rows { display: flex; flex-direction: column; gap: 1.5rem; }
+        .form-rows { display: flex; flex-direction: column; gap: 1rem; }
         .form-row { 
-            padding: 1.5rem; 
+            padding: 1rem; 
             background: #F9FAFB; 
             border-radius: 8px; 
             border-left: 3px solid var(--primary);
-            position: relative;
         }
-        .form-row-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-        .form-row-title { font-weight: 600; color: var(--primary-dark); }
+        .form-row-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+        .form-row-title { font-weight: 600; color: var(--primary-dark); font-size: 0.9rem; }
         .form-row-remove { 
             background: #FEE2E2; 
             color: #DC2626; 
             border: none; 
-            padding: 0.4rem 0.8rem; 
+            padding: 0.3rem 0.6rem; 
             border-radius: 4px; 
             cursor: pointer; 
-            font-size: 0.85rem;
+            font-size: 0.8rem;
         }
         .form-row-remove:hover { background: #FECACA; }
         
         /* Buttons */
         .btn { 
-            padding: 0.75rem 1.5rem; 
+            padding: 0.65rem 1.25rem; 
             border: none; 
             border-radius: 6px; 
             font-weight: 600; 
             cursor: pointer; 
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             transition: all 0.2s;
         }
         .btn-primary { background: var(--primary); color: white; }
@@ -134,28 +188,26 @@
         .btn-secondary:hover { background: #D1D5DB; }
         .btn-success { background: var(--accent); color: white; }
         .btn-success:hover { background: #5A7A1F; }
-        .btn-danger { background: #DC2626; color: white; }
-        .btn-danger:hover { background: #B91C1C; }
-        .btn-group { display: flex; gap: 1rem; margin-top: 2rem; }
+        .btn-group { display: flex; gap: 0.75rem; margin-top: 1.5rem; }
         
         /* Excel Template Download */
         .template-box { 
             background: #F0F7FF; 
             border: 1px solid var(--primary); 
-            padding: 1.5rem; 
+            padding: 1rem; 
             border-radius: 8px; 
             text-align: center;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
         }
-        .template-box p { margin: 0 0 1rem 0; color: var(--text-muted); }
-        .btn-download { background: var(--primary); color: white; }
-        .btn-download:hover { background: var(--primary-dark); }
+        .template-box p { margin: 0 0 0.75rem 0; color: var(--text-muted); font-size: 0.9rem; }
+        .btn-download { background: transparent; color: var(--primary); border: 1px solid var(--primary); padding: 0.5rem 1rem; }
+        .btn-download:hover { background: var(--secondary); }
         
         /* File Upload */
         .file-upload-area { 
             border: 2px dashed var(--primary); 
             border-radius: 8px; 
-            padding: 2rem; 
+            padding: 1.5rem; 
             text-align: center; 
             background: #F0F7FF;
             cursor: pointer;
@@ -164,8 +216,8 @@
         .file-upload-area:hover { background: #E0F2FE; border-color: var(--primary-dark); }
         .file-upload-area.dragover { background: #E0F2FE; border-color: var(--primary-dark); }
         .file-upload-area input[type="file"] { display: none; }
-        .file-upload-icon { font-size: 2rem; margin-bottom: 0.5rem; }
-        .file-upload-text { color: var(--text-muted); }
+        .file-upload-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
+        .file-upload-text { color: var(--text-muted); font-size: 0.9rem; }
         .file-upload-text strong { color: var(--primary-dark); }
         
         /* Validation Messages */
@@ -173,9 +225,10 @@
             background: white; 
             border: 1px solid #E5E7EB; 
             border-radius: 8px; 
-            padding: 1.5rem; 
+            padding: 1rem; 
             margin-top: 1rem;
             display: none;
+            font-size: 0.9rem;
         }
         .validation-prompt.show { display: block; }
         .validation-prompt.error { border-left: 4px solid #DC2626; background: #FFFBFB; }
@@ -183,26 +236,84 @@
         .validation-prompt-title { font-weight: 600; margin-bottom: 0.5rem; }
         .validation-prompt.error .validation-prompt-title { color: #7F1D1D; }
         .validation-prompt.success .validation-prompt-title { color: #15803D; }
-        .validation-prompt-list { margin: 1rem 0 0 0; padding-left: 1.5rem; }
-        .validation-prompt-list li { color: var(--text-muted); margin-bottom: 0.25rem; }
+        .validation-prompt-list { margin: 0.75rem 0 0 0; padding-left: 1.25rem; }
+        .validation-prompt-list li { color: var(--text-muted); margin-bottom: 0.2rem; font-size: 0.85rem; }
+        
+        /* Error Summary Box */
+        .error-summary { 
+            background: #FEE2E2; 
+            border: 1px solid #FECACA; 
+            border-radius: 8px; 
+            padding: 1rem; 
+            margin-bottom: 1.5rem;
+            display: none;
+        }
+        .error-summary.show { display: block; }
+        .error-summary-title { font-weight: 600; color: #7F1D1D; margin-bottom: 0.5rem; }
+        .error-summary-list { margin: 0; padding-left: 1.25rem; }
+        .error-summary-list li { color: #7F1D1D; margin-bottom: 0.3rem; font-size: 0.9rem; }
+        
+        /* Consent Section */
+        .consent-section { 
+            background: #FFFBEB; 
+            border: 1px solid #FCD34D; 
+            border-radius: 8px; 
+            padding: 1rem; 
+            margin-top: 1rem;
+            display: none;
+        }
+        .consent-section.show { display: block; }
+        .consent-section-title { font-weight: 600; color: #92400E; margin-bottom: 0.75rem; }
+        .consent-checkbox { display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem; }
+        .consent-checkbox input[type="checkbox"] { width: 18px; height: 18px; margin-top: 0.15rem; cursor: pointer; flex-shrink: 0; }
+        .consent-checkbox label { margin: 0; cursor: pointer; font-size: 0.9rem; color: #78350F; }
+        .consent-error { color: #DC2626; font-size: 0.85rem; margin-top: 0.5rem; display: none; }
+        .consent-error.show { display: block; }
+        
+        /* Field Error Styling */
+        .form-group.error input,
+        .form-group.error select,
+        .form-group.error textarea { 
+            border-color: #DC2626 !important;
+            background-color: #FFFBFB;
+        }
+        .form-group.error .field-error { 
+            color: #DC2626; 
+            font-size: 0.8rem; 
+            margin-top: 0.3rem;
+            display: block;
+        }
+        
+        /* Success Message */
+        .success-message { 
+            background: #F0FDF4; 
+            border: 1px solid #BBEF63; 
+            border-radius: 8px; 
+            padding: 1rem; 
+            margin-bottom: 1.5rem;
+            display: none;
+            text-align: center;
+        }
+        .success-message.show { display: block; }
+        .success-message-text { color: #15803D; font-weight: 600; }
         
         /* Preview Table */
         .preview-table { 
             width: 100%; 
             border-collapse: collapse; 
             margin-top: 1rem;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
         }
         .preview-table th { 
             background: var(--secondary); 
-            padding: 0.75rem; 
+            padding: 0.6rem; 
             text-align: left; 
             font-weight: 600; 
             color: var(--primary-dark);
             border-bottom: 2px solid var(--secondary-dark);
         }
         .preview-table td { 
-            padding: 0.75rem; 
+            padding: 0.6rem; 
             border-bottom: 1px solid var(--secondary-dark); 
         }
         .preview-table tr:hover { background: #F9FAFB; }
@@ -212,55 +323,30 @@
             background: #F0FDF4; 
             border: 1px solid var(--accent); 
             border-radius: 8px; 
-            padding: 1.5rem; 
+            padding: 1rem; 
             margin-top: 1.5rem;
+            display: none;
         }
-        .summary-item { display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid rgba(0, 0, 0, 0.05); }
+        .summary-box.show { display: block; }
+        .summary-item { display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid rgba(0, 0, 0, 0.05); font-size: 0.9rem; }
         .summary-item:last-child { border-bottom: none; }
         .summary-item-label { color: var(--text-muted); }
         .summary-item-value { font-weight: 600; color: var(--primary-dark); }
         
         /* Checkbox */
-        .checkbox-group { display: flex; align-items: center; gap: 0.75rem; margin-top: 1rem; }
+        .checkbox-group { display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem; }
         .checkbox-group input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
-        .checkbox-group label { margin: 0; cursor: pointer; }
-        
-        /* Submission History */
-        .history-table { width: 100%; border-collapse: collapse; }
-        .history-table th { 
-            background: var(--secondary); 
-            padding: 1rem; 
-            text-align: left; 
-            font-weight: 600; 
-            color: var(--primary-dark);
-            border-bottom: 2px solid var(--secondary-dark);
-        }
-        .history-table td { 
-            padding: 1rem; 
-            border-bottom: 1px solid var(--secondary-dark); 
-        }
-        .history-table tr:hover { background: #F9FAFB; }
-        .status-badge { 
-            display: inline-block; 
-            padding: 0.4rem 0.8rem; 
-            border-radius: 4px; 
-            font-size: 0.85rem; 
-            font-weight: 600;
-        }
-        .status-submitted { background: #DBEAFE; color: #1E40AF; }
-        .status-under-review { background: #FEF3C7; color: #92400E; }
-        .status-flagged { background: #FEE2E2; color: #7F1D1D; }
-        .status-approved { background: #DCFCE7; color: #15803D; }
+        .checkbox-group label { margin: 0; cursor: pointer; font-size: 0.9rem; }
         
         /* Disabled State */
         .disabled { opacity: 0.5; pointer-events: none; }
         
         @media (max-width: 768px) {
             .main-content { padding: 1rem; }
-            .selector-grid, .mode-grid { grid-template-columns: 1fr; }
+            .form-section { flex-direction: column; }
             .btn-group { flex-direction: column; }
-            .step-indicator { flex-wrap: wrap; }
         }
+    </style>
     </style>
     <script type="module" src="/static/js/sidebar.js"></script>
 </head>
@@ -272,183 +358,174 @@
             <!-- Header -->
             <div class="header-section">
                 <h1>Safety Data Reports</h1>
-                <p>Submit pharmacy safety data in controlled formats</p>
+                <p>Submit pharmacy safety data</p>
             </div>
             
+            <!-- Compact Form Container -->
             <div class="reports-container">
                 
-                <!-- SECTION 1: Data Type Selector -->
-                <div class="section">
-                    <div class="step-indicator">
-                        <div class="step-badge active">1</div>
-                        <div class="step-line"></div>
-                        <div class="step-badge">2</div>
-                        <div class="step-line"></div>
-                        <div class="step-badge">3</div>
-                    </div>
-                    
-                    <div class="section-title">
-                        <i data-lucide="filter"></i>
-                        Step 1: Select Report Type
-                    </div>
-                    
-                    <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Choose the type of safety data you want to submit. This determines which fields are required.</p>
-                    
-                    <div class="selector-grid">
-                        <!-- Anonymous Data -->
-                        <label class="selector-card">
-                            <input type="radio" name="report_type" value="anonymous" checked>
-                            <div class="selector-card-icon">🔒</div>
-                            <div class="selector-card-title">Anonymous Data</div>
-                            <div class="selector-card-desc">No personal identifiers. Safe for all pharmacies. Highest priority for analytics.</div>
-                        </label>
+                <!-- Success Message -->
+                <div class="success-message" id="successMessage">
+                    <div class="success-message-text">✅ Report submitted successfully</div>
+                </div>
+                
+                <!-- Error Summary -->
+                <div class="error-summary" id="errorSummary">
+                    <div class="error-summary-title">⚠️ Please complete all required fields before submitting</div>
+                    <ul class="error-summary-list" id="errorList"></ul>
+                </div>
+                
+                <!-- SECTION 1: Report Type -->
+                <div class="form-section active">
+                    <div class="step-number">①</div>
+                    <div class="section-content">
+                        <div class="section-label">
+                            Report Type
+                            <span class="help-icon" title="Choose the type of data you're submitting">ⓘ</span>
+                        </div>
                         
-                        <!-- Data with Identity -->
-                        <label class="selector-card">
-                            <input type="radio" name="report_type" value="identified">
-                            <div class="selector-card-icon">👤</div>
-                            <div class="selector-card-title">Data with Identity</div>
-                            <div class="selector-card-desc">Limited identifiers only. Requires consent verification.</div>
-                        </label>
+                        <div class="radio-row">
+                            <input type="radio" id="type-anon" name="report_type" value="anonymous" checked>
+                            <label for="type-anon" class="radio-label">
+                                <div class="radio-title">Anonymous Data</div>
+                                <div class="radio-desc">No personal identifiers</div>
+                            </label>
+                        </div>
                         
-                        <!-- Aggregated -->
-                        <label class="selector-card">
-                            <input type="radio" name="report_type" value="aggregated">
-                            <div class="selector-card-icon">📊</div>
-                            <div class="selector-card-title">Aggregated / Disease Analysis</div>
-                            <div class="selector-card-desc">Summary counts only. No individual case rows. Excel-only.</div>
-                        </label>
-                    </div>
-                    
-                    <!-- Warning for Identified Data -->
-                    <div class="warning-box" id="identifiedWarning">
-                        <strong>⚠️ Important Notice</strong>
-                        <p>Submit identifiable data only if consent is available. Allowed identifiers: Internal case ID, Treating hospital/doctor reference. Direct patient contact fields are NOT allowed.</p>
+                        <div class="radio-row">
+                            <input type="radio" id="type-ident" name="report_type" value="identified">
+                            <label for="type-ident" class="radio-label">
+                                <div class="radio-title">Data with Identity</div>
+                                <div class="radio-desc">Limited identifiers, consent required</div>
+                            </label>
+                        </div>
+                        
+                        <div class="radio-row">
+                            <input type="radio" id="type-agg" name="report_type" value="aggregated">
+                            <label for="type-agg" class="radio-label">
+                                <div class="radio-title">Aggregated / Disease Analysis</div>
+                                <div class="radio-desc">Summary counts only, Excel-only</div>
+                            </label>
+                        </div>
+                        
+                        <div class="warning-box" id="identifiedWarning">
+                            <strong>⚠️ Consent Required</strong>
+                            <p>Submit identifiable data only if consent is available.</p>
+                        </div>
                     </div>
                 </div>
                 
-                <!-- SECTION 2: Data Entry Mode -->
-                <div class="section">
-                    <div class="step-indicator">
-                        <div class="step-badge completed">1</div>
-                        <div class="step-line"></div>
-                        <div class="step-badge active">2</div>
-                        <div class="step-line"></div>
-                        <div class="step-badge">3</div>
-                    </div>
-                    
-                    <div class="section-title">
-                        <i data-lucide="edit"></i>
-                        Step 2: Choose Entry Mode
-                    </div>
-                    
-                    <p style="color: var(--text-muted); margin-bottom: 1.5rem;">How would you like to submit data?</p>
-                    
-                    <div class="mode-grid">
-                        <!-- Manual Entry -->
-                        <label class="mode-card">
-                            <input type="radio" name="entry_mode" value="manual" checked>
-                            <div class="mode-card-icon">📝</div>
-                            <div class="mode-card-title">Manual Entry</div>
-                            <div class="mode-card-desc">Fill in form fields one by one</div>
-                        </label>
+                <!-- SECTION 2: Entry Mode -->
+                <div class="form-section">
+                    <div class="step-number">②</div>
+                    <div class="section-content">
+                        <div class="section-label">
+                            Entry Mode
+                            <span class="help-icon" title="Choose how to submit your data">ⓘ</span>
+                        </div>
                         
-                        <!-- Excel Upload -->
-                        <label class="mode-card">
-                            <input type="radio" name="entry_mode" value="excel">
-                            <div class="mode-card-icon">📁</div>
-                            <div class="mode-card-title">Upload Excel File</div>
-                            <div class="mode-card-desc">Bulk submit multiple records</div>
-                        </label>
+                        <div class="radio-row">
+                            <input type="radio" id="mode-manual" name="entry_mode" value="manual" checked>
+                            <label for="mode-manual" class="radio-label">
+                                <div class="radio-title">Manual Entry</div>
+                                <div class="radio-desc">Fill in form fields</div>
+                            </label>
+                        </div>
+                        
+                        <div class="radio-row">
+                            <input type="radio" id="mode-excel" name="entry_mode" value="excel">
+                            <label for="mode-excel" class="radio-label">
+                                <div class="radio-title">Upload Excel File</div>
+                                <div class="radio-desc">Bulk submission</div>
+                            </label>
+                        </div>
                     </div>
                 </div>
                 
-                <!-- SECTION 3: Submission Workspace -->
-                <div class="section">
-                    <div class="step-indicator">
-                        <div class="step-badge completed">1</div>
-                        <div class="step-line"></div>
-                        <div class="step-badge completed">2</div>
-                        <div class="step-line"></div>
-                        <div class="step-badge active">3</div>
-                    </div>
-                    
-                    <div class="section-title">
-                        <i data-lucide="send"></i>
-                        Step 3: Submit Data
-                    </div>
-                    
-                    <!-- MANUAL ENTRY MODE -->
-                    <div id="manualEntrySection" style="display: block;">
-                        <div id="formFieldsContainer"></div>
-                        
-                        <div style="margin-top: 2rem;">
-                            <button class="btn btn-secondary" onclick="addFormRow()">
-                                <i data-lucide="plus"></i> Add Another Record
-                            </button>
+                <!-- SECTION 2.5: Consent (Conditional) -->
+                <div class="form-section" id="consentSection" style="display: none;">
+                    <div class="step-number">⚠️</div>
+                    <div class="section-content" style="width: 100%;">
+                        <div class="consent-section show">
+                            <div class="consent-section-title">Consent Required for Identifiable Data</div>
+                            <div class="consent-checkbox">
+                                <input type="checkbox" id="consentCheckbox">
+                                <label for="consentCheckbox">I confirm that informed consent has been obtained from the patient</label>
+                            </div>
+                            <div class="consent-error" id="consentError">Consent is required to submit identifiable data</div>
                         </div>
                     </div>
-                    
-                    <!-- EXCEL UPLOAD MODE -->
-                    <div id="excelUploadSection" style="display: none;">
-                        <div class="template-box">
-                            <p>Download the Excel template to ensure your file has the correct format and columns.</p>
-                            <button class="btn btn-download" onclick="downloadTemplate()">
-                                <i data-lucide="download"></i> Download Excel Template
+                </div>
+                
+                <!-- SECTION 3: Submit Data -->
+                <div class="form-section expanded">
+                    <div class="step-number">③</div>
+                    <div class="section-content" style="width: 100%;">
+                        <div class="section-label">Submit Data</div>
+                        
+                        <!-- MANUAL ENTRY MODE -->
+                        <div id="manualEntrySection" style="display: block;">
+                            <div id="formFieldsContainer"></div>
+                            <button class="btn btn-secondary" onclick="addFormRow()" style="margin-top: 1rem;">
+                                + Add Record
                             </button>
                         </div>
                         
-                        <div class="file-upload-area" id="fileUploadArea">
-                            <input type="file" id="excelFile" accept=".xlsx,.xls" onchange="handleFileSelect(event)">
-                            <div class="file-upload-icon">📤</div>
-                            <div class="file-upload-text">
-                                <strong>Click to upload</strong> or drag and drop<br>
-                                Excel files (.xlsx, .xls)
+                        <!-- EXCEL UPLOAD MODE -->
+                        <div id="excelUploadSection" style="display: none;">
+                            <div class="template-box">
+                                <p>Download template to ensure correct format</p>
+                                <button class="btn btn-download" onclick="downloadTemplate()">
+                                    ⬇ Download Template
+                                </button>
+                            </div>
+                            
+                            <div class="file-upload-area" id="fileUploadArea">
+                                <input type="file" id="excelFile" accept=".xlsx,.xls" onchange="handleFileSelect(event)">
+                                <div class="file-upload-icon">📤</div>
+                                <div class="file-upload-text">
+                                    <strong>Click to upload</strong> or drag and drop<br>
+                                    Excel files (.xlsx, .xls)
+                                </div>
+                            </div>
+                            
+                            <div class="validation-prompt" id="validationPrompt"></div>
+                            
+                            <div id="previewSection" style="display: none; margin-top: 1rem;">
+                                <div style="overflow-x: auto;">
+                                    <table class="preview-table" id="previewTable"></table>
+                                </div>
                             </div>
                         </div>
                         
-                        <div class="validation-prompt" id="validationPrompt"></div>
-                        
-                        <div id="previewSection" style="display: none; margin-top: 2rem;">
-                            <h3 style="color: var(--primary-dark); margin-bottom: 1rem;">Preview Data</h3>
-                            <div style="overflow-x: auto;">
-                                <table class="preview-table" id="previewTable"></table>
+                        <!-- SUBMISSION SUMMARY -->
+                        <div class="summary-box" id="summaryBox">
+                            <div class="summary-item">
+                                <span class="summary-item-label">Report Type:</span>
+                                <span class="summary-item-value" id="summaryReportType">-</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="summary-item-label">Entry Mode:</span>
+                                <span class="summary-item-value" id="summaryEntryMode">-</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="summary-item-label">Records:</span>
+                                <span class="summary-item-value" id="summaryRecordCount">-</span>
+                            </div>
+                            
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="confirmCheckbox">
+                                <label for="confirmCheckbox">I confirm this data is accurate and compliant</label>
                             </div>
                         </div>
-                    </div>
-                    
-                    <!-- SUBMISSION SUMMARY -->
-                    <div class="summary-box" id="summaryBox" style="display: none;">
-                        <h3 style="margin: 0 0 1rem 0; color: var(--primary-dark);">Submission Summary</h3>
-                        <div class="summary-item">
-                            <span class="summary-item-label">Report Type:</span>
-                            <span class="summary-item-value" id="summaryReportType">-</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="summary-item-label">Entry Mode:</span>
-                            <span class="summary-item-value" id="summaryEntryMode">-</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="summary-item-label">Total Records:</span>
-                            <span class="summary-item-value" id="summaryRecordCount">-</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="summary-item-label">Data Scope:</span>
-                            <span class="summary-item-value" id="summaryDataScope">-</span>
-                        </div>
                         
-                        <div class="checkbox-group">
-                            <input type="checkbox" id="confirmCheckbox">
-                            <label for="confirmCheckbox">I confirm the data is accurate and compliant with regulations</label>
+                        <!-- ACTION BUTTONS -->
+                        <div class="btn-group">
+                            <button class="btn btn-secondary" onclick="resetForm()">Clear</button>
+                            <button class="btn btn-success" id="submitBtn" onclick="submitReport()" disabled>
+                                Submit Report
+                            </button>
                         </div>
-                    </div>
-                    
-                    <!-- ACTION BUTTONS -->
-                    <div class="btn-group">
-                        <button class="btn btn-secondary" onclick="resetForm()">Clear Form</button>
-                        <button class="btn btn-success" id="submitBtn" onclick="submitReport()" disabled>
-                            <i data-lucide="check"></i> Submit Report
-                        </button>
                     </div>
                 </div>
                 

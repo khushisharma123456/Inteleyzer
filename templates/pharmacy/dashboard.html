@@ -134,6 +134,15 @@
                     <div class="value" id="stat-dispensing">0</div>
                     <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem; color: var(--text-muted);">Data input volume</p>
                 </div>
+                
+                <div class="kpi-card">
+                    <h3>Compliance Score</h3>
+                    <div class="icon" style="background: #F0FDF4; color: #10B981;">
+                        <i data-lucide="shield-check"></i>
+                    </div>
+                    <div class="value" id="stat-compliance">--</div>
+                    <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem; color: var(--text-muted);" id="compliance-status-text">Loading...</p>
+                </div>
             </div>
 
             <!-- Immediate Attention Section -->
@@ -264,6 +273,37 @@
                 }
             } catch (error) {
                 console.error('Error loading stats:', error);
+            }
+            
+            // Load compliance score
+            loadComplianceScore();
+        }
+
+        // Load compliance score
+        async function loadComplianceScore() {
+            try {
+                const response = await fetch('/api/pharmacy/reports/compliance-score');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const score = data.compliance_score;
+                    const status = data.status;
+                    
+                    document.getElementById('stat-compliance').textContent = score;
+                    
+                    // Set status text with emoji
+                    let statusEmoji = '🟢';
+                    if (score < 60) {
+                        statusEmoji = '🔴';
+                    } else if (score < 80) {
+                        statusEmoji = '🟡';
+                    }
+                    
+                    document.getElementById('compliance-status-text').textContent = `${statusEmoji} ${status}`;
+                }
+            } catch (error) {
+                console.error('Error loading compliance score:', error);
+                document.getElementById('compliance-status-text').textContent = 'Unable to load';
             }
         }
 

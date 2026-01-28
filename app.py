@@ -9,9 +9,10 @@ from flask import Flask, render_template, request, jsonify, session, redirect, u
 from flask_cors import CORS
 from models import db, User, Patient, Drug, Alert, SideEffectReport, hospital_doctor, hospital_drug, hospital_pharmacy, doctor_patient
 from pv_backend.services.case_matching import match_new_case, should_accept_case
+from auth_config import JWTConfig, token_required, session_required, SESSION_TIMEOUT_MINUTES, TOKEN_EXPIRY_HOURS
 import os
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'inteleyzer-secret-key-dev'
@@ -161,16 +162,33 @@ def login():
     user = User.query.filter_by(email=data['email'], password=data['password']).first()
     
     if user:
+        # Generate JWT token
+        token = JWTConfig.generate_token(user.id, user.email, user.role, user.name)
+        
+        # Set session with expiry tracking
         session.permanent = True
         session['user_id'] = user.id
         session['role'] = user.role
         session['user_name'] = user.name
+        session['user_email'] = user.email
+        session['session_start'] = datetime.utcnow()
+        session['token'] = token
+        
         # For hospital role, set hospital_name from user name
         if user.role == 'hospital':
             session['hospital_name'] = user.name
+        
         return jsonify({
             'success': True, 
-            'user': {'id': user.id, 'name': user.name, 'role': user.role}
+            'user': {
+                'id': user.id, 
+                'name': user.name, 
+                'role': user.role,
+                'email': user.email
+            },
+            'token': token,
+            'token_expiry': TOKEN_EXPIRY_HOURS,
+            'session_timeout': SESSION_TIMEOUT_MINUTES
         })
     
     return jsonify({'success': False, 'message': 'Invalid credentials'})
@@ -179,6 +197,30 @@ def login():
 def logout_api():
     session.clear()
     return jsonify({'success': True})
+
+@app.route('/api/auth/refresh-token', methods=['POST'])
+def refresh_token():
+    """Refresh JWT token before expiry"""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authenticated'}), 401
+    
+    # Generate new token
+    token = JWTConfig.generate_token(
+        session['user_id'],
+        session['user_email'],
+        session['role'],
+        session['user_name']
+    )
+    
+    session['token'] = token
+    session['session_start'] = datetime.utcnow()
+    
+    return jsonify({
+        'success': True,
+        'token': token,
+        'token_expiry': TOKEN_EXPIRY_HOURS,
+        'session_timeout': SESSION_TIMEOUT_MINUTES
+    })
 
 @app.route('/logout')
 def logout():
@@ -762,30 +804,19 @@ def get_pharmacy_settings():
     if user.role != 'pharmacy':
         return jsonify({'success': False}), 403
     
-    # Return default settings (in production, fetch from database)
+    # Import PharmacySettings here to avoid circular imports
+    from models import PharmacySettings
+    
+    # Get or create settings
+    settings = PharmacySettings.query.filter_by(pharmacy_id=user.id).first()
+    if not settings:
+        settings = PharmacySettings(pharmacy_id=user.id)
+        db.session.add(settings)
+        db.session.commit()
+    
     return jsonify({
         'success': True,
-        'pharmacyName': user.name,
-        'email': user.email,
-        'phone': '',
-        'address': '',
-        'license': '',
-        'shareReports': True,
-        'shareDispensing': True,
-        'anonymizeData': False,
-        'retentionPeriod': '12',
-        'alertFrequency': 'immediate',
-        'notifyEmail': True,
-        'notifySms': False,
-        'notifyDashboard': True,
-        'alertRecalls': True,
-        'alertSafety': True,
-        'alertInteractions': True,
-        'alertDosage': True,
-        'reportingAuthority': '',
-        'reportingThreshold': 'all',
-        'complianceOfficer': '',
-        'autoReport': True
+        **settings.to_dict()
     })
 
 @app.route('/api/pharmacy/settings/account', methods=['POST'])
@@ -797,10 +828,22 @@ def save_pharmacy_account_settings():
     if user.role != 'pharmacy':
         return jsonify({'success': False}), 403
     
+    from models import PharmacySettings
+    
     data = request.json
     
-    # In production, save to database
-    # For now, just return success
+    # Get or create settings
+    settings = PharmacySettings.query.filter_by(pharmacy_id=user.id).first()
+    if not settings:
+        settings = PharmacySettings(pharmacy_id=user.id)
+    
+    # Update account fields
+    settings.phone = data.get('phone', settings.phone)
+    settings.address = data.get('address', settings.address)
+    settings.license = data.get('license', settings.license)
+    
+    db.session.commit()
+    
     return jsonify({'success': True, 'message': 'Account settings saved'})
 
 @app.route('/api/pharmacy/settings/privacy', methods=['POST'])
@@ -812,10 +855,23 @@ def save_pharmacy_privacy_settings():
     if user.role != 'pharmacy':
         return jsonify({'success': False}), 403
     
+    from models import PharmacySettings
+    
     data = request.json
     
-    # In production, save to database
-    # For now, just return success
+    # Get or create settings
+    settings = PharmacySettings.query.filter_by(pharmacy_id=user.id).first()
+    if not settings:
+        settings = PharmacySettings(pharmacy_id=user.id)
+    
+    # Update privacy fields
+    settings.share_reports = data.get('shareReports', settings.share_reports)
+    settings.share_dispensing = data.get('shareDispensing', settings.share_dispensing)
+    settings.anonymize_data = data.get('anonymizeData', settings.anonymize_data)
+    settings.retention_period = data.get('retentionPeriod', settings.retention_period)
+    
+    db.session.commit()
+    
     return jsonify({'success': True, 'message': 'Privacy preferences saved'})
 
 @app.route('/api/pharmacy/settings/notifications', methods=['POST'])
@@ -827,10 +883,27 @@ def save_pharmacy_notification_settings():
     if user.role != 'pharmacy':
         return jsonify({'success': False}), 403
     
+    from models import PharmacySettings
+    
     data = request.json
     
-    # In production, save to database
-    # For now, just return success
+    # Get or create settings
+    settings = PharmacySettings.query.filter_by(pharmacy_id=user.id).first()
+    if not settings:
+        settings = PharmacySettings(pharmacy_id=user.id)
+    
+    # Update notification fields
+    settings.alert_frequency = data.get('alertFrequency', settings.alert_frequency)
+    settings.notify_email = data.get('notifyEmail', settings.notify_email)
+    settings.notify_sms = data.get('notifySms', settings.notify_sms)
+    settings.notify_dashboard = data.get('notifyDashboard', settings.notify_dashboard)
+    settings.alert_recalls = data.get('alertRecalls', settings.alert_recalls)
+    settings.alert_safety = data.get('alertSafety', settings.alert_safety)
+    settings.alert_interactions = data.get('alertInteractions', settings.alert_interactions)
+    settings.alert_dosage = data.get('alertDosage', settings.alert_dosage)
+    
+    db.session.commit()
+    
     return jsonify({'success': True, 'message': 'Notification preferences saved'})
 
 @app.route('/api/pharmacy/settings/compliance', methods=['POST'])
@@ -842,11 +915,49 @@ def save_pharmacy_compliance_settings():
     if user.role != 'pharmacy':
         return jsonify({'success': False}), 403
     
+    from models import PharmacySettings
+    
     data = request.json
     
-    # In production, save to database
-    # For now, just return success
+    # Get or create settings
+    settings = PharmacySettings.query.filter_by(pharmacy_id=user.id).first()
+    if not settings:
+        settings = PharmacySettings(pharmacy_id=user.id)
+    
+    # Update compliance fields
+    settings.reporting_authority = data.get('reportingAuthority', settings.reporting_authority)
+    settings.reporting_threshold = data.get('reportingThreshold', settings.reporting_threshold)
+    settings.compliance_officer = data.get('complianceOfficer', settings.compliance_officer)
+    settings.auto_report = data.get('autoReport', settings.auto_report)
+    
+    db.session.commit()
+    
     return jsonify({'success': True, 'message': 'Compliance settings saved'})
+
+@app.route('/api/pharmacy/alerts', methods=['GET'])
+def get_pharmacy_alerts():
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authenticated'}), 401
+    
+    user = User.query.get(session['user_id'])
+    if user.role != 'pharmacy':
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+    
+    try:
+        # Get all alerts for this pharmacy (recipient_type = 'all' or specific pharmacy)
+        alerts = Alert.query.filter(
+            Alert.recipient_type.in_(['all', 'pharmacy'])
+        ).order_by(Alert.created_at.desc()).all()
+        
+        return jsonify({
+            'success': True,
+            'alerts': [alert.to_dict() for alert in alerts]
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error fetching alerts: {str(e)}'
+        }), 500
 
 @app.route('/api/pharmacy/alerts/<alert_id>/acknowledge', methods=['POST'])
 def acknowledge_pharmacy_alert(alert_id):
@@ -857,16 +968,31 @@ def acknowledge_pharmacy_alert(alert_id):
     if user.role != 'pharmacy':
         return jsonify({'success': False, 'message': 'Unauthorized'}), 403
     
-    # In production, update Firebase Firestore:
-    # 1. Update alert document: status = "acknowledged", acknowledged_by = pharmacy_id, acknowledged_at = timestamp
-    # 2. Log action in alert_activity_logs collection
-    
-    # For now, return success
-    return jsonify({
-        'success': True,
-        'message': 'Alert acknowledged',
-        'acknowledged_at': datetime.datetime.now().isoformat()
-    })
+    try:
+        # Find the alert
+        alert = Alert.query.get(alert_id)
+        if not alert:
+            return jsonify({'success': False, 'message': 'Alert not found'}), 404
+        
+        # Update alert status
+        alert.status = 'acknowledged'
+        alert.acknowledged_at = datetime.datetime.utcnow()
+        alert.acknowledged_by = user.id
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Alert acknowledged',
+            'status': alert.status,
+            'acknowledged_at': alert.acknowledged_at.isoformat()
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'Error acknowledging alert: {str(e)}'
+        }), 500
 
 # Case Matching APIs for Duplicate Detection
 @app.route('/api/cases/match', methods=['POST'])

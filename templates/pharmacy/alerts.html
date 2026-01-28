@@ -219,8 +219,41 @@
         let currentType = 'all';
         let currentAlert = null;
 
-        // Sample alerts data (in production, fetch from Firebase)
-        const sampleAlerts = [
+        // Load alerts from backend
+        async function loadAlerts() {
+            try {
+                const response = await fetch('/api/pharmacy/alerts');
+                const data = await response.json();
+                
+                if (data.success && data.alerts) {
+                    allAlerts = data.alerts.map(alert => ({
+                        id: alert.id,
+                        type: alert.type || 'safety',
+                        title: alert.title || 'Alert',
+                        drug: alert.drug_name || 'Unknown',
+                        description: alert.message || '',
+                        reason: alert.reason || 'Safety monitoring',
+                        impact: alert.impact || 'Review recommended',
+                        severity: alert.severity ? alert.severity.toLowerCase() : 'medium',
+                        source: alert.sender || 'System Generated',
+                        status: alert.status || 'new',
+                        timestamp: new Date(alert.created_at),
+                        createdAt: alert.created_at
+                    }));
+                    
+                    filteredAlerts = allAlerts;
+                    renderAlerts(allAlerts);
+                }
+            } catch (error) {
+                console.error('Error loading alerts:', error);
+                // Fall back to sample data if backend fails
+                loadSampleAlerts();
+            }
+        }
+
+        // Sample alerts data (fallback)
+        function loadSampleAlerts() {
+            const sampleAlerts = [
             {
                 id: 'ALT-001',
                 type: 'safety',
@@ -438,16 +471,17 @@
                         closePanel();
                         renderAlerts(filteredAlerts);
                     }, 2000);
+                } else {
+                    alert('Error: ' + (result.message || 'Failed to acknowledge alert'));
                 }
             } catch (error) {
                 console.error('Error acknowledging alert:', error);
+                alert('Error acknowledging alert');
             }
         };
 
         // Initialize
-        allAlerts = sampleAlerts;
-        filteredAlerts = allAlerts;
-        renderAlerts(allAlerts);
+        loadAlerts();
     </script>
 </body>
 </html>

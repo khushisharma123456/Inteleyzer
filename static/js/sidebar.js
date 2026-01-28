@@ -41,7 +41,6 @@ export class Sidebar extends HTMLElement {
         const pharmacyItems = [
             { icon: 'home', text: 'Dashboard', link: '/pharmacy/dashboard' },
             { icon: 'file-text', text: 'Reports', link: '/pharmacy/reports' },
-            { icon: 'package', text: 'Dispensing Logs', link: '/pharmacy/dispensing-logs' },
             { icon: 'alert-triangle', text: 'Alerts', link: '/pharmacy/alerts' },
         ];
 
@@ -87,8 +86,8 @@ export class Sidebar extends HTMLElement {
                 }
 
                 .logo-icon {
-                    width: 32px;
-                    height: 32px;
+                    width: 48px;
+                    height: 48px;
                     background-color: var(--primary);
                     border-radius: 8px;
                     display: flex;
@@ -102,6 +101,7 @@ export class Sidebar extends HTMLElement {
                     color: var(--primary-dark);
                     white-space: nowrap;
                     overflow: hidden;
+                    font-size: 1.3rem;
                 }
                 
                 body.sidebar-collapsed .app-title {
@@ -227,7 +227,7 @@ export class Sidebar extends HTMLElement {
             
             <aside>
                 <div class="logo-area">
-                    <img src="/static/images/logo.jpeg" alt="Inteleyzer Logo" style="width: 32px; height: 32px; border-radius: 8px; object-fit: cover;">
+                    <img src="/static/images/logo.jpeg" alt="Inteleyzer Logo" style="width: 48px; height: 48px; border-radius: 8px; object-fit: cover;">
                     <span class="app-title">Inteleyzer</span>
                 </div>
 
