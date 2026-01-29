@@ -133,16 +133,23 @@ function updateReportTypeUI() {
 function updateEntryModeUI() {
     const manualSection = document.getElementById('manualEntrySection');
     const excelSection = document.getElementById('excelUploadSection');
+    const summaryBox = document.getElementById('summaryBox');
+    
+    console.log('Updating entry mode UI:', reportState.entryMode);
     
     if (reportState.entryMode === 'manual') {
         manualSection.style.display = 'block';
         excelSection.style.display = 'none';
-        document.getElementById('summaryBox').classList.add('show');
+        summaryBox.classList.add('show');
     } else {
         manualSection.style.display = 'none';
         excelSection.style.display = 'block';
-        document.getElementById('summaryBox').classList.remove('show');
+        // Show summary box for Excel mode too
+        summaryBox.classList.add('show');
     }
+    
+    // Update submit button state when mode changes
+    updateSubmitButtonState();
 }
 
 function updateFormDisabledState() {
@@ -539,7 +546,20 @@ function updateSubmitButtonState() {
     const submitBtn = document.getElementById('submitBtn');
     const confirmCheckbox = document.getElementById('confirmCheckbox');
     
-    submitBtn.disabled = !confirmCheckbox.checked;
+    // For Excel mode, also check if data is loaded
+    if (reportState.entryMode === 'excel') {
+        const hasExcelData = reportState.excelData && reportState.excelData.length > 0;
+        submitBtn.disabled = !confirmCheckbox.checked || !hasExcelData;
+    } else {
+        submitBtn.disabled = !confirmCheckbox.checked;
+    }
+    
+    console.log('Submit button state updated:', {
+        disabled: submitBtn.disabled,
+        checkboxChecked: confirmCheckbox.checked,
+        entryMode: reportState.entryMode,
+        hasExcelData: reportState.excelData ? reportState.excelData.length : 0
+    });
 }
 
 function showToast(message, type = 'success') {
@@ -582,6 +602,8 @@ function executeConfirmAction() {
 }
 
 function submitReport() {
+    console.log('submitReport called');
+    console.log('Report state:', reportState);
     clearErrors();
     
     // Check consent for identified data
@@ -599,6 +621,7 @@ function submitReport() {
     if (reportState.entryMode === 'manual') {
         records = collectFormData();
         recordCount = records.length;
+        console.log('Manual entry - collected records:', records);
         
         // Validate form fields
         const fieldErrors = validateFormFields();
@@ -613,7 +636,8 @@ function submitReport() {
             return;
         }
     } else {
-        if (!reportState.excelData) {
+        console.log('Excel mode - excelData:', reportState.excelData);
+        if (!reportState.excelData || reportState.excelData.length === 0) {
             showToast('Please upload and validate an Excel file first', 'error');
             return;
         }
@@ -627,23 +651,38 @@ function submitReport() {
         records: records
     };
     
+    console.log('Submitting payload:', payload);
+    
     fetch('/api/pharmacy/reports/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
     })
-    .then(res => res.json())
+    .then(res => {
+        console.log('Response status:', res.status);
+        return res.json();
+    })
     .then(data => {
+        console.log('Response data:', data);
         if (data.success) {
+            let message = `✅ ${recordCount} record(s) submitted successfully`;
+            if (data.skipped_duplicates && data.skipped_duplicates.length > 0) {
+                message += `, ${data.skipped_duplicates.length} duplicate(s) skipped`;
+            }
+            if (data.linked_cases && data.linked_cases.length > 0) {
+                message += `, ${data.linked_cases.length} case(s) linked`;
+            }
             showSuccessMessage(recordCount);
+            showToast(message, 'success');
             setTimeout(() => {
                 resetForm();
-            }, 1500);
+            }, 2000);
         } else {
             showToast(data.message || 'Submission failed', 'error');
         }
     })
     .catch(err => {
+        console.error('Submit error:', err);
         showToast('Error: ' + err.message, 'error');
     });
 }

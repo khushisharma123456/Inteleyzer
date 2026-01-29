@@ -13,6 +13,7 @@ from pv_backend.services.case_scoring import CaseScoringEngine, evaluate_case, s
 from pv_backend.services.quality_agent import QualityAgentOrchestrator, FollowUpManager
 from pv_backend.routes.followup_routes import init_followup_routes, store_followup_token
 from pv_backend.services.followup_agent import FollowupAgent
+from pv_backend.routes.excel_routes import excel_upload_bp
 from auth_config import JWTConfig, token_required, session_required, SESSION_TIMEOUT_MINUTES, TOKEN_EXPIRY_HOURS
 import os
 import random
@@ -294,6 +295,9 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 CORS(app)
 db.init_app(app)
+
+# Register Excel upload blueprint
+app.register_blueprint(excel_upload_bp)
 
 # Add cache-busting headers for development
 @app.after_request
@@ -1127,14 +1131,61 @@ def submit_pharmacy_reports():
         skipped_duplicates = []  # Track rejected duplicates
         linked_cases = []  # Track linked cases
         
+        # Field mapping: Excel labels (from frontend) -> backend keys
+        FIELD_MAP = {
+            'Drug Name': 'drug_name',
+            'Batch / Lot Number': 'batch_lot_number',
+            'Dosage Form': 'dosage_form',
+            'Date of Dispensing': 'date_of_dispensing',
+            'Reaction Category': 'reaction_category',
+            'Severity': 'severity',
+            'Reaction Outcome': 'reaction_outcome',
+            'Age Group': 'age_group',
+            'Gender': 'gender',
+            'Additional Notes': 'additional_notes',
+            'Internal Case ID': 'internal_case_id',
+            'Treating Hospital / Doctor Reference': 'treating_hospital_reference',
+            'Treating Doctor Name': 'treating_doctor_name',
+            'Total Dispensed': 'total_dispensed',
+            'Total Reactions Reported': 'total_reactions_reported',
+            'Mild Count': 'mild_count',
+            'Moderate Count': 'moderate_count',
+            'Severe Count': 'severe_count',
+            'Reporting Period Start': 'reporting_period_start',
+            'Reporting Period End': 'reporting_period_end',
+            'Analysis Notes': 'analysis_notes',
+            'Email': 'email',
+            'Phone': 'phone',
+        }
+        
+        def normalize_record(record):
+            """Normalize record keys from Excel labels to backend keys"""
+            normalized = {}
+            for key, value in record.items():
+                # Check if key is an Excel label and map it
+                if key in FIELD_MAP:
+                    normalized[FIELD_MAP[key]] = value
+                else:
+                    # Already a backend key or unknown - use as-is (lowercase)
+                    normalized[key.lower().replace(' ', '_')] = value
+            return normalized
+        
         for record in records:
+            # Normalize Excel labels to backend keys
+            record = normalize_record(record)
+            
             # Extract patient data
             name = 'Anonymous' if report_type == 'anonymous' else record.get('internal_case_id', 'Patient')
             email = record.get('email')
+            phone = record.get('phone')
             drug_name = record.get('drug_name', 'Unknown')
             symptoms = record.get('reaction_category', '')
             gender = record.get('gender', 'not_specified')
-            age = 35  # Default age for pharmacy reports
+            age_group = record.get('age_group', 'adult')
+            
+            # Map age group to approximate age
+            age_map = {'pediatric': 8, 'adolescent': 16, 'adult': 35, 'elderly': 70, 'unknown': 35}
+            age = age_map.get(age_group, 35)
             
             # === DUPLICATE CHECK ===
             duplicate_check = check_duplicate_patient(
@@ -1143,7 +1194,8 @@ def submit_pharmacy_reports():
                 age=age,
                 gender=gender,
                 symptoms=symptoms,
-                email=email
+                email=email,
+                phone=phone
             )
             
             if duplicate_check['action'] == 'REJECT':
@@ -1162,6 +1214,9 @@ def submit_pharmacy_reports():
             while Patient.query.get(patient_id):
                 patient_id = f"PH-{random.randint(10000, 99999)}"
             
+            # Determine mode based on contact info
+            mode = 'identity' if (email or phone) else 'anonymous'
+            
             if duplicate_check['action'] == 'LINK':
                 # Create but link to existing case
                 existing = duplicate_check['existing_case']
@@ -1170,10 +1225,12 @@ def submit_pharmacy_reports():
                     created_by=user.id,
                     name=name,
                     email=email,
+                    phone=phone,
                     age=age,
                     gender=gender,
                     drug_name=drug_name,
                     symptoms=symptoms,
+                    mode=mode,
                     risk_level=record.get('severity', 'mild').capitalize(),
                     case_status='Linked',
                     linked_case_id=existing.id,
@@ -1192,10 +1249,12 @@ def submit_pharmacy_reports():
                     created_by=user.id,
                     name=name,
                     email=email,
+                    phone=phone,
                     age=age,
                     gender=gender,
                     drug_name=drug_name,
                     symptoms=symptoms,
+                    mode=mode,
                     risk_level=record.get('severity', 'mild').capitalize()
                 )
             
@@ -1205,14 +1264,29 @@ def submit_pharmacy_reports():
         
         db.session.commit()
         
-        # Auto-send follow-up emails to all patients with emails
+        # Score each new patient record
+        scoring_results = []
+        for patient in created_patients:
+            try:
+                evaluate_case(patient)
+                score_case(patient)
+                check_followup(patient)
+                scoring_results.append({'patient_id': patient.id, 'scored': True})
+            except Exception as score_err:
+                scoring_results.append({'patient_id': patient.id, 'scored': False, 'error': str(score_err)})
+        
+        db.session.commit()
+        
+        # Auto-send follow-up to all patients with email or phone
         followup_results = []
         for patient in created_patients:
-            if patient.email:
-                result = auto_send_followup_email(patient)
+            if patient.email or patient.phone:
+                result = auto_send_followup(patient)
                 followup_results.append({
                     'patient_id': patient.id,
                     'email': patient.email,
+                    'phone': patient.phone,
+                    'channels_sent': result.get('channels_sent', 0),
                     'success': result.get('success', False)
                 })
         

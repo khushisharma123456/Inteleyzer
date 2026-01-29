@@ -647,7 +647,7 @@
             window.URL.revokeObjectURL(url);
         }
 
-        document.getElementById('excelUploadForm').addEventListener('submit', function(e) {
+        document.getElementById('excelUploadForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const file = document.getElementById('excelFile').files[0];
             
@@ -661,8 +661,77 @@
                 return;
             }
 
-            alert(`Excel file "${file.name}" uploaded successfully for ${currentUploadType} reports. Processing...`);
-            closeExcelUploadModal();
+            // Show loading state
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<span style="display: flex; align-items: center; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" class="animate-spin"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" opacity="0.25"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Processing...</span>';
+            submitBtn.disabled = true;
+
+            try {
+                // Create FormData and send to API
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('report_type', currentUploadType);
+
+                console.log('Uploading Excel file to /api/excel/upload...');
+                const response = await fetch('/api/excel/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                console.log('Upload response:', data);
+
+                if (data.success) {
+                    // Build success message - use correct field names from backend
+                    const imported = data.results?.imported || 0;
+                    const duplicatesRejected = data.results?.duplicates_rejected || 0;
+                    const duplicatesLinked = data.results?.duplicates_linked || 0;
+                    const followupsSent = data.results?.followups_sent || 0;
+                    const errorsList = data.results?.errors || [];
+                    const errors = errorsList.length;
+                    
+                    let message = `✅ Successfully imported ${imported} records from "${file.name}"`;
+                    
+                    if (duplicatesRejected > 0) {
+                        message += `\n\n⚠️ ${duplicatesRejected} duplicate(s) detected and skipped`;
+                    }
+                    if (duplicatesLinked > 0) {
+                        message += `\n\n🔗 ${duplicatesLinked} record(s) linked to existing patients`;
+                    }
+                    if (followupsSent > 0) {
+                        message += `\n\n📧 ${followupsSent} follow-up request(s) initiated`;
+                    }
+                    if (errors > 0) {
+                        message += `\n\n❌ ${errors} record(s) had errors:`;
+                        // Show first 5 errors
+                        const showErrors = errorsList.slice(0, 5);
+                        showErrors.forEach(err => {
+                            message += `\n   • ${err}`;
+                        });
+                        if (errors > 5) {
+                            message += `\n   ... and ${errors - 5} more`;
+                        }
+                    }
+
+                    alert(message);
+                    closeExcelUploadModal();
+                    
+                    // Reload submission history
+                    if (typeof loadSubmissionHistory === 'function') {
+                        await loadSubmissionHistory();
+                    }
+                } else {
+                    alert('❌ Error: ' + (data.message || 'Failed to process Excel file'));
+                }
+            } catch (error) {
+                console.error('Excel upload error:', error);
+                alert('❌ Error uploading file: ' + error.message);
+            } finally {
+                // Restore button state
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
         });
 
         window.selectReportType = selectReportType;
