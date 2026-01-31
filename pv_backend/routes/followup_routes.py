@@ -10,13 +10,56 @@ import secrets
 
 followup_bp = Blueprint('followup', __name__)
 
-# In-memory token storage (in production, use Redis or database)
-# Format: {token: {'patient_id': str, 'expires_at': datetime, 'used': bool}}
+# Reference to db and FollowupToken model (set during init)
+_db = None
+_FollowupToken = None
+
+# Fallback in-memory storage if DB not initialized
 followup_tokens = {}
 
 
+def _ensure_db_initialized():
+    """Ensure database references are initialized"""
+    global _db, _FollowupToken
+    if _db is None or _FollowupToken is None:
+        try:
+            from models import db, FollowupToken
+            _db = db
+            _FollowupToken = FollowupToken
+        except ImportError:
+            pass
+
+
 def store_followup_token(patient_id: str, token: str, expires_in_days: int = 7):
-    """Store a follow-up token with expiration"""
+    """Store a follow-up token with expiration - uses database if available"""
+    global _db, _FollowupToken
+    
+    # Ensure DB is initialized
+    _ensure_db_initialized()
+    
+    # Try database storage first
+    if _db is not None and _FollowupToken is not None:
+        try:
+            # Check if token already exists
+            existing = _FollowupToken.query.filter_by(token=token).first()
+            if existing:
+                return  # Token already stored
+            
+            new_token = _FollowupToken(
+                token=token,
+                patient_id=patient_id,
+                expires_at=datetime.utcnow() + timedelta(days=expires_in_days),
+                used=False
+            )
+            _db.session.add(new_token)
+            _db.session.commit()
+            print(f"✅ Token stored in database for patient {patient_id}")
+            return
+        except Exception as e:
+            print(f"⚠️ DB token storage failed, using memory: {e}")
+            _db.session.rollback()
+    
+    # Fallback to in-memory storage
     followup_tokens[token] = {
         'patient_id': patient_id,
         'expires_at': datetime.utcnow() + timedelta(days=expires_in_days),
@@ -26,7 +69,28 @@ def store_followup_token(patient_id: str, token: str, expires_in_days: int = 7):
 
 
 def validate_followup_token(patient_id: str, token: str) -> dict:
-    """Validate a follow-up token"""
+    """Validate a follow-up token - checks database first, then memory"""
+    global _db, _FollowupToken
+    
+    # Ensure DB is initialized
+    _ensure_db_initialized()
+    
+    # Try database first
+    if _db is not None and _FollowupToken is not None:
+        try:
+            db_token = _FollowupToken.query.filter_by(token=token).first()
+            if db_token:
+                if db_token.patient_id != patient_id:
+                    return {'valid': False, 'error': 'Token does not match patient'}
+                if db_token.expires_at < datetime.utcnow():
+                    return {'valid': False, 'error': 'Token has expired'}
+                if db_token.used:
+                    return {'valid': False, 'error': 'Token has already been used'}
+                return {'valid': True, 'token_data': {'patient_id': db_token.patient_id, 'db_token': db_token}}
+        except Exception as e:
+            print(f"⚠️ DB token validation error: {e}")
+    
+    # Fallback to in-memory check
     if token not in followup_tokens:
         return {'valid': False, 'error': 'Invalid token'}
     
@@ -46,6 +110,12 @@ def validate_followup_token(patient_id: str, token: str) -> dict:
 
 def init_followup_routes(app, db, Patient):
     """Initialize follow-up routes with app context"""
+    global _db, _FollowupToken
+    
+    # Import and store references for token storage
+    from models import FollowupToken
+    _db = db
+    _FollowupToken = FollowupToken
     
     from pv_backend.services.followup_agent import FollowupAgent
     
@@ -222,8 +292,12 @@ def init_followup_routes(app, db, Patient):
         result = agent.process_followup_response(patient, data)
         
         if result['success']:
-            # Mark token as used
-            followup_tokens[token]['used'] = True
+            # Mark token as used (database or memory)
+            if 'db_token' in validation.get('token_data', {}):
+                validation['token_data']['db_token'].used = True
+                _db.session.commit()
+            elif token in followup_tokens:
+                followup_tokens[token]['used'] = True
             
             # Mark email as responded in tracking (so WhatsApp knows)
             from models import AgentFollowupTracking
@@ -299,40 +373,114 @@ def init_followup_routes(app, db, Patient):
         Twilio WhatsApp webhook - receives incoming messages from patients.
         Configure this URL in Twilio Console: Messaging > WhatsApp sandbox > Webhook URL
         """
-        from pv_backend.services.whatsapp_chatbot import WhatsAppChatbot
+        from pv_backend.services.whatsapp_chatbot import WhatsAppChatbot, ToneManager
+        from pv_backend.services.llm_service import PrivacySafeLLMService
         from models import AgentFollowupTracking
         
         # Get message details from Twilio
         from_number = request.values.get('From', '').replace('whatsapp:', '')
         body = request.values.get('Body', '').strip()
+        phone_digits = from_number[-10:] if len(from_number) >= 10 else from_number
+        
+        print(f"[WHATSAPP] Webhook received - From: {from_number}, Body: {body}")
         
         if not from_number or not body:
             return 'OK', 200
         
-        # Find patient by phone number
-        patient = Patient.query.filter(
-            Patient.phone.like(f'%{from_number[-10:]}%')  # Match last 10 digits
-        ).first()
+        chatbot = WhatsAppChatbot()
         
+        # PRIORITY: Find patient that has an ACTIVE tracking for this phone
+        # This handles the case where multiple patients share the same phone number
+        tracking = AgentFollowupTracking.query.join(Patient).filter(
+            Patient.phone.like(f'%{phone_digits}%'),
+            AgentFollowupTracking.status == 'active'
+        ).order_by(AgentFollowupTracking.created_at.desc()).first()
+        
+        if tracking:
+            patient = Patient.query.get(tracking.patient_id)
+            print(f"[OK] Found active tracking #{tracking.id} for patient {patient.id} (State: {tracking.chatbot_state})")
+        else:
+            # No active tracking - find any patient with this phone for voluntary message handling
+            patient = Patient.query.filter(
+                Patient.phone.like(f'%{phone_digits}%')
+            ).first()
+            print(f"[INFO] No active tracking - using patient {patient.id if patient else 'NOT FOUND'}")
+        
+        # No patient found at all
         if not patient:
+            print(f"[ERROR] No patient found for phone {phone_digits}")
             return 'OK', 200
-        
-        # Find or create tracking
-        tracking = AgentFollowupTracking.query.filter_by(
-            patient_id=patient.id,
-            status='active'
-        ).first()
         
         if not tracking:
+            # Patient exists but no active tracking - handle voluntary message
+            # Use LLM to extract data from the message
+            llm = PrivacySafeLLMService()
+            extraction_result = llm.extract_from_voluntary_message(body, patient)
+            
+            # Save extracted data to patient
+            for data_item in extraction_result.get('extracted_data', []):
+                column = data_item.get('column')
+                value = data_item.get('value')
+                
+                if column and value and hasattr(patient, column):
+                    if column == 'symptoms':
+                        existing = patient.symptoms or ''
+                        patient.symptoms = f"{existing}\n[Voluntary Message]: {value}"
+                    else:
+                        setattr(patient, column, value)
+            
+            db.session.commit()
+            
+            patient_status = extraction_result.get('patient_status', 'unclear')
+            should_start_followup = extraction_result.get('should_start_followup', False)
+            
+            # Determine response based on patient status
+            if patient_status == 'recovered':
+                # Patient is fine - just thank them
+                if not patient.symptom_resolution_date:
+                    from datetime import date
+                    patient.symptom_resolution_date = date.today()
+                db.session.commit()
+                
+                response_msg = ToneManager.get_message('voluntary_recovered_saved', 'English')
+                chatbot.send_message(patient.phone, response_msg)
+                
+            elif patient_status == 'suffering' and should_start_followup:
+                # Patient is suffering - create tracking and start follow-up cycle
+                from pv_backend.services.followup_agent import PVAgentOrchestrator
+                
+                try:
+                    orchestrator = PVAgentOrchestrator()
+                    result = orchestrator.start_tracking(patient)
+                    
+                    if result.get('success'):
+                        patient.followup_sent_date = datetime.utcnow()
+                        patient.followup_pending = True
+                        patient.follow_up_sent = True
+                        db.session.commit()
+                        
+                        response_msg = ToneManager.get_message('voluntary_suffering_saved', 'English')
+                        chatbot.send_message(patient.phone, response_msg)
+                except Exception as e:
+                    print(f"❌ Failed to start follow-up from voluntary message: {e}")
+                    response_msg = ToneManager.get_message('self_report_received', 'English', symptom=body[:50])
+                    chatbot.send_message(patient.phone, response_msg)
+            else:
+                # Just thank them for the info
+                response_msg = ToneManager.get_message('self_report_received', 'English', symptom=body[:50])
+                chatbot.send_message(patient.phone, response_msg)
+            
             return 'OK', 200
         
-        # Process message
-        chatbot = WhatsAppChatbot()
+        # Process message with existing tracking
+        print(f"[PROCESS] Processing message with tracking #{tracking.id}, state={tracking.chatbot_state}")
         result = chatbot.process_incoming_message(tracking, patient, body)
+        print(f"[RESPONSE] Response action: {result.get('action')}, message preview: {result.get('response_message', '')[:100]}...")
         
         # Send response
         if result.get('response_message'):
-            chatbot.send_message(patient.phone, result['response_message'])
+            send_result = chatbot.send_message(patient.phone, result['response_message'])
+            print(f"[SENT] Sent message to {patient.phone}: {send_result}")
         
         return 'OK', 200
     

@@ -537,11 +537,16 @@ We're reaching out regarding your report about *{patient.drug_name}*. We'd like 
 
 1️⃣ English
 2️⃣ Hindi
-3️⃣ Tamil
+3️⃣ Bengali
 4️⃣ Telugu
-5️⃣ Bengali
+5️⃣ Marathi
+6️⃣ Tamil
+7️⃣ Gujarati
+8️⃣ Kannada
+9️⃣ Malayalam
+🔟 Punjabi
 
-_Reply with the number or language name._
+_Reply with the number (1-10) or language name._
 
 🔒 Your responses are confidential and help us ensure your safety."""
             
@@ -1018,12 +1023,17 @@ class PVAgentOrchestrator:
     
     def _send_day_messages(self, patient, tracking, day: int) -> dict:
         """Send messages for a specific day (Gmail first, then Conversational WhatsApp)."""
-        from models import db
+        from models import db, FollowupToken
+        from pv_backend.routes.followup_routes import store_followup_token
         
         results = {'email': None, 'whatsapp': None}
         
         # Generate token for email link
         token = self.followup_agent.generate_followup_token(patient.id)
+        
+        # IMPORTANT: Store the token in the database so form validation works
+        store_followup_token(patient.id, token, expires_in_days=7)
+        print(f"✅ Stored follow-up token for patient {patient.id}")
         
         # Try email first (with form link)
         if patient.email:

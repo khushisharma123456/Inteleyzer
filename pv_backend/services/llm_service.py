@@ -102,7 +102,14 @@ For symptom details, summarize the key information.
         if GENAI_AVAILABLE and self.api_key:
             try:
                 genai.configure(api_key=self.api_key)
-                self.model = genai.GenerativeModel('gemini-1.5-flash')
+                # Try different model names - gemini-1.5-flash or gemini-pro
+                try:
+                    self.model = genai.GenerativeModel('gemini-1.5-flash')
+                except:
+                    try:
+                        self.model = genai.GenerativeModel('gemini-pro')
+                    except:
+                        self.model = genai.GenerativeModel('gemini-1.0-pro')
                 print("✅ LLM Service initialized with Gemini API")
             except Exception as e:
                 print(f"⚠️ LLM Service init error: {e}")
@@ -279,6 +286,163 @@ For symptom details, summarize the key information.
             'column': column,
             'confidence': 'low',
             'reason': 'Fallback validation (LLM not configured)'
+        }
+
+    # Prompt for extracting data from voluntary/unsolicited messages
+    VOLUNTARY_MESSAGE_PROMPT = """
+You are a Pharmacovigilance data extraction assistant.
+
+A patient has sent a voluntary message (not in response to a question).
+Analyze the message and extract any useful health/medical data.
+
+PATIENT MESSAGE: {message}
+
+CURRENT PATIENT CONTEXT:
+- Drug: {drug_name}
+- Previous Symptoms: {symptoms}
+
+AVAILABLE DATABASE COLUMNS:
+- symptoms (text: description of symptoms, side effects)
+- symptom_onset_date (date: when symptoms started, format YYYY-MM-DD)
+- symptom_resolution_date (date: when symptoms ended, format YYYY-MM-DD)
+- doctor_confirmed (boolean: whether patient consulted a doctor)
+- hospital_confirmed (boolean: whether patient visited hospital)
+- risk_level (enum: Low/Medium/High/Critical)
+
+TASK:
+1. Extract ALL relevant medical data from the message
+2. Determine if patient is currently suffering or has recovered
+3. Map data to appropriate columns
+
+OUTPUT FORMAT (JSON only, no markdown):
+{{
+  "patient_status": "suffering" or "recovered" or "unclear",
+  "is_health_related": true/false,
+  "extracted_data": [
+    {{"column": "symptoms", "value": "headache and nausea", "confidence": "high"}},
+    {{"column": "risk_level", "value": "Medium", "confidence": "medium"}}
+  ],
+  "should_start_followup": true/false,
+  "summary": "Brief summary of what patient reported"
+}}
+
+RULES:
+- If patient says they are "fine", "okay", "recovered", "better now" → patient_status = "recovered", should_start_followup = false
+- If patient describes ongoing symptoms → patient_status = "suffering", should_start_followup = true
+- Extract dates in YYYY-MM-DD format when possible
+- For unclear messages, set is_health_related = false
+"""
+
+    def extract_from_voluntary_message(self, message: str, patient) -> Dict[str, Any]:
+        """
+        Extract data from a voluntary/unsolicited patient message using LLM.
+        
+        Args:
+            message: The voluntary message from patient
+            patient: Patient model object for context
+            
+        Returns:
+            Dict with extracted_data, patient_status, should_start_followup
+        """
+        if not self.is_configured():
+            return self._fallback_voluntary_extraction(message, patient)
+        
+        try:
+            from .privacy_utils import PIIFilter
+            
+            prompt = self.VOLUNTARY_MESSAGE_PROMPT.format(
+                message=message,
+                drug_name=patient.drug_name if patient else 'Unknown',
+                symptoms=patient.symptoms if patient else 'None reported'
+            )
+            
+            response = self.model.generate_content(prompt)
+            result_text = response.text.strip()
+            
+            # Parse JSON
+            if result_text.startswith('```'):
+                result_text = result_text.split('```')[1]
+                if result_text.startswith('json'):
+                    result_text = result_text[4:]
+            
+            import json
+            result = json.loads(result_text)
+            return result
+            
+        except Exception as e:
+            print(f"⚠️ LLM voluntary extraction error: {e}")
+            return self._fallback_voluntary_extraction(message, patient)
+    
+    def _fallback_voluntary_extraction(self, message: str, patient) -> Dict[str, Any]:
+        """Fallback extraction when LLM is not available."""
+        message_lower = message.lower()
+        
+        # Check if patient is recovered
+        recovery_words = ['fine', 'okay', 'ok', 'better', 'recovered', 'cured', 'well now', 'no problem', 'good now']
+        is_recovered = any(word in message_lower for word in recovery_words)
+        
+        # Check if patient is suffering
+        suffering_words = ['pain', 'suffering', 'problem', 'issue', 'symptom', 'side effect', 'headache', 
+                          'nausea', 'vomit', 'dizziness', 'rash', 'fever', 'sick', 'worse', 'bad']
+        is_suffering = any(word in message_lower for word in suffering_words)
+        
+        # Determine status
+        if is_recovered and not is_suffering:
+            status = 'recovered'
+            should_followup = False
+        elif is_suffering:
+            status = 'suffering'
+            should_followup = True
+        else:
+            status = 'unclear'
+            should_followup = False
+        
+        # Basic data extraction
+        extracted_data = []
+        
+        # Always save the message as symptoms
+        if is_suffering or len(message) > 10:
+            extracted_data.append({
+                'column': 'symptoms',
+                'value': message,
+                'confidence': 'medium'
+            })
+        
+        # Check for severity indicators
+        if any(word in message_lower for word in ['severe', 'critical', 'emergency', 'hospital', 'icu']):
+            extracted_data.append({
+                'column': 'risk_level',
+                'value': 'Critical',
+                'confidence': 'high'
+            })
+        elif any(word in message_lower for word in ['bad', 'serious', 'worried']):
+            extracted_data.append({
+                'column': 'risk_level',
+                'value': 'High',
+                'confidence': 'medium'
+            })
+        
+        # Check for doctor/hospital mentions
+        if any(word in message_lower for word in ['doctor', 'physician', 'clinic', 'consulted dr']):
+            extracted_data.append({
+                'column': 'doctor_confirmed',
+                'value': True,
+                'confidence': 'medium'
+            })
+        
+        if any(word in message_lower for word in ['hospital', 'admitted', 'emergency room', 'er visit']):
+            extracted_data.append({
+                'column': 'hospital_confirmed',
+                'value': True,
+                'confidence': 'high'
+            })
+        
+        return {
+            'patient_status': status,
+            'is_health_related': is_suffering or is_recovered,
+            'extracted_data': extracted_data,
+            'should_start_followup': should_followup,
+            'summary': f"Patient message: {message[:100]}..."
         }
 
 

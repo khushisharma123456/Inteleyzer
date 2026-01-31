@@ -5,6 +5,10 @@ Supports: Pharmaceutical Companies, Doctors, and Local Pharmacies
 Run on: http://127.0.0.1:5000
 """
 
+# Load environment variables FIRST before any other imports
+from dotenv import load_dotenv
+load_dotenv(override=True)
+
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from flask_cors import CORS
 from models import db, User, Patient, Drug, Alert, CaseAgent, FollowUp, SideEffectReport, AgentFollowupTracking, hospital_doctor, hospital_drug, hospital_pharmacy, doctor_patient
@@ -64,7 +68,7 @@ def auto_send_followup(patient):
             patient.follow_up_sent = True
             db.session.commit()
             
-            print(f"✅ PV Agent started for patient {patient.id} - Day 1 of 1/3/5/7 cycle")
+            print(f"[OK] PV Agent started for patient {patient.id} - Day 1 of 1/3/5/7 cycle")
             
             return {
                 'success': True,
@@ -85,7 +89,7 @@ def auto_send_followup(patient):
             }
             
     except Exception as e:
-        print(f"❌ Exception in PV Agent: {str(e)}")
+        print(f"[ERROR] Exception in PV Agent: {str(e)}")
         # Fallback to basic follow-up
         try:
             agent = FollowupAgent()
@@ -745,6 +749,66 @@ def get_patient(patient_id):
             'followup_sent_date': patient.followup_sent_date.isoformat() if hasattr(patient, 'followup_sent_date') and patient.followup_sent_date else None
         }
     })
+
+
+@app.route('/api/patients/<patient_id>', methods=['PUT'])
+def update_patient(patient_id):
+    """Update a patient record"""
+    patient = Patient.query.get(patient_id)
+    if not patient:
+        return jsonify({'success': False, 'message': 'Patient not found'}), 404
+    
+    data = request.get_json()
+    
+    # Update fields if provided
+    if 'name' in data:
+        patient.name = data['name']
+    if 'phone' in data:
+        patient.phone = data['phone']
+    if 'email' in data:
+        patient.email = data['email']
+    if 'age' in data:
+        patient.age = data['age']
+    if 'gender' in data:
+        patient.gender = data['gender']
+    if 'drug_name' in data:
+        patient.drug_name = data['drug_name']
+    if 'symptoms' in data:
+        patient.symptoms = data['symptoms']
+    if 'risk_level' in data:
+        patient.risk_level = data['risk_level']
+    if 'side_effect' in data:
+        patient.side_effect = data['side_effect']
+    
+    try:
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Patient updated successfully'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/patients/<patient_id>', methods=['DELETE'])
+def delete_patient(patient_id):
+    """Delete a patient record"""
+    from models import FollowupToken
+    
+    patient = Patient.query.get(patient_id)
+    if not patient:
+        return jsonify({'success': False, 'message': 'Patient not found'}), 404
+    
+    try:
+        # Delete related records first
+        AgentFollowupTracking.query.filter_by(patient_id=patient_id).delete()
+        FollowupToken.query.filter_by(patient_id=patient_id).delete()
+        
+        db.session.delete(patient)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Patient deleted successfully'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 
 # Stats APIs
 @app.route('/api/stats')
@@ -2481,51 +2545,170 @@ def save_doctor_notification_settings():
 
 @app.route('/api/hospital/patients', methods=['GET'])
 def get_hospital_patients():
-    """Get all patients linked to this hospital's doctors"""
+    """Get all patients linked to this hospital's doctors OR created by this hospital"""
     if 'user_id' not in session or session.get('role') != 'hospital':
         return jsonify({'success': False, 'message': 'Not authorized'}), 403
     
     try:
         hospital_id = session['user_id']
+        patients_data = []
+        seen_patient_ids = set()
         
-        # Get all doctor IDs associated with this hospital using the association table
+        # First, get patients created directly by this hospital
+        hospital_created_patients = Patient.query.filter_by(created_by=hospital_id).all()
+        for patient in hospital_created_patients:
+            if patient.id not in seen_patient_ids:
+                seen_patient_ids.add(patient.id)
+                patients_data.append({
+                    'id': patient.id,
+                    'name': patient.name,
+                    'phone': patient.phone,
+                    'email': patient.email,
+                    'age': patient.age,
+                    'gender': patient.gender,
+                    'drugName': patient.drug_name,
+                    'symptoms': patient.symptoms,
+                    'riskLevel': patient.risk_level,
+                    'created_at': patient.created_at.isoformat() if patient.created_at else None
+                })
+        
+        # Also get patients from doctors linked to this hospital
         doctor_ids = db.session.query(hospital_doctor.c.doctor_id).filter(
             hospital_doctor.c.hospital_id == hospital_id
         ).all()
         doctor_ids = [d[0] for d in doctor_ids]
         
-        if not doctor_ids:
-            return jsonify({'success': True, 'patients': []})
-        
-        # Get all patients from these doctors
-        patients_data = []
-        seen_patient_ids = set()
-        
-        for doctor_id in doctor_ids:
-            # Get patients for each doctor
-            doctor_patients = db.session.query(Patient).join(
-                doctor_patient, Patient.id == doctor_patient.c.patient_id
-            ).filter(doctor_patient.c.doctor_id == doctor_id).all()
-            
-            for patient in doctor_patients:
-                if patient.id not in seen_patient_ids:
-                    seen_patient_ids.add(patient.id)
-                    patients_data.append({
-                        'id': patient.id,
-                        'name': patient.name,
-                        'phone': patient.phone,
-                        'email': patient.email,
-                        'age': patient.age,
-                        'gender': patient.gender,
-                        'drugName': patient.drug_name,
-                        'symptoms': patient.symptoms,
-                        'riskLevel': patient.risk_level,
-                        'created_at': patient.created_at.isoformat() if patient.created_at else None
-                    })
+        if doctor_ids:
+            for doctor_id in doctor_ids:
+                doctor_patients = db.session.query(Patient).join(
+                    doctor_patient, Patient.id == doctor_patient.c.patient_id
+                ).filter(doctor_patient.c.doctor_id == doctor_id).all()
+                
+                for patient in doctor_patients:
+                    if patient.id not in seen_patient_ids:
+                        seen_patient_ids.add(patient.id)
+                        patients_data.append({
+                            'id': patient.id,
+                            'name': patient.name,
+                            'phone': patient.phone,
+                            'email': patient.email,
+                            'age': patient.age,
+                            'gender': patient.gender,
+                            'drugName': patient.drug_name,
+                            'symptoms': patient.symptoms,
+                            'riskLevel': patient.risk_level,
+                            'created_at': patient.created_at.isoformat() if patient.created_at else None
+                        })
         
         return jsonify({'success': True, 'patients': patients_data})
     except Exception as e:
         print(f"Error fetching hospital patients: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/hospital/patients', methods=['POST'])
+def create_hospital_patient():
+    """Create a new patient from hospital dashboard"""
+    if 'user_id' not in session or session.get('role') != 'hospital':
+        return jsonify({'success': False, 'message': 'Not authorized'}), 403
+    
+    try:
+        data = request.get_json()
+        mode = data.get('mode', 'identity')
+        
+        # Generate unique patient ID
+        patient_id = data.get('patientId') or f"PT-{random.randint(10000, 99999)}"
+        while Patient.query.get(patient_id):
+            patient_id = f"PT-{random.randint(10000, 99999)}"
+        
+        # Extract patient data based on mode
+        if mode == 'identity':
+            name = data.get('name', 'Unknown')
+            phone = data.get('phone')
+            email = data.get('email')
+            address = data.get('address', '')
+            state = data.get('state', '')
+            district = data.get('district', '')
+            age = int(data.get('age', 0))
+            gender = data.get('gender', 'Unknown')
+            drug_name = data.get('drugName', 'Not Specified')
+            symptoms = data.get('symptoms', data.get('adverseEvent', ''))
+            risk_level = data.get('riskLevel', 'Low')
+        else:  # anonymized mode
+            name = 'Anonymized Patient'
+            phone = None
+            email = None
+            address = ''
+            state = ''
+            district = ''
+            age = int(data.get('age', 35))
+            gender = data.get('gender', 'Unknown')
+            drug_name = data.get('drugName', 'Not Specified')
+            symptoms = data.get('symptoms', data.get('adverseEvent', ''))
+            risk_level = data.get('riskLevel', 'Low')
+        
+        # Create the patient
+        patient = Patient(
+            id=patient_id,
+            name=name,
+            phone=phone,
+            email=email,
+            age=age,
+            gender=gender,
+            drug_name=drug_name,
+            symptoms=symptoms,
+            risk_level=risk_level,
+            created_by=session['user_id'],
+            created_at=datetime.utcnow()
+        )
+        
+        db.session.add(patient)
+        
+        # Link patient to a hospital doctor if available
+        hospital_id = session['user_id']
+        doctor_ids = db.session.query(hospital_doctor.c.doctor_id).filter(
+            hospital_doctor.c.hospital_id == hospital_id
+        ).first()
+        
+        if doctor_ids:
+            doctor = User.query.get(doctor_ids[0])
+            if doctor:
+                patient.doctors.append(doctor)
+        
+        db.session.commit()
+        
+        # Auto-start PV Agent follow-up cycle if patient has phone or email
+        followup_result = None
+        if patient.phone or patient.email:
+            followup_result = auto_send_followup(patient)
+            print(f"📱 PV Agent result for hospital patient {patient.id}: {followup_result}")
+        
+        response_data = {
+            'success': True,
+            'message': 'Patient created successfully',
+            'patient': {
+                'id': patient.id,
+                'name': patient.name,
+                'phone': patient.phone,
+                'age': patient.age,
+                'gender': patient.gender,
+                'drugName': patient.drug_name,
+                'symptoms': patient.symptoms,
+                'riskLevel': patient.risk_level,
+                'created_at': patient.created_at.isoformat()
+            }
+        }
+        
+        # Include follow-up result if sent
+        if followup_result:
+            response_data['followup'] = followup_result
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error creating hospital patient: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -2951,11 +3134,11 @@ def report_side_effect():
                                 case_scoring_result['followup_whatsapp_to'] = created_patient.phone
                                 case_scoring_result['followup_whatsapp_sid'] = whatsapp_result.get('message_sid')
                                 case_scoring_result['followup_whatsapp_conversational'] = True
-                                print(f"✅ Conversational WhatsApp started with {created_patient.phone} - SID: {whatsapp_result.get('message_sid')}")
+                                print(f"[OK] Conversational WhatsApp started with {created_patient.phone} - SID: {whatsapp_result.get('message_sid')}")
                             else:
                                 case_scoring_result['followup_whatsapp_sent'] = False
                                 case_scoring_result['followup_whatsapp_error'] = whatsapp_result.get('error')
-                                print(f"❌ WhatsApp failed for {created_patient.phone}: {whatsapp_result.get('error')}")
+                                print(f"[ERROR] WhatsApp failed for {created_patient.phone}: {whatsapp_result.get('error')}")
                         
                         # Update patient record if any channel succeeded
                         if channels_sent > 0:
@@ -3053,7 +3236,7 @@ def migrate_database():
                 else:
                     sql = f'ALTER TABLE alert ADD COLUMN {col_name} {col_type}'
                 cursor.execute(sql)
-                print(f'✓ Migration: Added {col_name} to alert table')
+                print(f'[OK] Migration: Added {col_name} to alert table')
             except Exception as e:
                 pass  # Column might already exist
     
@@ -3079,7 +3262,7 @@ def migrate_database():
                 else:
                     sql = f'ALTER TABLE patient ADD COLUMN {col_name} {col_type}'
                 cursor.execute(sql)
-                print(f'✓ Migration: Added {col_name} to patient table')
+                print(f'[OK] Migration: Added {col_name} to patient table')
             except Exception as e:
                 pass  # Column might already exist
     
@@ -3121,4 +3304,4 @@ init_followup_routes(app, db, Patient)
 # ========================================================================
 
 if __name__ == '__main__':
-    app.run(debug=True, host='127.0.0.1', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5000, use_reloader=False)

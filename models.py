@@ -405,3 +405,15 @@ class AgentFollowupTracking(db.Model):
     
     patient = db.relationship('Patient', backref=db.backref('agent_tracking', lazy=True))
 
+
+class FollowupToken(db.Model):
+    """Store follow-up tokens in database to persist across server restarts"""
+    id = db.Column(db.Integer, primary_key=True)
+    token = db.Column(db.String(100), unique=True, nullable=False, index=True)
+    patient_id = db.Column(db.String(20), db.ForeignKey('patient.id'), nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    used = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    patient = db.relationship('Patient', backref=db.backref('followup_tokens', lazy=True))
+

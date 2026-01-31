@@ -253,6 +253,7 @@
                                     <th>Symptoms</th>
                                     <th>Risk Level</th>
                                     <th>Created</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="identity-patients-tbody">
@@ -360,15 +361,61 @@
         </main>
     </div>
 
+    <!-- View Patient Modal -->
+    <div id="viewPatientModal" class="modal patient-detail-modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('viewPatientModal')">&times;</span>
+            <h2><i class="fas fa-user"></i> Patient Details</h2>
+            <div id="patientDetailsContent" class="detail-grid">
+                <!-- Patient details will be loaded here -->
+            </div>
+            <div style="margin-top: 20px; text-align: right;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('viewPatientModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Patient Modal -->
+    <div id="editPatientModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('editPatientModal')">&times;</span>
+            <h2><i class="fas fa-edit"></i> Edit Patient</h2>
+            <form id="editPatientForm">
+                <input type="hidden" id="editPatientId">
+                <div id="editFormFields" class="form-fields-container"></div>
+                <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('editPatientModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteConfirmModal" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <span class="close" onclick="closeModal('deleteConfirmModal')">&times;</span>
+            <h2 style="color: #e74c3c;"><i class="fas fa-exclamation-triangle"></i> Confirm Delete</h2>
+            <p style="margin: 20px 0;">Are you sure you want to delete this patient record? This action cannot be undone.</p>
+            <input type="hidden" id="deletePatientId">
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('deleteConfirmModal')">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="confirmDeletePatient()" style="background-color: #e74c3c; color: white;">Delete</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Add Manually Modal -->
     <div id="addManuallyModal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeModal('addManuallyModal')">&times;</span>
             <h2>Add Patient Record</h2>
             <form id="addManuallyForm">
-                <div id="formFields"></div>
-                <button type="submit" class="btn btn-primary">Add Record</button>
-                <button type="button" class="btn btn-cancel" onclick="closeModal('addManuallyModal')">Cancel</button>
+                <div id="formFields" class="form-fields-container"></div>
+                <div class="modal-buttons">
+                    <button type="submit" class="btn btn-primary">Add Record</button>
+                    <button type="button" class="btn btn-cancel" onclick="closeModal('addManuallyModal')">Cancel</button>
+                </div>
             </form>
         </div>
     </div>
@@ -401,9 +448,11 @@
             <span class="close" onclick="closeModal('editRowModal')">&times;</span>
             <h2>Edit Patient Record</h2>
             <form id="editRowForm">
-                <div id="editFormFields"></div>
-                <button type="submit" class="btn btn-primary">Update</button>
-                <button type="button" class="btn btn-cancel" onclick="closeModal('editRowModal')">Cancel</button>
+                <div id="editFormFields" class="form-fields-container"></div>
+                <div class="modal-buttons">
+                    <button type="submit" class="btn btn-primary">Update</button>
+                    <button type="button" class="btn btn-cancel" onclick="closeModal('editRowModal')">Cancel</button>
+                </div>
             </form>
         </div>
     </div>
@@ -585,6 +634,70 @@
             background-color: var(--primary);
         }
 
+        /* Action Buttons - Icon Style */
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .btn-view {
+            background-color: #3498db;
+            color: white;
+        }
+
+        .btn-view:hover {
+            background-color: #2980b9;
+        }
+
+        .btn-edit {
+            background-color: #f39c12;
+            color: white;
+        }
+
+        .btn-edit:hover {
+            background-color: #e67e22;
+        }
+
+        .btn-delete {
+            background-color: #e74c3c;
+            color: white;
+        }
+
+        .btn-delete:hover {
+            background-color: #c0392b;
+        }
+
+        .btn-action i {
+            font-size: 12px;
+        }
+
+        /* View Patient Modal */
+        .patient-detail-modal .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .patient-detail-modal .detail-item {
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .patient-detail-modal .detail-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .patient-detail-modal .detail-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        }
+
         /* Modal Styles */
         .modal {
             display: none;
@@ -596,6 +709,8 @@
             height: 100%;
             background-color: rgba(0, 0, 0, 0.5);
             animation: fadeIn 0.3s ease;
+            overflow-y: auto;
+            padding: 20px 0;
         }
 
         @keyframes fadeIn {
@@ -605,13 +720,77 @@
 
         .modal-content {
             background-color: white;
-            margin: 5% auto;
+            margin: 20px auto;
             padding: 30px;
             border-radius: 12px;
             width: 90%;
             max-width: 600px;
+            max-height: calc(100vh - 60px);
+            overflow-y: auto;
             box-shadow: var(--shadow-md);
             animation: slideIn 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .modal-content form {
+            overflow-y: auto;
+            flex: 1;
+            padding-right: 10px;
+        }
+        
+        .modal-content form::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .modal-content form::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+        
+        .modal-content form::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
+        }
+        
+        .modal-content form::-webkit-scrollbar-thumb:hover {
+            background: #a1a1a1;
+        }
+        
+        .form-fields-container {
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .form-fields-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .form-fields-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+        
+        .form-fields-container::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
+        }
+        
+        .form-fields-container::-webkit-scrollbar-thumb:hover {
+            background: #a1a1a1;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            padding-top: 15px;
+            border-top: 1px solid #e2e8f0;
+            background: white;
+            position: sticky;
+            bottom: 0;
         }
 
         @keyframes slideIn {
@@ -753,14 +932,15 @@
     <script>
         // Define column structures for each table type
         const columnStructures = {
-            identity: ['Name', 'Phone Number', 'Address', 'State', 'District', 'Patient ID', 'Age', 'Gender', 'Drug Name', 'Adverse Event', 'Outcome'],
+            identity: ['Name', 'Phone Number', 'Email', 'Address', 'State', 'District', 'Patient ID', 'Age', 'Gender', 'Drug Name', 'Adverse Event', 'Outcome'],
             anonymous: ['Patient ID', 'Age', 'Gender', 'Drug Name', 'Adverse Event', 'Outcome']
         };
 
         const columnPlaceholders = {
             identity: {
                 'Name': 'e.g., Rajesh Kumar',
-                'Phone Number': 'e.g., 9876543210',
+                'Phone Number': 'e.g., +919876543210 (with country code)',
+                'Email': 'e.g., patient@email.com',
                 'Address': 'e.g., 123 Main Street',
                 'State': 'e.g., Maharashtra',
                 'District': 'e.g., Mumbai',
@@ -828,32 +1008,69 @@
             document.getElementById('uploadModal').style.display = 'block';
         }
 
-        // Add Record Manually
-        function addRecordManually(tableType) {
+        // Add Record Manually - saves to database
+        async function addRecordManually(tableType) {
             const columns = columnStructures[tableType];
-            const tableId = tableType === 'identity' ? 'identity-table' : 'anonymous-table';
-            const table = document.getElementById(tableId);
-            const tbody = table.querySelector('tbody');
-
-            const newRow = tbody.insertRow();
-            const rowData = [];
-
+            
+            // Build data object from form fields
+            const formData = {};
             columns.forEach(column => {
-                const value = document.getElementById(column).value;
-                rowData.push(value);
-                const cell = newRow.insertCell();
-                cell.textContent = value;
+                formData[column] = document.getElementById(column).value;
             });
-
-            // Add Actions cell
-            const actionsCell = newRow.insertCell();
-            actionsCell.innerHTML = `
-                <button class="btn-action view-btn" onclick="viewPatient(this, '${tableType}')">View</button>
-                <button class="btn-action change-btn" onclick="changeOutcome(this, '${tableType}')">Change</button>
-            `;
-
-            closeModal('addManuallyModal');
-            showSuccessMessage('Record added successfully!');
+            
+            // Format phone number with +91 if not already formatted
+            let phone = formData['Phone Number'] || '';
+            if (phone && !phone.startsWith('+')) {
+                // Remove any spaces or dashes
+                phone = phone.replace(/[\s-]/g, '');
+                // Add +91 country code if it's a 10-digit Indian number
+                if (phone.length === 10 && /^\d+$/.test(phone)) {
+                    phone = '+91' + phone;
+                }
+            }
+            
+            // Map column names to API expected names
+            const patientData = {
+                mode: tableType,
+                name: formData['Name'] || 'Unknown',
+                phone: phone,
+                email: formData['Email'] || '',
+                address: formData['Address'] || '',
+                state: formData['State'] || '',
+                district: formData['District'] || '',
+                patientId: formData['Patient ID'],
+                age: formData['Age'] || 0,
+                gender: formData['Gender'] || 'Unknown',
+                drugName: formData['Drug Name'] || 'Not Specified',
+                symptoms: formData['Adverse Event'] || '',
+                riskLevel: 'Low'
+            };
+            
+            try {
+                const response = await fetch('/api/hospital/patients', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(patientData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    closeModal('addManuallyModal');
+                    showSuccessMessage('Patient record saved successfully!');
+                    // Reload the page to show the new patient
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    showErrorMessage(result.message || 'Failed to save patient record');
+                }
+            } catch (error) {
+                console.error('Error saving patient:', error);
+                showErrorMessage('Error saving patient record: ' + error.message);
+            }
         }
 
         // Upload Excel File
@@ -1015,6 +1232,203 @@
             document.getElementById(modalId).style.display = 'none';
         }
 
+        // ===== VIEW, EDIT, DELETE FUNCTIONS =====
+        
+        // View Patient Details
+        function viewPatientDetails(patientId) {
+            fetch(`/api/patients/${patientId}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        const p = data.patient;
+                        document.getElementById('patientDetailsContent').innerHTML = `
+                            <div class="detail-item">
+                                <div class="detail-label">Patient ID</div>
+                                <div class="detail-value">${p.id}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Name</div>
+                                <div class="detail-value">${p.name || 'N/A'}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Phone</div>
+                                <div class="detail-value">${p.phone || 'N/A'}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Email</div>
+                                <div class="detail-value">${p.email || 'N/A'}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Age</div>
+                                <div class="detail-value">${p.age || 'N/A'}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Gender</div>
+                                <div class="detail-value">${p.gender || 'N/A'}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Drug Name</div>
+                                <div class="detail-value">${p.drug_name || 'N/A'}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Symptoms</div>
+                                <div class="detail-value">${p.symptoms || 'N/A'}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Risk Level</div>
+                                <div class="detail-value"><span class="badge badge-${(p.risk_level || 'low').toLowerCase()}">${p.risk_level || 'Low'}</span></div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Created At</div>
+                                <div class="detail-value">${p.created_at ? new Date(p.created_at).toLocaleString() : 'N/A'}</div>
+                            </div>
+                            <div class="detail-item" style="grid-column: span 2;">
+                                <div class="detail-label">Side Effect</div>
+                                <div class="detail-value">${p.side_effect || 'N/A'}</div>
+                            </div>
+                        `;
+                        document.getElementById('viewPatientModal').style.display = 'block';
+                    } else {
+                        alert('Error loading patient: ' + (data.message || 'Unknown error'));
+                    }
+                })
+                .catch(err => {
+                    console.error('Error:', err);
+                    alert('Error loading patient details');
+                });
+        }
+
+        // Edit Patient
+        function editPatient(patientId) {
+            fetch(`/api/patients/${patientId}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        const p = data.patient;
+                        document.getElementById('editPatientId').value = patientId;
+                        document.getElementById('editFormFields').innerHTML = `
+                            <div class="form-group">
+                                <label>Name:</label>
+                                <input type="text" id="edit_name" value="${p.name || ''}" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Phone:</label>
+                                <input type="text" id="edit_phone" value="${p.phone || ''}">
+                            </div>
+                            <div class="form-group">
+                                <label>Email:</label>
+                                <input type="email" id="edit_email" value="${p.email || ''}">
+                            </div>
+                            <div class="form-group">
+                                <label>Age:</label>
+                                <input type="number" id="edit_age" value="${p.age || ''}">
+                            </div>
+                            <div class="form-group">
+                                <label>Gender:</label>
+                                <select id="edit_gender">
+                                    <option value="Male" ${p.gender === 'Male' ? 'selected' : ''}>Male</option>
+                                    <option value="Female" ${p.gender === 'Female' ? 'selected' : ''}>Female</option>
+                                    <option value="Other" ${p.gender === 'Other' ? 'selected' : ''}>Other</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Drug Name:</label>
+                                <input type="text" id="edit_drug_name" value="${p.drug_name || ''}">
+                            </div>
+                            <div class="form-group">
+                                <label>Symptoms:</label>
+                                <textarea id="edit_symptoms" rows="3">${p.symptoms || ''}</textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Risk Level:</label>
+                                <select id="edit_risk_level">
+                                    <option value="Low" ${p.risk_level === 'Low' ? 'selected' : ''}>Low</option>
+                                    <option value="Medium" ${p.risk_level === 'Medium' ? 'selected' : ''}>Medium</option>
+                                    <option value="High" ${p.risk_level === 'High' ? 'selected' : ''}>High</option>
+                                    <option value="Critical" ${p.risk_level === 'Critical' ? 'selected' : ''}>Critical</option>
+                                </select>
+                            </div>
+                        `;
+                        document.getElementById('editPatientModal').style.display = 'block';
+                    } else {
+                        alert('Error loading patient: ' + (data.message || 'Unknown error'));
+                    }
+                })
+                .catch(err => {
+                    console.error('Error:', err);
+                    alert('Error loading patient details');
+                });
+        }
+
+        // Handle Edit Form Submit
+        document.getElementById('editPatientForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const patientId = document.getElementById('editPatientId').value;
+            
+            const updatedData = {
+                name: document.getElementById('edit_name').value,
+                phone: document.getElementById('edit_phone').value,
+                email: document.getElementById('edit_email').value,
+                age: parseInt(document.getElementById('edit_age').value) || null,
+                gender: document.getElementById('edit_gender').value,
+                drug_name: document.getElementById('edit_drug_name').value,
+                symptoms: document.getElementById('edit_symptoms').value,
+                risk_level: document.getElementById('edit_risk_level').value
+            };
+
+            fetch(`/api/patients/${patientId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updatedData)
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    closeModal('editPatientModal');
+                    showSuccessMessage('Patient updated successfully!');
+                    // Reload patient list
+                    location.reload();
+                } else {
+                    alert('Error updating patient: ' + (data.message || 'Unknown error'));
+                }
+            })
+            .catch(err => {
+                console.error('Error:', err);
+                alert('Error updating patient');
+            });
+        });
+
+        // Delete Patient - Show Confirmation
+        function deletePatient(patientId) {
+            document.getElementById('deletePatientId').value = patientId;
+            document.getElementById('deleteConfirmModal').style.display = 'block';
+        }
+
+        // Confirm Delete Patient
+        function confirmDeletePatient() {
+            const patientId = document.getElementById('deletePatientId').value;
+            
+            fetch(`/api/patients/${patientId}`, {
+                method: 'DELETE'
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    closeModal('deleteConfirmModal');
+                    showSuccessMessage('Patient deleted successfully!');
+                    // Remove row from table
+                    const row = document.querySelector(`tr[data-patient-id="${patientId}"]`);
+                    if (row) row.remove();
+                } else {
+                    alert('Error deleting patient: ' + (data.message || 'Unknown error'));
+                }
+            })
+            .catch(err => {
+                console.error('Error:', err);
+                alert('Error deleting patient');
+            });
+        }
+
         // Close modal when clicking outside
         window.onclick = function(event) {
             const modals = document.querySelectorAll('.modal');
@@ -1062,7 +1476,7 @@
                 const tbody = document.getElementById('identity-patients-tbody');
                 if (data.success && data.patients && data.patients.length > 0) {
                     tbody.innerHTML = data.patients.map(patient => `
-                        <tr>
+                        <tr data-patient-id="${patient.id}">
                             <td>${patient.name || 'N/A'}</td>
                             <td>${patient.phone || 'N/A'}</td>
                             <td>N/A</td>
@@ -1075,15 +1489,26 @@
                             <td>${patient.symptoms || 'N/A'}</td>
                             <td><span class="badge badge-${patient.riskLevel.toLowerCase()}">${patient.riskLevel}</span></td>
                             <td>${new Date(patient.created_at).toLocaleDateString()}</td>
+                            <td class="action-buttons">
+                                <button class="btn-action btn-view" onclick="viewPatientDetails('${patient.id}')" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="btn-action btn-edit" onclick="editPatient('${patient.id}')" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn-action btn-delete" onclick="deletePatient('${patient.id}')" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
                         </tr>
                     `).join('');
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="12" style="text-align: center; padding: 20px;">No patients found</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="13" style="text-align: center; padding: 20px;">No patients found</td></tr>';
                 }
             })
             .catch(err => {
                 console.error('Error loading patients:', err);
-                document.getElementById('identity-patients-tbody').innerHTML = '<tr><td colspan="12" style="text-align: center; padding: 20px; color: #E74C3C;">Error loading patients</td></tr>';
+                document.getElementById('identity-patients-tbody').innerHTML = '<tr><td colspan="13" style="text-align: center; padding: 20px; color: #E74C3C;">Error loading patients</td></tr>';
             });
     </script>
 </body>
