@@ -310,10 +310,10 @@ def init_followup_routes(app, db, Patient):
                 current_day = tracking.current_day
                 setattr(tracking, f'day{current_day}_email_responded', True)
                 setattr(tracking, f'day{current_day}_responses', data)
-                # Update chatbot state so WhatsApp knows form was filled
-                if tracking.chatbot_state == 'awaiting_language':
-                    tracking.chatbot_state = 'informed'
+                # NOTE: Don't change chatbot_state here - let WhatsApp handle the transition
+                # when patient selects language, they'll get the "form already filled" message
                 db.session.commit()
+                print(f"✅ Marked email_responded=True for tracking #{tracking.id}, Day {current_day}")
             
             # Update patient follow-up status
             patient.followup_pending = False
@@ -474,13 +474,25 @@ def init_followup_routes(app, db, Patient):
         
         # Process message with existing tracking
         print(f"[PROCESS] Processing message with tracking #{tracking.id}, state={tracking.chatbot_state}")
-        result = chatbot.process_incoming_message(tracking, patient, body)
-        print(f"[RESPONSE] Response action: {result.get('action')}, message preview: {result.get('response_message', '')[:100]}...")
+        try:
+            result = chatbot.process_incoming_message(tracking, patient, body)
+            print(f"[RESPONSE] Response action: {result.get('action')}, message preview: {result.get('response_message', '')[:100]}...")
+        except Exception as e:
+            print(f"❌ Error processing message: {e}")
+            import traceback
+            traceback.print_exc()
+            # Send a fallback message to keep the conversation going
+            fallback_msg = "Thank you for your message. We're processing your response. Please bear with us. 🙏"
+            chatbot.send_message(patient.phone, fallback_msg)
+            return 'OK', 200
         
         # Send response
         if result.get('response_message'):
-            send_result = chatbot.send_message(patient.phone, result['response_message'])
-            print(f"[SENT] Sent message to {patient.phone}: {send_result}")
+            try:
+                send_result = chatbot.send_message(patient.phone, result['response_message'])
+                print(f"[SENT] Sent message to {patient.phone}: {send_result}")
+            except Exception as send_error:
+                print(f"❌ Error sending message: {send_error}")
         
         return 'OK', 200
     

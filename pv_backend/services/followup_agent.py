@@ -805,8 +805,14 @@ class PVAgentOrchestrator:
     Workflow:
     1. On new patient: Create tracking record, run case scoring, get LLM questions
     2. Day 1, 3, 5, 7: Process previous responses, re-score, get new questions
-    3. Each day: Send Gmail first, if not responded send WhatsApp
+    3. Each day: Start conversational WhatsApp (ignoring email for now)
     4. If patient says "fine": Remove from tracking
+    
+    Question Flow per Day:
+    - Day 1: Predefined wellness/symptom questions + Gemini-generated questions based on case scoring
+    - Day 3: Predefined progression questions + Gemini-generated follow-up questions
+    - Day 5: Predefined clinical impact questions + Gemini-generated personalized questions
+    - Day 7: Predefined resolution questions + Gemini-generated final assessment questions
     """
     
     FOLLOWUP_DAYS = [1, 3, 5, 7]
@@ -818,30 +824,36 @@ class PVAgentOrchestrator:
     def start_tracking(self, patient) -> dict:
         """
         Start tracking a new patient for Day 1/3/5/7 follow-up cycle.
-        Called when a new patient is created.
+        Called when a new patient is created (database trigger).
+        
+        This triggers the WhatsApp conversation with Day 1 questions:
+        - Predefined Day 1 questions
+        - Gemini-generated personalized questions based on case scoring
         
         Returns:
             Dict with tracking info and initial questions
         """
         from models import db, AgentFollowupTracking
         from .case_scoring import evaluate_case, score_case
-        from .llm_service import get_combined_questions, PREDEFINED_QUESTIONS
+        from .llm_service import get_combined_questions, get_day_specific_questions
         
         try:
-            # 1. Run initial case scoring
+            # 1. Run initial case scoring (this will be used by Gemini for personalization)
             evaluate_case(patient)
             score_case(patient)
+            print(f"📊 Case scoring complete: Score={patient.case_score}, Strength={patient.strength_level}")
             
-            # 2. Get combined questions (predefined + LLM)
-            questions_result = get_combined_questions(patient)
+            # 2. Get Day 1 combined questions (predefined + LLM personalized)
+            questions_result = get_combined_questions(patient, previous_responses=None, current_day=1)
             
-            # 3. Create tracking record
+            # 3. Create tracking record with Day 1 questions
             tracking = AgentFollowupTracking(
                 patient_id=patient.id,
                 current_day=1,
-                next_followup_date=datetime.utcnow(),
-                predefined_questions=PREDEFINED_QUESTIONS,
+                next_followup_date=datetime.utcnow() + timedelta(days=2),  # Day 3 is 2 days from Day 1
+                predefined_questions=questions_result.get('predefined_questions', []),
                 llm_questions=questions_result.get('llm_questions', []),
+                unanswered_questions=questions_result.get('all_questions', []),
                 day1_case_score=patient.case_score
             )
             
@@ -849,29 +861,35 @@ class PVAgentOrchestrator:
             db.session.commit()
             
             print(f"✅ Started PV Agent tracking for patient {patient.id}")
+            print(f"📋 Day 1 Questions: {len(questions_result.get('predefined_questions', []))} predefined + {len(questions_result.get('llm_questions', []))} Gemini-generated")
             
-            # 4. Send Day 1 messages
+            # 4. Send Day 1 WhatsApp message (starting conversational flow)
             send_result = self._send_day_messages(patient, tracking, 1)
             
             return {
                 'success': True,
                 'tracking_id': tracking.id,
                 'current_day': 1,
-                'questions': questions_result.get('all_questions', []),
+                'predefined_questions': questions_result.get('predefined_questions', []),
+                'llm_questions': questions_result.get('llm_questions', []),
+                'all_questions': questions_result.get('all_questions', []),
+                'analysis': questions_result.get('analysis', ''),
                 'send_result': send_result
             }
             
         except Exception as e:
             print(f"❌ Error starting PV tracking: {e}")
+            import traceback
+            traceback.print_exc()
             return {'success': False, 'error': str(e)}
     
     def process_day_cycle(self, tracking_id: int) -> dict:
         """
         Process a scheduled day cycle (Day 3, 5, or 7).
         1. Process previous day's responses
-        2. Re-run case scoring
-        3. Ask LLM for new questions
-        4. Send messages
+        2. Re-run case scoring (used by Gemini for personalization)
+        3. Get new day-specific questions (predefined + Gemini personalized)
+        4. Send WhatsApp conversation
         
         Returns:
             Dict with cycle results
@@ -888,20 +906,15 @@ class PVAgentOrchestrator:
         if not patient:
             return {'success': False, 'error': 'Patient not found'}
         
-        # Get previous responses
+        # Get previous responses for Gemini context
         previous_responses = self._get_previous_responses(tracking)
         
-        # Re-run case scoring with new data
+        # Re-run case scoring (this updated score is sent to Gemini for personalization)
         evaluate_case(patient)
         score_case(patient)
+        print(f"📊 Updated case scoring: Score={patient.case_score}, Strength={patient.strength_level}")
         
-        # Get new LLM questions based on updated data
-        questions_result = get_combined_questions(patient, previous_responses)
-        
-        # Update tracking with new questions
-        tracking.llm_questions = questions_result.get('llm_questions', [])
-        
-        # Move to next day
+        # Move to next day first to get correct questions
         current_day = tracking.current_day
         next_day_idx = self.FOLLOWUP_DAYS.index(current_day) + 1
         
@@ -914,12 +927,24 @@ class PVAgentOrchestrator:
         next_day = self.FOLLOWUP_DAYS[next_day_idx]
         tracking.current_day = next_day
         
+        # Get day-specific questions (predefined + Gemini personalized based on case scoring)
+        questions_result = get_combined_questions(patient, previous_responses, current_day=next_day)
+        
+        # Update tracking with new day-specific questions
+        tracking.predefined_questions = questions_result.get('predefined_questions', [])
+        tracking.llm_questions = questions_result.get('llm_questions', [])
+        tracking.unanswered_questions = questions_result.get('all_questions', [])
+        tracking.current_question_index = 0
+        tracking.reminder_count = 0
+        
         # Update case score for this day
         setattr(tracking, f'day{next_day}_case_score', patient.case_score)
         
         db.session.commit()
         
-        # Send messages for this day
+        print(f"📋 Day {next_day} Questions: {len(questions_result.get('predefined_questions', []))} predefined + {len(questions_result.get('llm_questions', []))} Gemini-generated")
+        
+        # Send WhatsApp for this day
         send_result = self._send_day_messages(patient, tracking, next_day)
         
         return {
@@ -927,7 +952,11 @@ class PVAgentOrchestrator:
             'current_day': next_day,
             'previous_day': current_day,
             'case_score': patient.case_score,
-            'questions': questions_result.get('all_questions', []),
+            'strength_level': patient.strength_level,
+            'predefined_questions': questions_result.get('predefined_questions', []),
+            'llm_questions': questions_result.get('llm_questions', []),
+            'all_questions': questions_result.get('all_questions', []),
+            'analysis': questions_result.get('analysis', ''),
             'send_result': send_result
         }
     
@@ -1028,37 +1057,46 @@ class PVAgentOrchestrator:
         
         results = {'email': None, 'whatsapp': None}
         
-        # Generate token for email link
+        # Generate token (for potential email use later)
         token = self.followup_agent.generate_followup_token(patient.id)
         
-        # IMPORTANT: Store the token in the database so form validation works
+        # Store the token in the database
         store_followup_token(patient.id, token, expires_in_days=7)
         print(f"✅ Stored follow-up token for patient {patient.id}")
         
-        # Try email first (with form link)
+        # Send Email with follow-up form link
         if patient.email:
             email_result = self.followup_agent.send_followup_email(patient, token)
             results['email'] = email_result
             setattr(tracking, f'day{day}_email_sent', True)
-            
             if email_result.get('success'):
                 print(f"✅ Day {day}: Sent email to {patient.email}")
+            else:
+                print(f"⚠️ Day {day}: Email failed - {email_result.get('error')}")
+        else:
+            print(f"⚠️ Day {day}: No email for patient {patient.id}")
         
-        # Send Conversational WhatsApp (interactive chat, not a link)
+        # Send Conversational WhatsApp (interactive chat with day-specific questions)
         if patient.phone:
             # Use conversational WhatsApp that asks questions one by one
+            # Questions are day-specific: predefined + Gemini-generated personalized questions
             whatsapp_result = self.followup_agent.send_conversational_whatsapp(patient, tracking)
             results['whatsapp'] = whatsapp_result
             setattr(tracking, f'day{day}_whatsapp_sent', True)
             
             if whatsapp_result.get('success'):
                 print(f"✅ Day {day}: Started conversational WhatsApp with {patient.phone}")
+                print(f"   📋 Questions loaded: {len(tracking.predefined_questions or [])} predefined + {len(tracking.llm_questions or [])} Gemini")
+        else:
+            print(f"⚠️ Day {day}: No phone number for patient {patient.id}")
+            results['whatsapp'] = {'success': False, 'error': 'No phone number'}
         
         # Schedule next day
         next_day = self._get_next_day(day)
         if next_day:
             days_until_next = next_day - day
             tracking.next_followup_date = datetime.utcnow() + timedelta(days=days_until_next)
+            print(f"📅 Next follow-up (Day {next_day}) scheduled in {days_until_next} days")
         
         db.session.commit()
         

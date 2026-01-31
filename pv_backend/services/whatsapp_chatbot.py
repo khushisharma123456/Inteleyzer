@@ -18,6 +18,19 @@ try:
 except ImportError:
     TWILIO_AVAILABLE = False
 
+# Import translation functions for multi-language questions
+try:
+    from .llm_service import (
+        get_translated_question, 
+        get_translated_options, 
+        format_question_with_options,
+        QUESTION_OPTIONS
+    )
+    TRANSLATIONS_AVAILABLE = True
+except ImportError:
+    TRANSLATIONS_AVAILABLE = False
+    print("⚠️ Translation functions not available")
+
 
 class ToneManager:
     """
@@ -44,19 +57,19 @@ class ToneManager:
         },
         
         'form_filled': {
-            'English': "Thank you! ✅ We've received your health update via email.\n\nWe truly appreciate you taking the time to share this information with us. 💚\n\nIf you experience any concerns about your medication or health, please feel free to message us here anytime. We're always here to listen and support you! 🙏\n\nWishing you good health! 🌟",
-            'Hindi': "धन्यवाद! ✅ हमें ईमेल के माध्यम से आपका स्वास्थ्य अपडेट मिल गया है।\n\nयदि आपको दवाई से कोई समस्या हो, तो कृपया हमें यहाँ बताएं। हम आपकी सहायता के लिए हमेशा तैयार हैं! 🙏\n\nआपके अच्छे स्वास्थ्य की कामना! 💚",
-            'Bengali': "ধন্যবাদ! ✅ আমরা ইমেইলের মাধ্যমে আপনার স্বাস্থ্য আপডেট পেয়েছি।\n\nকোনো সমস্যা হলে আমাদের জানাবেন। আমরা সবসময় আপনার পাশে আছি! 🙏💚",
-            'Telugu': "ధన్యవాదాలు! ✅ ఇమెయిల్ ద్వారా మీ ఆరోగ్య అప్‌డేట్ అందింది।\n\nఏవైనా ఆందోళనలు ఉంటే దయచేసి మాకు చెప్పండి। మేము ఎల్లప్పుడూ మీకు సహాయం చేయడానికి ఇక్కడ ఉన్నాము! 🙏💚",
-            'Marathi': "धन्यवाद! ✅ आम्हाला ईमेलद्वारे तुमचे आरोग्य अपडेट मिळाले.\n\nकोणतीही समस्या असल्यास आम्हाला कळवा. आम्ही नेहमी तुमच्या मदतीसाठी आहोत! 🙏💚",
-            'Tamil': "நன்றி! ✅ மின்னஞ்சல் வழியாக உங்கள் ஆரோக்கிய புதுப்பிப்பு கிடைத்தது.\n\nஏதேனும் கவலைகள் இருந்தால் எங்களிடம் தெரிவிக்கவும். நாங்கள் எப்போதும் உங்களுக்கு உதவ தயாராக இருக்கிறோம்! 🙏💚",
-            'Gujarati': "આભાર! ✅ અમને ઈમેલ દ્વારા તમારું સ્વાસ્થ્ય અપડેટ મળ્યું.\n\nકોઈપણ ચિંતા હોય તો અમને જણાવો. અમે હંમેશા તમારી મદદ માટે અહીં છીએ! 🙏💚",
-            'Kannada': "ಧನ್ಯವಾದಗಳು! ✅ ಇಮೇಲ್ ಮೂಲಕ ನಿಮ್ಮ ಆರೋಗ್ಯ ಅಪ್‌ಡೇಟ್ ಸ್ವೀಕರಿಸಿದ್ದೇವೆ.\n\nಯಾವುದೇ ಕಾಳಜಿ ಇದ್ದರೆ ನಮಗೆ ತಿಳಿಸಿ. ನಾವು ಯಾವಾಗಲೂ ನಿಮಗೆ ಸಹಾಯ ಮಾಡಲು ಇಲ್ಲಿದ್ದೇವೆ! 🙏💚",
-            'Malayalam': "നന്ദി! ✅ ഇമെയിൽ വഴി നിങ്ങളുടെ ആരോഗ്യ അപ്‌ഡേറ്റ് ലഭിച്ചു.\n\nഎന്തെങ്കിലും ആശങ്കകൾ ഉണ്ടെങ്കിൽ ഞങ്ങളെ അറിയിക്കുക. ഞങ്ങൾ എപ്പോഴും നിങ്ങളെ സഹായിക്കാൻ ഇവിടെയുണ്ട്! 🙏💚",
-            'Punjabi': "ਧੰਨਵਾਦ! ✅ ਸਾਨੂੰ ਈਮੇਲ ਰਾਹੀਂ ਤੁਹਾਡਾ ਸਿਹਤ ਅਪਡੇਟ ਮਿਲਿਆ।\n\nਕੋਈ ਵੀ ਚਿੰਤਾ ਹੋਵੇ ਤਾਂ ਸਾਨੂੰ ਦੱਸੋ। ਅਸੀਂ ਹਮੇਸ਼ਾ ਤੁਹਾਡੀ ਮਦਦ ਲਈ ਇੱਥੇ ਹਾਂ! 🙏💚",
-            'Odia': "ଧନ୍ୟବାଦ! ✅ ଇମେଲ ମାଧ୍ୟମରେ ଆପଣଙ୍କ ସ୍ୱାସ୍ଥ୍ୟ ଅପଡେଟ ମିଳିଛି।\n\nକୌଣସି ଚିନ୍ତା ଥିଲେ ଆମକୁ ଜଣାନ୍ତୁ। ଆମେ ସବୁବେଳେ ଆପଣଙ୍କ ସାହାଯ୍ୟ ପାଇଁ ଏଠାରେ ଅଛୁ! 🙏💚",
-            'Assamese': "ধন্যবাদ! ✅ ইমেইলৰ জৰিয়তে আপোনাৰ স্বাস্থ্য আপডেট পাইছোঁ।\n\nকোনো চিন্তা থাকিলে আমাক জনাওক। আমি সদায় আপোনাক সহায় কৰিবলৈ ইয়াত আছোঁ! 🙏💚",
-            'Urdu': "شکریہ! ✅ ہمیں ای میل کے ذریعے آپ کی صحت کی تازہ کاری ملی۔\n\nکوئی بھی تشویش ہو تو ہمیں بتائیں۔ ہم ہمیشہ آپ کی مدد کے لیے موجود ہیں! 🙏💚"
+            'English': "Hi! 👋\n\nWe noticed that you've already shared your health update regarding *{drug_name}* via email - thank you so much! ✅\n\nIf you experience any problems or concerns with your medication at any time, please feel free to message us here. We're always here to listen and help analyze any issues with the drug. 💚\n\nYour health and safety matter to us! 🙏",
+            'Hindi': "नमस्ते! 👋\n\nहमें पता चला कि आपने *{drug_name}* के बारे में ईमेल से जानकारी दे दी है - धन्यवाद! ✅\n\nअगर दवाई से कोई समस्या हो, तो यहाँ मैसेज करें। हम दवाई का विश्लेषण करने के लिए यहाँ हैं। 💚🙏",
+            'Bengali': "হ্যালো! 👋\n\n*{drug_name}* সম্পর্কে ইমেইলে তথ্য দিয়েছেন দেখলাম - ধন্যবাদ! ✅\n\nওষুধে কোনো সমস্যা হলে এখানে মেসেজ করুন। আমরা সাহায্য করতে প্রস্তুত। 💚🙏",
+            'Telugu': "హలో! 👋\n\n*{drug_name}* గురించి ఇమెయిల్‌లో సమాచారం అందించారు - ధన్యవాదాలు! ✅\n\nమందులతో ఏవైనా సమస్యలు ఉంటే ఇక్కడ మెసేజ్ చేయండి। 💚🙏",
+            'Marathi': "नमस्कार! 👋\n\n*{drug_name}* बद्दल ईमेलवर माहिती दिली - धन्यवाद! ✅\n\nऔषधाची कोणतीही समस्या असल्यास इथे संदेश पाठवा। 💚🙏",
+            'Tamil': "வணக்கம்! 👋\n\n*{drug_name}* பற்றி மின்னஞ்சலில் தகவல் அளித்தீர்கள் - நன்றி! ✅\n\nமருந்தில் ஏதேனும் பிரச்சனை இருந்தால் இங்கு செய்தி அனுப்புங்கள்। 💚🙏",
+            'Gujarati': "નમસ્તે! 👋\n\n*{drug_name}* વિશે ઈમેલમાં માહિતી આપી - આભાર! ✅\n\nદવામાં કોઈ સમસ્યા હોય તો અહીં મેસેજ કરો। 💚🙏",
+            'Kannada': "ನಮಸ್ಕಾರ! 👋\n\n*{drug_name}* ಬಗ್ಗೆ ಇಮೇಲ್‌ನಲ್ಲಿ ಮಾಹಿತಿ ನೀಡಿದ್ದೀರಿ - ಧನ್ಯವಾದಗಳು! ✅\n\nಔಷಧಿಯಲ್ಲಿ ಯಾವುದೇ ಸಮಸ್ಯೆ ಇದ್ದರೆ ಇಲ್ಲಿ ಸಂದೇಶ ಕಳುಹಿಸಿ। 💚🙏",
+            'Malayalam': "ഹലോ! 👋\n\n*{drug_name}* കുറിച്ച് ഇമെയിലിൽ വിവരം നൽകി - നന്ദി! ✅\n\nമരുന്നിൽ എന്തെങ്കിലും പ്രശ്നം ഉണ്ടെങ്കിൽ ഇവിടെ സന്ദേശം അയയ്ക്കുക। 💚🙏",
+            'Punjabi': "ਸਤ ਸ੍ਰੀ ਅਕਾਲ! 👋\n\n*{drug_name}* ਬਾਰੇ ਈਮੇਲ ਤੇ ਜਾਣਕਾਰੀ ਦਿੱਤੀ - ਧੰਨਵਾਦ! ✅\n\nਦਵਾਈ ਨਾਲ ਕੋਈ ਸਮੱਸਿਆ ਹੋਵੇ ਤਾਂ ਇੱਥੇ ਸੁਨੇਹਾ ਭੇਜੋ। 💚🙏",
+            'Odia': "ନମସ୍କାର! 👋\n\n*{drug_name}* ବିଷୟରେ ଇମେଲରେ ସୂଚନା ଦେଲେ - ଧନ୍ୟବାଦ! ✅\n\nଔଷଧରେ କୌଣସି ସମସ୍ୟା ଥିଲେ ଏଠାରେ ମେସେଜ କରନ୍ତୁ। 💚🙏",
+            'Assamese': "নমস্কাৰ! 👋\n\n*{drug_name}* সম্পৰ্কে ইমেইলত তথ্য দিলে - ধন্যবাদ! ✅\n\nঔষধত কোনো সমস্যা থাকিলে ইয়াত মেছেজ কৰক। 💚🙏",
+            'Urdu': "السلام علیکم! 👋\n\n*{drug_name}* کے بارے میں ای میل میں معلومات دیں - شکریہ! ✅\n\nدوا میں کوئی مسئلہ ہو تو یہاں پیغام بھیجیں۔ 💚🙏"
         },
         
         'question_intro': {
@@ -328,7 +341,7 @@ class WhatsAppChatbot:
             Dict with response_message, action, and updated_data
         """
         from models import db
-        from .llm_service import PrivacySafeLLMService
+        from .llm_service import PrivacySafeLLMService, get_combined_questions
         
         llm = PrivacySafeLLMService()
         state = tracking.chatbot_state
@@ -343,33 +356,57 @@ class WhatsAppChatbot:
                 db.session.commit()
                 
                 # Check if form was filled via email
-                current_day = tracking.current_day
+                current_day = tracking.current_day or 1
                 email_responded = getattr(tracking, f'day{current_day}_email_responded', False)
                 
                 if email_responded:
                     tracking.chatbot_state = 'informed'
                     db.session.commit()
+                    
+                    # Get drug name for personalized message
+                    drug_name = patient.drug_name if patient else 'your medication'
+                    message = ToneManager.get_message('form_filled', selected)
+                    message = message.replace('{drug_name}', drug_name)
+                    
                     return {
-                        'response_message': ToneManager.get_message('form_filled', selected),
+                        'response_message': message,
                         'action': 'set_informed',
                         'language': selected
                     }
                 else:
+                    # Load day-specific questions if not already loaded
+                    if not tracking.predefined_questions or not tracking.unanswered_questions:
+                        # Get combined questions (predefined + LLM) for current day in user's language
+                        questions_result = get_combined_questions(patient, previous_responses=None, current_day=current_day, language=selected)
+                        tracking.predefined_questions = questions_result.get('predefined_questions', [])
+                        tracking.llm_questions = questions_result.get('llm_questions', [])
+                        tracking.unanswered_questions = questions_result.get('all_questions', [])
+                        print(f"📋 Loaded Day {current_day} questions: {len(tracking.predefined_questions)} predefined + {len(tracking.llm_questions)} LLM (Provider: {questions_result.get('llm_provider', 'N/A')})")
+                    
                     # Start asking questions
-                    questions = self._get_all_questions(tracking)
+                    questions = tracking.unanswered_questions or self._get_all_questions(tracking)
                     if questions:
                         tracking.unanswered_questions = questions
                         tracking.current_question_index = 0
                         tracking.last_question_sent_at = datetime.utcnow()
                         db.session.commit()
                         
-                        first_q = questions[0].get('question', '')
+                        # Format first question with translation and options
+                        first_q_formatted = self._format_question_for_display(questions[0], selected, 1)
+                        print(f"📤 Sending first question in {selected}: {first_q_formatted[:80]}...")
+                        
+                        # Build intro message with first question
+                        intro_msg = ToneManager.get_message('question_intro', selected)
+                        # Replace {language} placeholder if present
+                        intro_msg = intro_msg.replace('{language}', selected)
+                        
                         return {
-                            'response_message': ToneManager.get_message('question_intro', selected, language=selected) + f"\n\n📋 {first_q}",
+                            'response_message': intro_msg + f"\n\n{first_q_formatted}",
                             'action': 'started_questions',
                             'language': selected
                         }
                     else:
+                        print(f"⚠️ No questions loaded for Day {current_day}")
                         return {
                             'response_message': ToneManager.get_message('thank_you', selected),
                             'action': 'no_questions',
@@ -384,6 +421,35 @@ class WhatsAppChatbot:
         
         # State: Asking questions
         elif state == 'asking_questions':
+            # Check if user might be trying to select language (sent a number 1-13 or language name)
+            # This handles the case where user sends two messages quickly, or first message failed
+            potential_language = self._detect_language(message_text)
+            print(f"🔍 Safeguard check: message='{message_text}', potential_language={potential_language}, index={tracking.current_question_index}")
+            
+            # ENHANCED SAFEGUARD: Catch language-like inputs ONLY at question 0 when:
+            # - It's a language NAME (not a number 1-5 which could be valid option)
+            # - OR it's a number >= 6 (since options are typically 1-5)
+            is_language_name = potential_language and not message_text.strip().isdigit()
+            is_high_number = message_text.strip().isdigit() and int(message_text.strip()) >= 6
+            
+            if (is_language_name or is_high_number) and tracking.current_question_index == 0:
+                # User might have double-sent language selection, or first request failed
+                questions = tracking.unanswered_questions or []
+                if questions:
+                    # Always resend the FIRST question if user sends a language number early in the questionnaire
+                    first_q_formatted = self._format_question_for_display(questions[0], language, 1)
+                    print(f"⚠️ Detected possible duplicate language selection '{message_text}' at Q{tracking.current_question_index + 1}, re-sending first question")
+                    
+                    # Reset to question 0 to be safe
+                    tracking.current_question_index = 0
+                    db.session.commit()
+                    
+                    return {
+                        'response_message': f"{first_q_formatted}\n\n_Please answer the question above._ 💚",
+                        'action': 'resend_first_question',
+                        'language': language
+                    }
+            
             # Check if patient says they're fine
             intent = llm.detect_patient_intent(message_text)
             if intent == 'fine':
@@ -404,21 +470,44 @@ class WhatsAppChatbot:
             if current_idx < len(questions):
                 current_q = questions[current_idx]
                 
+                # Parse numeric response to actual option text (converts to English for DB storage)
+                parsed_response = self._parse_option_response(message_text, current_q, language)
+                
                 # Validate and map response
                 if current_q.get('maps_to_column'):
                     validation = llm.validate_response(
                         current_q['question'],
                         current_q['maps_to_column'],
-                        message_text
+                        parsed_response
                     )
-                    if validation.get('is_useful') and hasattr(patient, current_q['maps_to_column']):
-                        setattr(patient, current_q['maps_to_column'], validation['extracted_value'])
+                    # Only set the value if it's useful AND the extracted value is not None
+                    if validation.get('is_useful') and validation.get('extracted_value') is not None:
+                        if hasattr(patient, current_q['maps_to_column']):
+                            setattr(patient, current_q['maps_to_column'], validation['extracted_value'])
                 
-                # Store response
+                # Store response (store the parsed English option for clarity)
                 current_day = tracking.current_day
                 day_responses = getattr(tracking, f'day{current_day}_responses', {}) or {}
-                day_responses[current_q.get('id', f'q{current_idx}')] = message_text
+                question_id = current_q.get('id', f'q{current_idx}')
+                day_responses[question_id] = parsed_response
                 setattr(tracking, f'day{current_day}_responses', day_responses)
+                # Mark as modified so SQLAlchemy detects the change
+                from sqlalchemy.orm.attributes import flag_modified
+                flag_modified(tracking, f'day{current_day}_responses')
+                
+                # Log comprehensive DB save info
+                is_llm_question = current_q.get('source') == 'llm'
+                print(f"💾 ===== RESPONSE SAVED TO DATABASE =====")
+                print(f"   📱 Channel: WhatsApp")
+                print(f"   🌐 Language: {language}")
+                print(f"   📋 Question ID: {question_id}")
+                print(f"   🤖 Question Source: {'LLM (Groq)' if is_llm_question else 'Predefined'}")
+                print(f"   ❓ Original Question: {current_q.get('question', '')[:80]}...")
+                print(f"   💬 User Response (raw): {message_text}")
+                print(f"   💾 Stored Value (English): {parsed_response}")
+                print(f"   📅 Day: {current_day}")
+                print(f"   📊 All Day {current_day} Responses: {day_responses}")
+                print(f"==========================================")
                 
                 # Move to next question
                 tracking.current_question_index = current_idx + 1
@@ -426,10 +515,32 @@ class WhatsAppChatbot:
                 tracking.last_question_sent_at = datetime.utcnow()
                 
                 if current_idx + 1 < len(questions):
-                    next_q = questions[current_idx + 1]['question']
+                    # Format next question with translation and options
+                    next_q_formatted = self._format_question_for_display(
+                        questions[current_idx + 1], language, current_idx + 2
+                    )
                     db.session.commit()
+                    
+                    # Use a simpler thank you + next question format
+                    thank_you_msgs = {
+                        'English': "Thank you! 🙏\n\n",
+                        'Hindi': "धन्यवाद! 🙏\n\n",
+                        'Telugu': "ధన్యవాదాలు! 🙏\n\n",
+                        'Bengali': "ধন্যবাদ! 🙏\n\n",
+                        'Marathi': "धन्यवाद! 🙏\n\n",
+                        'Tamil': "நன்றி! 🙏\n\n",
+                        'Gujarati': "આભાર! 🙏\n\n",
+                        'Kannada': "ಧನ್ಯವಾದಗಳು! 🙏\n\n",
+                        'Malayalam': "നന്ദി! 🙏\n\n",
+                        'Punjabi': "ਧੰਨਵਾਦ! 🙏\n\n",
+                        'Odia': "ଧନ୍ୟବାଦ! 🙏\n\n",
+                        'Assamese': "ধন্যবাদ! 🙏\n\n",
+                        'Urdu': "شکریہ! 🙏\n\n"
+                    }
+                    thank_you = thank_you_msgs.get(language, thank_you_msgs['English'])
+                    
                     return {
-                        'response_message': ToneManager.get_message('next_question', language, question=next_q),
+                        'response_message': thank_you + next_q_formatted,
                         'action': 'next_question',
                         'question_index': current_idx + 1
                     }
@@ -592,24 +703,172 @@ class WhatsAppChatbot:
         text_lower = text.strip().lower()
         return self.LANGUAGE_MAP.get(text_lower)
     
+    def _format_question_for_display(self, question_dict: dict, language: str, question_number: int) -> str:
+        """
+        Format a question for display with translation and numbered options.
+        
+        Args:
+            question_dict: Question dictionary with id, question, options, etc.
+            language: Selected language (e.g., 'Telugu', 'Hindi')
+            question_number: The question number to display (1, 2, 3, etc.)
+        
+        Returns:
+            Formatted question string with translation and numbered options
+        """
+        question_id = question_dict.get('id', '')
+        original_question = question_dict.get('question', '')
+        
+        # Check if this is an LLM-generated question (already in target language)
+        if question_dict.get('source') == 'llm':
+            # LLM questions are already in the target language
+            llm_question = original_question
+            options = question_dict.get('options', [])
+            
+            if options:
+                # Format LLM options with numbers
+                option_emoji = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟']
+                formatted_options = []
+                for i, opt in enumerate(options):
+                    emoji = option_emoji[i] if i < len(option_emoji) else f"{i+1}."
+                    # Get the translated text or fallback to English
+                    opt_text = opt.get(f'text_{language}', opt.get('text_english', opt.get('text', str(opt))))
+                    formatted_options.append(f"{emoji} {opt_text}")
+                
+                return f"📋 *Question {question_number}:* _(🤖 AI Personalized)_\n{llm_question}\n\n" + "\n".join(formatted_options) + f"\n\n_Reply with the number (1-{len(options)})_"
+            else:
+                return f"📋 *Question {question_number}:* _(🤖 AI Personalized)_\n{llm_question}"
+        
+        # Try to get translated question for predefined questions
+        if TRANSLATIONS_AVAILABLE:
+            translated_q = get_translated_question(question_id, language)
+            if translated_q:
+                # Get formatted question with options
+                formatted = format_question_with_options(question_id, translated_q, language)
+                return f"📋 *Question {question_number}:*\n{formatted}"
+        
+        # Fallback: use original English question with basic options if available
+        options = question_dict.get('options', [])
+        if options:
+            formatted_options = "\n".join([f"{i+1}️⃣ {opt}" for i, opt in enumerate(options)])
+            return f"📋 *Question {question_number}:*\n{original_question}\n\n{formatted_options}\n\n_Reply with the number (1-{len(options)})_"
+        
+        return f"📋 *Question {question_number}:*\n{original_question}"
+    
+    def _parse_option_response(self, message: str, question_dict: dict, language: str) -> str:
+        """
+        Parse user's numeric response and return the actual option text.
+        Stores English version in DB for consistency.
+        
+        Args:
+            message: User's message (e.g., "1", "2", "3")
+            question_dict: Question dictionary with options
+            language: Selected language
+        
+        Returns:
+            The English option key/text for database storage
+        """
+        message = message.strip()
+        question_id = question_dict.get('id', '')
+        
+        # Check if message is a number
+        if message.isdigit():
+            num = int(message)
+            
+            # Check if this is an LLM-generated question
+            if question_dict.get('source') == 'llm':
+                options = question_dict.get('options', [])
+                if options and 1 <= num <= len(options):
+                    # Return the English key for database storage
+                    selected_opt = options[num - 1]
+                    english_value = selected_opt.get('key', selected_opt.get('text_english', selected_opt.get('text', message)))
+                    print(f"💾 LLM option parsed: User selected {num} -> Storing '{english_value}' in English")
+                    return english_value
+            
+            # Try to get translated options for predefined questions
+            if TRANSLATIONS_AVAILABLE:
+                options = get_translated_options(question_id, language)
+                if options and 1 <= num <= len(options):
+                    # Return the English key for database storage
+                    english_key = options[num - 1].get('key', options[num - 1].get('text', message))
+                    print(f"💾 Predefined option parsed: User selected {num} -> Storing '{english_key}' in English")
+                    return english_key
+            
+            # Fallback to original options
+            original_options = question_dict.get('options', [])
+            if original_options and 1 <= num <= len(original_options):
+                return original_options[num - 1]
+        
+        return message
+    
     def _get_all_questions(self, tracking) -> list:
-        """Get combined predefined + LLM questions."""
-        predefined = tracking.predefined_questions or []
+        """
+        Get combined predefined + LLM questions for the current day.
+        Uses day-specific predefined questions and LLM-generated personalized questions.
+        """
+        from .llm_service import get_day_specific_questions
+        
+        current_day = tracking.current_day or 1
+        
+        # Get day-specific predefined questions
+        predefined = tracking.predefined_questions or get_day_specific_questions(current_day)
         llm_questions = tracking.llm_questions or []
         
         # Add IDs if missing
         all_q = []
         for i, q in enumerate(predefined):
             q_copy = dict(q)
-            q_copy['id'] = q.get('id', f'pre_{i}')
+            if 'id' not in q_copy:
+                q_copy['id'] = q.get('id', f'day{current_day}_pre_{i}')
             all_q.append(q_copy)
         
         for i, q in enumerate(llm_questions):
             q_copy = dict(q)
-            q_copy['id'] = q.get('id', f'llm_{i}')
+            if 'id' not in q_copy:
+                q_copy['id'] = q.get('id', f'day{current_day}_llm_{i}')
             all_q.append(q_copy)
         
         return all_q
+    
+    def refresh_questions_for_day(self, tracking, patient) -> list:
+        """
+        Refresh questions for a new day in the follow-up cycle.
+        Gets new predefined + personalized LLM questions based on updated case scoring.
+        
+        Args:
+            tracking: AgentFollowupTracking record
+            patient: Patient model object
+            
+        Returns:
+            list: Combined questions for the current day
+        """
+        from models import db
+        from .llm_service import get_combined_questions
+        
+        current_day = tracking.current_day or 1
+        
+        # Get previous day responses for context
+        previous_responses = {}
+        for day in [1, 3, 5, 7]:
+            if day < current_day:
+                day_responses = getattr(tracking, f'day{day}_responses', None)
+                if day_responses:
+                    previous_responses[f'day{day}'] = day_responses
+        
+        # Get combined questions (predefined + LLM) for current day
+        questions_result = get_combined_questions(patient, previous_responses, current_day)
+        
+        # Update tracking with new questions
+        tracking.predefined_questions = questions_result.get('predefined_questions', [])
+        tracking.llm_questions = questions_result.get('llm_questions', [])
+        tracking.unanswered_questions = questions_result.get('all_questions', [])
+        tracking.current_question_index = 0
+        tracking.reminder_count = 0
+        
+        db.session.commit()
+        
+        print(f"✅ Refreshed questions for Day {current_day}: {len(tracking.predefined_questions)} predefined + {len(tracking.llm_questions)} LLM questions")
+        
+        return questions_result.get('all_questions', [])
     
     def _map_self_report_to_column(self, message_text: str, patient) -> Dict[str, Any]:
         """
