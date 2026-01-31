@@ -1,0 +1,11 @@
+flask
+flask-cors
+flask-sqlalchemy
+python-dotenv
+requests
+pandas
+openpyxl
+twilio
+google-generativeai
+pyjwt
+werkzeug
