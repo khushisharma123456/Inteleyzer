@@ -4,7 +4,7 @@ Handles submission, validation, and management of pharmacy safety reports
 """
 from flask import Blueprint, request, jsonify, session
 from datetime import datetime
-from pv_backend.models import db
+from models import db
 from pv_backend.models.pharmacy_report import (
     PharmacyReport, AnonymousReport, IdentifiedReport, AggregatedReport,
     ReportType, ReactionSeverity, ReactionOutcome, AgeGroup
@@ -83,6 +83,25 @@ def submit_report():
         if not pharmacy_id:
             return jsonify({'success': False, 'message': 'Not authenticated'}), 401
         
+        # Helper function to safely get enum values
+        def safe_age_group(value):
+            try:
+                return AgeGroup(value) if value else AgeGroup.UNKNOWN
+            except ValueError:
+                return AgeGroup.UNKNOWN
+        
+        def safe_severity(value):
+            try:
+                return ReactionSeverity(value) if value else ReactionSeverity.MILD
+            except ValueError:
+                return ReactionSeverity.MILD
+        
+        def safe_outcome(value):
+            try:
+                return ReactionOutcome(value) if value else None
+            except ValueError:
+                return None
+        
         # Create submission records
         submission_id = f"SUB-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
         created_records = []
@@ -96,9 +115,9 @@ def submit_report():
                         drug_name=record.get('drug_name'),
                         drug_batch_number=record.get('batch_lot_number'),
                         reaction_description=record.get('reaction_category'),
-                        reaction_severity=ReactionSeverity(record.get('severity', 'mild')),
-                        reaction_outcome=ReactionOutcome(record.get('reaction_outcome', 'unknown')) if record.get('reaction_outcome') else None,
-                        age_group=AgeGroup(record.get('age_group', 'unknown')),
+                        reaction_severity=safe_severity(record.get('severity')),
+                        reaction_outcome=safe_outcome(record.get('reaction_outcome')),
+                        age_group=safe_age_group(record.get('age_group')),
                         gender=record.get('gender')
                     )
                 
@@ -109,9 +128,9 @@ def submit_report():
                         drug_name=record.get('drug_name'),
                         drug_batch_number=record.get('batch_lot_number'),
                         reaction_description=record.get('reaction_category'),
-                        reaction_severity=ReactionSeverity(record.get('severity', 'mild')),
-                        reaction_outcome=ReactionOutcome(record.get('reaction_outcome', 'unknown')) if record.get('reaction_outcome') else None,
-                        age_group=AgeGroup(record.get('age_group', 'unknown')),
+                        reaction_severity=safe_severity(record.get('severity')),
+                        reaction_outcome=safe_outcome(record.get('reaction_outcome')),
+                        age_group=safe_age_group(record.get('age_group')),
                         gender=record.get('gender'),
                         internal_case_id=record.get('internal_case_id'),
                         treating_hospital_reference=record.get('treating_hospital_reference'),

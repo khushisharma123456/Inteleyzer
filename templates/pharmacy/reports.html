@@ -8,11 +8,11 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         .dashboard-layout { display: flex; }
-        .main-content { flex: 1; margin-left: var(--sidebar-width); padding: 2rem; background-color: #FAFAF9; transition: margin-left 0.3s ease; overflow-y: auto; display: flex; justify-content: center; }
+        .main-content { flex: 1; margin-left: var(--sidebar-width); padding: 2rem; background-color: #FAFAF9; transition: margin-left 0.3s ease; overflow-y: auto; display: flex; flex-direction: column; align-items: center; }
         body.sidebar-collapsed .main-content { margin-left: 80px; }
         
-        .header-section { margin-bottom: 2rem; text-align: center; }
-        .header-section h1 { font-size: 1.75rem; color: var(--primary-dark); margin: 0; font-weight: 700; }
+        .header-section { margin-bottom: 2rem; text-align: center; width: 100%; }
+        .header-section h1 { font-size: 2rem; color: var(--primary-dark); margin: 0; font-weight: 700; }
         .header-section p { color: var(--text-muted); margin: 0.5rem 0 0 0; font-size: 0.9rem; }
         
         /* Centered Form Container */
@@ -22,6 +22,7 @@
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             max-width: 760px;
             width: 100%;
+            margin-top: 1rem;
         }
         
         /* Compact Sections */
@@ -521,7 +522,7 @@
                         
                         <!-- ACTION BUTTONS -->
                         <div class="btn-group">
-                            <button class="btn btn-secondary" onclick="resetForm()">Clear</button>
+                            <button class="btn btn-secondary" onclick="showClearDialog()">Clear</button>
                             <button class="btn btn-success" id="submitBtn" onclick="console.log('Submit clicked'); submitReport()">
                                 Submit Report
                             </button>
@@ -533,6 +534,162 @@
             
         </main>
     </div>
+    
+    <!-- Toast Notification -->
+    <div class="toast" id="toast">
+        <span id="toastText"></span>
+    </div>
+    
+    <!-- Clear Form Dialog -->
+    <div class="modal-overlay" id="clearDialog">
+        <div class="modal-box">
+            <div class="modal-header">Clear Form</div>
+            <div class="modal-body">
+                <p>Are you sure you want to clear all form data? This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn modal-btn-cancel" onclick="closeClearDialog()">Cancel</button>
+                <button class="modal-btn modal-btn-confirm" onclick="confirmClearForm()">Clear Form</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Confirm Dialog -->
+    <div class="modal-overlay" id="confirmDialog">
+        <div class="modal-box">
+            <div class="modal-header" id="confirmTitle">Confirm Action</div>
+            <div class="modal-body">
+                <p id="confirmMessage">Are you sure you want to proceed?</p>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn modal-btn-cancel" onclick="closeConfirmDialog()">Cancel</button>
+                <button class="modal-btn modal-btn-confirm" id="confirmBtn" onclick="executeConfirmAction()">Confirm</button>
+            </div>
+        </div>
+    </div>
+    
+    <style>
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            min-width: 250px;
+            padding: 16px 24px;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.95rem;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            z-index: 1001;
+        }
+        .toast.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        .toast-success {
+            background: #059669;
+        }
+        .toast-error {
+            background: #DC2626;
+        }
+        
+        /* Modal/Dialog Overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+        .modal-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-box {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            width: 90%;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+        .modal-overlay.show .modal-box {
+            transform: scale(1);
+        }
+        .modal-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid #E5E7EB;
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: var(--primary-dark);
+        }
+        .modal-body {
+            padding: 1.5rem;
+        }
+        .modal-body p {
+            margin: 0;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+        .modal-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid #E5E7EB;
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+        }
+        .modal-btn {
+            padding: 0.6rem 1.25rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .modal-btn-cancel {
+            background: var(--secondary-dark);
+            color: var(--text-main);
+        }
+        .modal-btn-cancel:hover {
+            background: #D1D5DB;
+        }
+        .modal-btn-confirm {
+            background: #DC2626;
+            color: white;
+        }
+        .modal-btn-confirm:hover {
+            background: #B91C1C;
+        }
+        
+        /* Animation */
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
     
     <script src="/static/js/pharmacy-reports.js"></script>
 </body>

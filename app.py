@@ -18,6 +18,9 @@ from pv_backend.services.quality_agent import QualityAgentOrchestrator, FollowUp
 from pv_backend.routes.followup_routes import init_followup_routes, store_followup_token
 from pv_backend.services.followup_agent import FollowupAgent
 from pv_backend.routes.excel_routes import excel_upload_bp
+from pv_backend.routes.pharmacy_report_routes import pharmacy_report_bp
+# Import pharmacy report models so tables are created
+from pv_backend.models.pharmacy_report import PharmacyReport, AnonymousReport, IdentifiedReport, AggregatedReport
 from auth_config import JWTConfig, token_required, session_required, SESSION_TIMEOUT_MINUTES, TOKEN_EXPIRY_HOURS
 import os
 import random
@@ -315,6 +318,9 @@ db.init_app(app)
 
 # Register Excel upload blueprint
 app.register_blueprint(excel_upload_bp)
+
+# Register Pharmacy Reports blueprint
+app.register_blueprint(pharmacy_report_bp)
 
 # Add cache-busting headers for development
 @app.after_request

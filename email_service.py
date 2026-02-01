@@ -63,6 +63,7 @@ def get_initial_form_email_html(patient_name: str, form_url: str, language: str 
         'en': {
             'greeting': f'Dear {patient_name},',
             'intro': 'Your doctor has requested a follow-up regarding your recent prescription.',
+            'description': 'At {HOSPITAL_NAME}, we are committed to ensuring your safety and well-being. As part of our pharmacovigilance program, we monitor medication effectiveness and any potential side effects. Your feedback is valuable and helps us provide you with the best possible care. This brief questionnaire will take just a few minutes to complete.',
             'action': 'Please fill out this short form to help us monitor your health:',
             'button': 'Fill Follow-up Form',
             'whatsapp_note': 'You can also respond via WhatsApp if you prefer.',
@@ -72,6 +73,7 @@ def get_initial_form_email_html(patient_name: str, form_url: str, language: str 
         'hi': {
             'greeting': f'प्रिय {patient_name},',
             'intro': 'आपके डॉक्टर ने आपके हाल के प्रिस्क्रिप्शन के संबंध में फॉलो-अप का अनुरोध किया है।',
+            'description': '{HOSPITAL_NAME} में, हम आपकी सुरक्षा और कल्याण सुनिश्चित करने के लिए प्रतिबद्ध हैं। हमारे फार्माकोविजिलेंस कार्यक्रम के भाग के रूप में, हम दवा की प्रभावशीलता और किसी भी संभावित दुष्प्रभाव की निगरानी करते हैं। आपकी प्रतिक्रिया मूल्यवान है और हमें आपको सर्वोत्तम देखभाल प्रदान करने में मदद करती है। यह संक्षिप्त प्रश्नावली को पूरा करने में केवल कुछ मिनट लगेंगे।',
             'action': 'कृपया अपने स्वास्थ्य की निगरानी में मदद के लिए यह छोटा फॉर्म भरें:',
             'button': 'फॉलो-अप फॉर्म भरें',
             'whatsapp_note': 'आप चाहें तो WhatsApp के माध्यम से भी जवाब दे सकते हैं।',
@@ -81,6 +83,7 @@ def get_initial_form_email_html(patient_name: str, form_url: str, language: str 
         'ta': {
             'greeting': f'அன்புள்ள {patient_name},',
             'intro': 'உங்கள் சமீபத்திய மருந்து குறிப்பு தொடர்பாக உங்கள் மருத்துவர் பின்தொடர்தலைக் கோரியுள்ளார்.',
+            'description': '{HOSPITAL_NAME} இல், உங்கள் பாதுகாப்பு மற்றும் நலன் உறுதிப்படுத்த நாங்கள் প்রতিশ்রুதিபடுத்தியுள்ளோம். எங்கள் மருந்து எச்சரிக்கை திட்டத்தின் ஒரு பகுதியாக, நாங்கள் மருந்தின் செயல்திறன் மற்றும் ஏதேனும் சாத்தியமான பக்க விளைவுகளைக் கண்காணிக்கிறோம். உங்கள் கருத்து மূল்যவானது மற்றும் உங்களுக்கு சிறந்த பராமரிப்பை வழங்க எங்களுக்கு உதவுகிறது. இந்த சுருக்கமான கேள்வித்தாள் முடிக்க வெறுமனே சில நிமிடங்கள் ஆகும்.',
             'action': 'உங்கள் ஆரோக்கியத்தைக் கண்காணிக்க இந்த சிறிய படிவத்தை நிரப்பவும்:',
             'button': 'படிவத்தை நிரப்பு',
             'whatsapp_note': 'நீங்கள் விரும்பினால் WhatsApp வழியாகவும் பதிலளிக்கலாம்.',
@@ -107,39 +110,62 @@ def get_initial_form_email_html(patient_name: str, form_url: str, language: str 
                 padding: 20px;
             }}
             .header {{
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                background: linear-gradient(135deg, #3A5A7A 0%, #1F3A52 100%);
                 color: white;
                 padding: 30px;
                 text-align: center;
                 border-radius: 10px 10px 0 0;
+            }}
+            .header h1 {{
+                margin: 0;
+                font-size: 28px;
             }}
             .content {{
                 background: #f9f9f9;
                 padding: 30px;
                 border-radius: 0 0 10px 10px;
             }}
+            .description {{
+                background: #D8E0EB;
+                padding: 15px 20px;
+                border-radius: 8px;
+                margin: 20px 0;
+                border-left: 4px solid #3A5A7A;
+                font-size: 14px;
+                line-height: 1.7;
+                color: #1F3A52;
+            }}
             .button {{
                 display: inline-block;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                background: linear-gradient(135deg, #3A5A7A 0%, #1F3A52 100%);
                 color: white !important;
                 padding: 15px 30px;
                 text-decoration: none;
-                border-radius: 25px;
+                border-radius: 8px;
                 margin: 20px 0;
                 font-weight: bold;
+                text-align: center;
+            }}
+            .button:hover {{
+                background: linear-gradient(135deg, #1F3A52 0%, #0f1f2e 100%);
             }}
             .note {{
-                background: #e8f4f8;
+                background: #E8F4F8;
                 padding: 15px;
                 border-radius: 8px;
                 margin-top: 20px;
                 font-size: 14px;
+                border-left: 4px solid #6B8E23;
             }}
             .footer {{
                 text-align: center;
                 margin-top: 20px;
                 color: #666;
                 font-size: 12px;
+            }}
+            .accent-text {{
+                color: #6B8E23;
+                font-weight: 600;
             }}
         </style>
     </head>
@@ -150,6 +176,9 @@ def get_initial_form_email_html(patient_name: str, form_url: str, language: str 
         <div class="content">
             <p>{c['greeting']}</p>
             <p>{c['intro']}</p>
+            <div class="description">
+                {c['description']}
+            </div>
             <p>{c['action']}</p>
             <p style="text-align: center;">
                 <a href="{form_url}" class="button">{c['button']}</a>
@@ -189,6 +218,7 @@ def get_clarification_email_html(patient_name: str, form_url: str,
         'en': {
             'greeting': f'Dear {patient_name},',
             'intro': 'We need some additional information to complete your follow-up.',
+            'description': 'To ensure we have complete and accurate information about your medication experience, we kindly request you to provide the following details. This helps us maintain the highest standards of patient safety and care.',
             'missing_intro': 'The following information is needed:',
             'action': 'Please fill out this short form:',
             'button': 'Provide Information',
@@ -199,6 +229,7 @@ def get_clarification_email_html(patient_name: str, form_url: str,
         'hi': {
             'greeting': f'प्रिय {patient_name},',
             'intro': 'आपके फॉलो-अप को पूरा करने के लिए हमें कुछ अतिरिक्त जानकारी चाहिए।',
+            'description': 'आपकी दवा के अनुभव के बारे में पूर्ण और सटीक जानकारी सुनिश्चित करने के लिए, हम आपसे निम्नलिखित विवरण प्रदान करने का विनम्र अनुरोध करते हैं। यह हमें रोगी सुरक्षा और देखभाल के उच्चतम मानकों को बनाए रखने में मदद करता है।',
             'missing_intro': 'निम्नलिखित जानकारी आवश्यक है:',
             'action': 'कृपया यह छोटा फॉर्म भरें:',
             'button': 'जानकारी प्रदान करें',
@@ -228,32 +259,54 @@ def get_clarification_email_html(patient_name: str, form_url: str,
                 padding: 20px;
             }}
             .header {{
-                background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                background: linear-gradient(135deg, #3A5A7A 0%, #1F3A52 100%);
                 color: white;
                 padding: 30px;
                 text-align: center;
                 border-radius: 10px 10px 0 0;
+            }}
+            .header h1 {{
+                margin: 0;
+                font-size: 28px;
             }}
             .content {{
                 background: #f9f9f9;
                 padding: 30px;
                 border-radius: 0 0 10px 10px;
             }}
+            .description {{
+                background: #D8E0EB;
+                padding: 15px 20px;
+                border-radius: 8px;
+                margin: 20px 0;
+                border-left: 4px solid #3A5A7A;
+                font-size: 14px;
+                line-height: 1.7;
+                color: #1F3A52;
+            }}
             .button {{
                 display: inline-block;
-                background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                background: linear-gradient(135deg, #3A5A7A 0%, #1F3A52 100%);
                 color: white !important;
                 padding: 15px 30px;
                 text-decoration: none;
-                border-radius: 25px;
+                border-radius: 8px;
                 margin: 20px 0;
                 font-weight: bold;
+                text-align: center;
+            }}
+            .button:hover {{
+                background: linear-gradient(135deg, #1F3A52 0%, #0f1f2e 100%);
             }}
             .missing-list {{
-                background: #fff3cd;
+                background: #D8E0EB;
                 padding: 15px 15px 15px 35px;
                 border-radius: 8px;
-                border-left: 4px solid #ffc107;
+                border-left: 4px solid #6B8E23;
+                color: #1F3A52;
+            }}
+            .missing-list li {{
+                margin-bottom: 8px;
             }}
             .footer {{
                 text-align: center;
@@ -270,6 +323,9 @@ def get_clarification_email_html(patient_name: str, form_url: str,
         <div class="content">
             <p>{c['greeting']}</p>
             <p>{c['intro']}</p>
+            <div class="description">
+                {c['description']}
+            </div>
             <p><strong>{c['missing_intro']}</strong></p>
             <ul class="missing-list">
                 {missing_html}

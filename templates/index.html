@@ -863,7 +863,9 @@
             border-radius: 50%;
             margin: 0 auto 1.5rem;
             object-fit: cover;
+            object-position: center;
             display: block;
+            overflow: hidden;
         }
 
         .creator-card h3 {
@@ -1027,7 +1029,6 @@
     <header>
         <div class="header-container">
             <a href="/" class="logo">
-                <div class="logo-icon">Rx</div>
                 <img src="{{ url_for('static', filename='images/logo.jpeg') }}" alt="Inteleyzer Logo" style="width: 32px; height: 32px; border-radius: 8px; object-fit: cover;">
                 <span>Inteleyzer</span>
             </a>
@@ -1152,13 +1153,6 @@
     <section class="carousel-section">
         <div class="carousel-container">
             <div class="carousel-wrapper" id="carouselWrapper">
-                <div class="carousel-item" style="background-image: url('/templates/assets/Photo_section/section1/1.png'); background-size: cover; background-position: center;">
-                </div>
-                <div class="carousel-item" style="background-image: url('/templates/assets/Photo_section/section1/2.png'); background-size: cover; background-position: center;">
-                </div>
-                <div class="carousel-item" style="background-image: url('/templates/assets/Photo_section/section1/3.png'); background-size: cover; background-position: center;">
-                </div>
-                <div class="carousel-item" style="background-image: url('/templates/assets/Photo_section/section1/4.png'); background-size: cover; background-position: center;">
                 <div class="carousel-item" style="background-image: url('{{ url_for('static', filename='images/section1/1.png') }}'); background-size: cover; background-position: center;">
                 </div>
                 <div class="carousel-item" style="background-image: url('{{ url_for('static', filename='images/section1/2.png') }}'); background-size: cover; background-position: center;">
@@ -1308,7 +1302,6 @@
                     <p>Engineer</p>
                 </div>
                 <div class="creator-card">
-                    <img src="/templates/assets/creators/khushi.png" alt="Khushi Sharma" class="creator-photo">
                     <img src="{{ url_for('static', filename='images/creators/khushi.jpg') }}" alt="Khushi Sharma" class="creator-photo">
                     <h3>Khushi Sharma</h3>
                     <p>Engineer</p>

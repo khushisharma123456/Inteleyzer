@@ -58,6 +58,10 @@ const SCHEMAS = {
 document.addEventListener('DOMContentLoaded', function() {
     initializeEventListeners();
     renderFormFields();
+    // Initialize UI state
+    updateEntryModeUI();
+    updateSummary(1); // Start with 1 record
+    updateSubmitButtonState();
 });
 
 function initializeEventListeners() {

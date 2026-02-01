@@ -48,6 +48,9 @@ class Patient(db.Model):
     age = db.Column(db.Integer, nullable=False)
     gender = db.Column(db.String(20), nullable=False)
     
+    # Report mode: 'identity' (with PII) or 'anonymous'
+    mode = db.Column(db.String(20), default='identity')
+    
     # Clinical
     drug_name = db.Column(db.String(100), nullable=False)
     symptoms = db.Column(db.Text, nullable=True)

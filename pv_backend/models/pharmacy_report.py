@@ -4,7 +4,8 @@ Supports anonymous, identified, and aggregated report types.
 """
 import enum
 from datetime import datetime
-from . import db
+# Use the main app's database
+from models import db
 
 
 class ReportType(enum.Enum):
@@ -34,7 +35,9 @@ class ReactionOutcome(enum.Enum):
 class AgeGroup(enum.Enum):
     """Age group categories for aggregated reports."""
     PEDIATRIC = 'pediatric'
+    ADOLESCENT = 'adolescent'
     ADULT = 'adult'
+    ELDERLY = 'elderly'
     GERIATRIC = 'geriatric'
     UNKNOWN = 'unknown'
 
@@ -135,16 +138,25 @@ class IdentifiedReport(PharmacyReport):
     id = db.Column(db.Integer, db.ForeignKey('pharmacy_reports.id'), primary_key=True)
     
     # Patient identification
-    patient_name = db.Column(db.String(255), nullable=False)
+    patient_name = db.Column(db.String(255))
     patient_age = db.Column(db.Integer)
     patient_gender = db.Column(db.String(20))
     patient_phone = db.Column(db.String(20))
     patient_email = db.Column(db.String(255))
     
+    # Minimal patient info for anonymous-like identified reports
+    age_group = db.Column(db.Enum(AgeGroup))
+    gender = db.Column(db.String(20))
+    
     # Healthcare provider info
     prescribing_doctor_name = db.Column(db.String(255))
     prescribing_doctor_phone = db.Column(db.String(20))
     hospital_name = db.Column(db.String(255))
+    
+    # Additional fields for identified reports
+    internal_case_id = db.Column(db.String(100))
+    treating_hospital_reference = db.Column(db.String(255))
+    treating_doctor_name = db.Column(db.String(255))
     
     # Detailed medical info
     indication = db.Column(db.Text)
