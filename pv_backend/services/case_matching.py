@@ -115,11 +115,10 @@ class CaseMatchingEngine:
             existing_case.age
         )
         
-        # Gender match
-        gender_match = (
-            new_case.get('gender', '').lower() == 
-            existing_case.gender.lower()
-        )
+        # Gender match - handle None values safely
+        new_gender = (new_case.get('gender') or '').lower()
+        existing_gender = (existing_case.gender or '').lower()
+        gender_match = new_gender == existing_gender if (new_gender and existing_gender) else True
         gender_similarity = 1.0 if gender_match else 0.5
         
         demo_similarity = (age_similarity * 0.5) + (gender_similarity * 0.5)

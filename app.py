@@ -404,7 +404,7 @@ def pharmacy_reports():
 
 @app.route('/pharmacy/report')
 def pharmacy_report():
-    return render_template('pharmacy/report.html')
+    return render_template('pharmacy/ADR.html')
 
 @app.route('/pharmacy/alerts')
 def pharmacy_alerts():
@@ -413,6 +413,10 @@ def pharmacy_alerts():
 @app.route('/pharmacy/history')
 def pharmacy_history():
     return render_template('pharmacy/history.html')
+
+@app.route('/pharmacy/settings')
+def pharmacy_settings():
+    return render_template('pharmacy/settings.html')
 
 # --- API Routes ---
 
@@ -1490,7 +1494,7 @@ def get_pharmacy_compliance_score():
         print(f"Error calculating compliance score: {str(e)}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
-@app.route('/api/pharmacy/report', methods=['POST'])
+@app.route('/api/pharmacy/ADR', methods=['POST'])
 def submit_pharmacy_report():
     if 'user_id' not in session:
         return jsonify({'success': False}), 401

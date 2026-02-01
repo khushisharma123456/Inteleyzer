@@ -1,15 +1,25 @@
 """
 Pharmacy Reports Routes
 Handles submission, validation, and management of pharmacy safety reports
+With integrated case scoring, case linkage, and WhatsApp/Email notifications
+
+COMPLETE PIPELINE (same as doctor flow):
+1. Save to PharmacyReport table (for pharmacy records)
+2. Create Patient record (for PV tracking)
+3. Run case scoring and case matching
+4. Trigger WhatsApp and Email notifications via PVAgentOrchestrator
 """
 from flask import Blueprint, request, jsonify, session
 from datetime import datetime
-from models import db
+import random
+from models import db, Patient
 from pv_backend.models.pharmacy_report import (
     PharmacyReport, AnonymousReport, IdentifiedReport, AggregatedReport,
     ReportType, ReactionSeverity, ReactionOutcome, AgeGroup
 )
 from pv_backend.services.audit_service import log_action
+from pv_backend.services.case_scoring import evaluate_case, score_case
+from pv_backend.services.case_matching import match_new_case, should_accept_case, CaseMatchingEngine
 
 pharmacy_report_bp = Blueprint('pharmacy_reports', __name__, url_prefix='/api/pharmacy/reports')
 
@@ -19,17 +29,15 @@ pharmacy_report_bp = Blueprint('pharmacy_reports', __name__, url_prefix='/api/ph
 
 REPORT_SCHEMAS = {
     'anonymous': [
-        'drug_name', 'batch_lot_number', 'dosage_form', 'date_of_dispensing',
+        'drug_name', 'amount', 'batch_lot_number', 'date_of_dispensing',
         'reaction_category', 'severity', 'reaction_outcome', 'age_group', 'gender', 'additional_notes'
     ],
     'identified': [
-        'drug_name', 'batch_lot_number', 'dosage_form', 'date_of_dispensing',
-        'reaction_category', 'severity', 'reaction_outcome', 'age_group', 'gender',
-        'internal_case_id', 'treating_hospital_reference', 'treating_doctor_name',
-        'consent_verified', 'consent_date', 'additional_notes'
+        'patient_name', 'patient_email', 'patient_phone',
+        'drug_name', 'amount', 'reaction_category', 'severity', 'additional_notes'
     ],
     'aggregated': [
-        'drug_name', 'total_dispensed', 'total_reactions_reported',
+        'drug_name', 'amount', 'total_reactions_reported',
         'mild_count', 'moderate_count', 'severe_count',
         'reporting_period_start', 'reporting_period_end', 'analysis_notes'
     ]
@@ -39,11 +47,74 @@ REPORT_SCHEMAS = {
 # SUBMISSION ENDPOINTS
 # ============================================================================
 
+def check_duplicate_patient_pharmacy(name, drug_name, age, gender, symptoms=None, phone=None, email=None):
+    """
+    Check for duplicate patient entries before adding to database.
+    
+    For pharmacy reports:
+    - REJECT only if SAME person AND SAME drug (exact duplicate report)
+    - ACCEPT if same person but DIFFERENT drug (new drug reaction, send notifications)
+    - Multiple different patients can take the same drug at a pharmacy
+    """
+    existing_patients = Patient.query.all()
+    
+    for existing in existing_patients:
+        # Check for exact same person (phone or email match)
+        person_match = False
+        
+        if phone and existing.phone and phone == existing.phone:
+            person_match = True
+        
+        if email and existing.email and email.lower() == existing.email.lower():
+            person_match = True
+        
+        if person_match:
+            # Same person found - check if same drug
+            drug_match = False
+            if drug_name and existing.drug_name:
+                drug_match = drug_name.lower().strip() == existing.drug_name.lower().strip()
+            
+            if drug_match:
+                # SAME PERSON + SAME DRUG = EXACT DUPLICATE, REJECT
+                return {
+                    'is_duplicate': True,
+                    'action': 'REJECT',
+                    'existing_case': existing,
+                    'match_score': 1.0,
+                    'reason': f"Exact duplicate - Same patient '{existing.name}' already reported this drug (ID: {existing.id})"
+                }
+            else:
+                # SAME PERSON + DIFFERENT DRUG = NEW REPORT, ACCEPT and send notifications
+                return {
+                    'is_duplicate': False,
+                    'action': 'ACCEPT',
+                    'existing_case': existing,
+                    'match_score': 0,
+                    'reason': f"Same patient but different drug - Accept as new case and send notifications"
+                }
+    
+    # No match found - accept as new patient
+    return {
+        'is_duplicate': False,
+        'action': 'ACCEPT',
+        'existing_case': None,
+        'match_score': 0,
+        'reason': 'New patient - accepting as new case'
+    }
+
+
 @pharmacy_report_bp.route('/submit', methods=['POST'])
 def submit_report():
     """
     Submit pharmacy safety report(s)
     Supports: Manual entry, Excel upload
+    
+    COMPLETE PIPELINE (same as doctor flow):
+    1. Save to PharmacyReport table (for pharmacy records)
+    2. Create Patient record (for PV tracking) - for identified reports with contact info
+    3. Run duplicate check and case matching
+    4. Run case scoring (evaluate_case + score_case)
+    5. Trigger WhatsApp and Email notifications via PVAgentOrchestrator
     """
     try:
         data = request.get_json()
@@ -55,28 +126,21 @@ def submit_report():
         entry_mode = data.get('entry_mode', 'manual')
         records = data.get('records', [])
         
+        # DEBUG: Log what we received
+        print(f"[PHARMACY SUBMIT] Received submission:")
+        print(f"  report_type: {report_type}")
+        print(f"  entry_mode: {entry_mode}")
+        print(f"  records count: {len(records)}")
+        for i, rec in enumerate(records):
+            print(f"  Record {i+1} keys: {list(rec.keys())}")
+            print(f"  Record {i+1} data: {rec}")
+        
         # Validate report type
         if report_type not in REPORT_SCHEMAS:
             return jsonify({'success': False, 'message': f'Invalid report type: {report_type}'}), 400
         
         if not records:
             return jsonify({'success': False, 'message': 'No records provided'}), 400
-        
-        # Validate schema for each record
-        schema_columns = REPORT_SCHEMAS[report_type]
-        for idx, record in enumerate(records):
-            missing_required = []
-            for col in schema_columns:
-                if col not in record or record[col] == '':
-                    # Check if it's a required field
-                    if col in ['drug_name', 'dosage_form', 'date_of_dispensing', 'reaction_category', 'severity', 'age_group']:
-                        missing_required.append(col)
-            
-            if missing_required:
-                return jsonify({
-                    'success': False,
-                    'message': f'Record {idx + 1}: Missing required fields: {", ".join(missing_required)}'
-                }), 400
         
         # Get pharmacy ID from session
         pharmacy_id = session.get('user_id')
@@ -104,17 +168,24 @@ def submit_report():
         
         # Create submission records
         submission_id = f"SUB-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
-        created_records = []
+        created_reports = []
+        created_patients = []
+        followup_results = []
+        skipped_duplicates = []
+        linked_cases = []
         
-        for record in records:
+        for idx, record in enumerate(records):
             try:
+                # ============================================================
+                # STEP 1: Create PharmacyReport record
+                # ============================================================
                 if report_type == 'anonymous':
                     report = AnonymousReport(
                         report_type=ReportType.ANONYMOUS,
                         pharmacy_id=pharmacy_id,
                         drug_name=record.get('drug_name'),
                         drug_batch_number=record.get('batch_lot_number'),
-                        reaction_description=record.get('reaction_category'),
+                        reaction_description=record.get('reaction_category') or record.get('additional_notes') or 'Adverse reaction reported',
                         reaction_severity=safe_severity(record.get('severity')),
                         reaction_outcome=safe_outcome(record.get('reaction_outcome')),
                         age_group=safe_age_group(record.get('age_group')),
@@ -127,15 +198,18 @@ def submit_report():
                         pharmacy_id=pharmacy_id,
                         drug_name=record.get('drug_name'),
                         drug_batch_number=record.get('batch_lot_number'),
-                        reaction_description=record.get('reaction_category'),
+                        reaction_description=record.get('reaction_category') or record.get('additional_notes') or 'Adverse reaction reported',
                         reaction_severity=safe_severity(record.get('severity')),
                         reaction_outcome=safe_outcome(record.get('reaction_outcome')),
                         age_group=safe_age_group(record.get('age_group')),
                         gender=record.get('gender'),
+                        patient_name=record.get('patient_name'),
+                        patient_email=record.get('patient_email'),
+                        patient_phone=record.get('patient_phone'),
                         internal_case_id=record.get('internal_case_id'),
                         treating_hospital_reference=record.get('treating_hospital_reference'),
                         treating_doctor_name=record.get('treating_doctor_name'),
-                        follow_up_required=False
+                        follow_up_required=True  # Flag for follow-up
                     )
                 
                 elif report_type == 'aggregated':
@@ -144,55 +218,253 @@ def submit_report():
                         pharmacy_id=pharmacy_id,
                         drug_name=record.get('drug_name'),
                         reaction_description=f"Aggregated report for {record.get('drug_name')}",
-                        report_count=record.get('total_reactions_reported', 1),
-                        severity_distribution={
-                            'mild': record.get('mild_count', 0),
-                            'moderate': record.get('moderate_count', 0),
-                            'severe': record.get('severe_count', 0)
-                        }
+                        report_count=int(record.get('total_reactions_reported') or 1)
                     )
                 
                 db.session.add(report)
-                created_records.append(report)
+                db.session.flush()  # Get report ID without committing
+                created_reports.append(report)
+                
+                # ============================================================
+                # STEP 2: For identified reports with contact info, create Patient 
+                # and trigger FULL PV pipeline (same as doctor flow)
+                # ============================================================
+                if report_type == 'identified':
+                    patient_name = record.get('patient_name') or f'Patient-{submission_id}-{idx+1}'
+                    # Clean up phone/email - treat empty strings as None
+                    patient_phone = record.get('patient_phone', '').strip() or None
+                    patient_email = record.get('patient_email', '').strip() or None
+                    
+                    print(f"[PHARMACY SUBMIT] Record {idx+1} data received: name={patient_name}, phone='{patient_phone}', email='{patient_email}'")
+                    print(f"[PHARMACY SUBMIT] Full record data: {record}")
+                    
+                    # Only create Patient record if we have contact info for follow-up
+                    if patient_phone or patient_email:
+                        print(f"[PHARMACY SUBMIT] Creating patient for report {idx+1}: {patient_name}, phone={patient_phone}, email={patient_email}")
+                        
+                        # Map age group to approximate age
+                        age_map = {
+                            'pediatric': 8, 'adolescent': 16, 'adult': 35,
+                            'elderly': 65, 'geriatric': 80, 'unknown': 40
+                        }
+                        age_group_val = record.get('age_group', 'adult')
+                        age = age_map.get(age_group_val, 35)
+                        
+                        # Map severity to risk level
+                        severity_map = {'mild': 'Low', 'moderate': 'Medium', 'severe': 'High'}
+                        risk_level = severity_map.get(record.get('severity', 'moderate'), 'Medium')
+                        
+                        drug_name = record.get('drug_name', 'Not Specified')
+                        symptoms = record.get('reaction_category') or record.get('additional_notes') or ''
+                        gender = record.get('gender') or 'Not Specified'  # Default if not provided
+                        
+                        # ============================================================
+                        # STEP 2a: Check for duplicates (same as doctor flow)
+                        # ============================================================
+                        duplicate_check = check_duplicate_patient_pharmacy(
+                            name=patient_name,
+                            drug_name=drug_name,
+                            age=age,
+                            gender=gender,
+                            symptoms=symptoms,
+                            phone=patient_phone,
+                            email=patient_email
+                        )
+                        
+                        if duplicate_check['action'] == 'REJECT':
+                            # Skip this record - exact duplicate
+                            print(f"[DUPLICATE REJECTED] {duplicate_check['reason']}")
+                            skipped_duplicates.append({
+                                'record_index': idx + 1,
+                                'patient_name': patient_name,
+                                'reason': duplicate_check['reason'],
+                                'existing_patient_id': duplicate_check['existing_case'].id if duplicate_check['existing_case'] else None
+                            })
+                            continue
+                        
+                        # Generate unique patient ID
+                        patient_id = f"PHR-{random.randint(10000, 99999)}"
+                        while Patient.query.get(patient_id):
+                            patient_id = f"PHR-{random.randint(10000, 99999)}"
+                        
+                        # Handle LINK or ACCEPT
+                        if duplicate_check['action'] == 'LINK':
+                            existing = duplicate_check['existing_case']
+                            patient = Patient(
+                                id=patient_id,
+                                created_by=pharmacy_id,
+                                name=patient_name,
+                                phone=patient_phone,
+                                email=patient_email,
+                                age=age,
+                                gender=gender,
+                                drug_name=drug_name,
+                                symptoms=symptoms,
+                                risk_level=risk_level,
+                                case_status='Linked',
+                                linked_case_id=existing.id,
+                                match_score=duplicate_check['match_score'],
+                                match_notes=f"Auto-linked from pharmacy report: {duplicate_check['reason']}"
+                            )
+                            linked_cases.append({
+                                'new_patient_id': patient_id,
+                                'linked_to': existing.id,
+                                'match_score': duplicate_check['match_score']
+                            })
+                            print(f"[CASE LINKED] New patient {patient_id} linked to existing {existing.id}")
+                        else:
+                            # ACCEPT - create new patient
+                            patient = Patient(
+                                id=patient_id,
+                                created_by=pharmacy_id,
+                                name=patient_name,
+                                phone=patient_phone,
+                                email=patient_email,
+                                age=age,
+                                gender=gender or 'Not Specified',  # Ensure gender is never NULL
+                                drug_name=drug_name,
+                                symptoms=symptoms,
+                                risk_level=risk_level,
+                                case_status='Active'
+                            )
+                        
+                        db.session.add(patient)
+                        db.session.flush()  # Get patient into session
+                        created_patients.append(patient)
+                        print(f"[PATIENT CREATED] {patient.id} - {patient.name}")
+                        
+                        # ============================================================
+                        # STEP 2b: Run case scoring (same as doctor flow)
+                        # ============================================================
+                        try:
+                            evaluate_case(patient)
+                            score_result = score_case(patient)
+                            print(f"[CASE SCORING] Patient {patient.id}: Score={patient.case_score}, Strength={patient.strength_level}")
+                        except Exception as score_err:
+                            print(f"[CASE SCORING ERROR] {score_err}")
+                        
+                        # ============================================================
+                        # STEP 2c: Trigger PV Agent follow-up (WhatsApp + Email)
+                        # This is the same as auto_send_followup() in doctor flow
+                        # ============================================================
+                        try:
+                            from pv_backend.services.followup_agent import PVAgentOrchestrator
+                            
+                            orchestrator = PVAgentOrchestrator()
+                            followup_result = orchestrator.start_tracking(patient)
+                            
+                            if followup_result.get('success'):
+                                patient.followup_sent_date = datetime.utcnow()
+                                patient.followup_pending = True
+                                patient.follow_up_sent = True
+                                
+                                followup_results.append({
+                                    'patient_id': patient.id,
+                                    'patient_name': patient.name,
+                                    'status': 'sent',
+                                    'tracking_id': followup_result.get('tracking_id'),
+                                    'email_sent': followup_result.get('send_result', {}).get('email', {}).get('success', False),
+                                    'whatsapp_sent': followup_result.get('send_result', {}).get('whatsapp', {}).get('success', False),
+                                    'current_day': followup_result.get('current_day', 1),
+                                    'questions_count': len(followup_result.get('all_questions', []))
+                                })
+                                print(f"[PV AGENT OK] Started for patient {patient.id} - Day 1 of 1/3/5/7 cycle")
+                            else:
+                                followup_results.append({
+                                    'patient_id': patient.id,
+                                    'patient_name': patient.name,
+                                    'status': 'failed',
+                                    'error': followup_result.get('error', 'Unknown error')
+                                })
+                                print(f"[PV AGENT FAILED] {followup_result.get('error')}")
+                                
+                        except Exception as followup_err:
+                            print(f"[FOLLOWUP ERROR] {followup_err}")
+                            import traceback
+                            traceback.print_exc()
+                            followup_results.append({
+                                'patient_id': patient.id,
+                                'patient_name': patient.name,
+                                'status': 'error',
+                                'error': str(followup_err)
+                            })
+                    else:
+                        print(f"[PHARMACY SUBMIT] Record {idx+1}: No contact info (phone/email) - skipping patient creation for PV tracking")
             
-            except Exception as e:
-                db.session.rollback()
-                return jsonify({
-                    'success': False,
-                    'message': f'Error processing record: {str(e)}'
-                }), 500
+            except Exception as record_err:
+                print(f"[RECORD ERROR] Record {idx+1}: {record_err}")
+                import traceback
+                traceback.print_exc()
+                # Continue with other records even if one fails
+                continue
         
-        # Commit all records
+        # Commit all changes
         try:
             db.session.commit()
+            print(f"[COMMIT OK] Reports: {len(created_reports)}, Patients: {len(created_patients)}")
             
             # Log submission
             log_action(
                 user_id=pharmacy_id,
-                action='REPORT_SUBMITTED',
+                action='PHARMACY_REPORT_SUBMITTED',
                 details={
                     'submission_id': submission_id,
                     'report_type': report_type,
                     'entry_mode': entry_mode,
-                    'record_count': len(created_records)
+                    'reports_created': len(created_reports),
+                    'patients_created': len(created_patients),
+                    'duplicates_skipped': len(skipped_duplicates),
+                    'cases_linked': len(linked_cases),
+                    'followups_triggered': len([f for f in followup_results if f.get('status') == 'sent'])
                 }
             )
             
-            return jsonify({
+            # Build response
+            response_data = {
                 'success': True,
                 'submission_id': submission_id,
-                'message': f'Successfully submitted {len(created_records)} records',
-                'record_count': len(created_records)
-            }), 201
+                'message': f'Successfully submitted {len(created_reports)} report(s)',
+                'record_count': len(created_reports),
+                'patients_created': len(created_patients),
+                'followup_results': followup_results
+            }
+            
+            # Add detailed notifications
+            for i, result in enumerate(followup_results, 1):
+                # Check email status from followup_results
+                if result.get('email_sent'):
+                    response_data[f'patient_{i}_email_sent'] = True
+                
+                # Check WhatsApp status from followup_results  
+                if result.get('whatsapp_sent'):
+                    response_data[f'patient_{i}_whatsapp_sent'] = True
+                elif result.get('status') == 'sent' and not result.get('whatsapp_sent'):
+                    # Message was attempted but WhatsApp not confirmed - might be awaiting verification
+                    response_data[f'patient_{i}_whatsapp_pending'] = True
+                    response_data[f'patient_{i}_whatsapp_help'] = f"Patient needs to join Twilio sandbox: Send 'join bright-joy' to +1-415-523-8886"
+            
+            if skipped_duplicates:
+                response_data['skipped_duplicates'] = skipped_duplicates
+            
+            if linked_cases:
+                response_data['linked_cases'] = linked_cases
+            
+            return jsonify(response_data), 201
         
-        except Exception as e:
+        except Exception as commit_err:
             db.session.rollback()
+            print(f"[COMMIT ERROR] {commit_err}")
+            import traceback
+            traceback.print_exc()
             return jsonify({
                 'success': False,
-                'message': f'Database error: {str(e)}'
+                'message': f'Database error: {str(commit_err)}'
             }), 500
     
     except Exception as e:
+        print(f"[SUBMIT ERROR] {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
             'success': False,
             'message': f'Server error: {str(e)}'

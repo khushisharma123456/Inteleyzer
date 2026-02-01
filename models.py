@@ -395,7 +395,19 @@ class AgentFollowupTracking(db.Model):
     unanswered_questions = db.Column(db.JSON, nullable=True)  # List of questions not answered
     current_question_index = db.Column(db.Integer, default=0)
     last_question_sent_at = db.Column(db.DateTime, nullable=True)
+    last_response_received_at = db.Column(db.DateTime, nullable=True)  # When patient last responded
     reminder_count = db.Column(db.Integer, default=0)  # How many reminders sent for current question
+    
+    # Message Read Status
+    last_message_read_at = db.Column(db.DateTime, nullable=True)  # When patient last read/responded to a message
+    messages_sent_count = db.Column(db.Integer, default=0)  # Total messages sent
+    responses_received_count = db.Column(db.Integer, default=0)  # Total responses received
+    average_response_time_minutes = db.Column(db.Integer, nullable=True)  # Avg time to respond
+    
+    # Response Tone Tracking
+    last_response_tone = db.Column(db.String(20), nullable=True)  # engaged, dismissive, suffering, confused
+    last_response_relevance_score = db.Column(db.Integer, nullable=True)  # 0-10 relevance score
+    responses_tone_json = db.Column(db.JSON, nullable=True)  # History of all response tones per question
     
     # Pharma Recall
     recall_requested = db.Column(db.Boolean, default=False)

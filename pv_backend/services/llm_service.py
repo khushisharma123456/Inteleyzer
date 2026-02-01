@@ -880,6 +880,168 @@ RULES:
             'summary': f"Patient message: {message[:100]}..."
         }
 
+    def analyze_response_tone_and_relevance(self, question: str, user_response: str, expected_column: str) -> Dict[str, Any]:
+        """
+        Use Groq API to analyze tone and relevance of patient response.
+        
+        CRITICAL: This determines if a response is:
+        1. TONE-RELEVANT: Patient is engaged and answering properly
+        2. TONE-DISMISSIVE: Patient says "ok", "yes", without substance
+        3. TONE-SUFFERING: Patient is in distress or concerned
+        4. TONE-IRRELEVANT: Response doesn't match the question asked
+        
+        Args:
+            question: The question asked to the patient
+            user_response: Patient's response text
+            expected_column: Database column this question maps to
+            
+        Returns:
+            Dict with tone, relevance_score (0-1), and recommended_action
+        """
+        if not self.groq_client and not self.model and not self.openai_client:
+            # Fallback to simple pattern matching
+            return self._simple_tone_detection(question, user_response)
+        
+        tone_analysis_prompt = f"""You are a patient communication analyzer for pharmacovigilance.
+
+Analyze this patient response:
+
+QUESTION ASKED: {question}
+PATIENT RESPONSE: {user_response}
+EXPECTED DATA FIELD: {expected_column}
+
+TASK:
+1. Analyze the TONE of the response (engaged, dismissive, suffering, confused)
+2. Check RELEVANCE to the question (1-10 score where 10=perfect answer)
+3. Determine if response contains useful DATA (yes/no/needs clarification)
+
+RESPONSE FORMAT (JSON only):
+{{
+  "tone": "engaged|dismissive|suffering|confused|irrelevant",
+  "tone_confidence": 0.95,
+  "relevance_score": 8,
+  "has_useful_data": true,
+  "extracted_value": "patient said they are better",
+  "action": "proceed|re_ask|clarify|skip",
+  "reasoning": "Patient provided clear answer indicating improvement"
+}}
+
+TONE DEFINITIONS:
+- engaged: Patient is actively answering with substance
+- dismissive: Patient gives minimal response like "ok", "yes" without details
+- suffering: Patient shows signs of distress or worry
+- confused: Patient doesn't understand the question
+- irrelevant: Response doesn't relate to question asked
+
+ACTION DEFINITIONS:
+- proceed: Accept answer and move to next question
+- re_ask: Ask question again (patient didn't understand)
+- clarify: Ask for more details
+- skip: Skip this question due to irrelevance"""
+
+        try:
+            if self.llm_provider == 'groq' and self.groq_client:
+                response = self.groq_client.chat.completions.create(
+                    model="llama-3.1-8b-instant",
+                    messages=[{"role": "user", "content": tone_analysis_prompt}],
+                    max_tokens=500,
+                    temperature=0.3
+                )
+                result_text = response.choices[0].message.content
+            else:
+                # Fall back to simple detection
+                return self._simple_tone_detection(question, user_response)
+            
+            # Parse JSON response
+            import json
+            json_match = result_text.find('{')
+            json_end = result_text.rfind('}') + 1
+            if json_match != -1 and json_end > json_match:
+                json_str = result_text[json_match:json_end]
+                analysis = json.loads(json_str)
+                return analysis
+            else:
+                return self._simple_tone_detection(question, user_response)
+                
+        except Exception as e:
+            print(f"⚠️ Tone analysis error: {e} - using fallback")
+            return self._simple_tone_detection(question, user_response)
+
+    def _simple_tone_detection(self, question: str, response: str) -> Dict[str, Any]:
+        """Fallback tone detection using pattern matching."""
+        response_lower = response.lower().strip()
+        
+        # Dismissive patterns
+        dismissive_words = ['ok', 'yes', 'no', 'fine', 'ok ok', 'yes ok', 'mmm', 'yeah', 'yep', 'nope']
+        is_dismissive = len(response) < 5 and any(w == response_lower for w in dismissive_words)
+        
+        # Suffering patterns
+        suffering_words = ['hurt', 'pain', 'bad', 'worse', 'worry', 'concern', 'problem', 'issue', 'severe', 'critical', 'scared', 'fear']
+        has_suffering = any(w in response_lower for w in suffering_words)
+        
+        # Engagement (has adjectives, adverbs, details)
+        engagement_indicators = ['because', 'since', 'when', 'if', 'but', 'however', 'although', 'while']
+        is_detailed = any(w in response_lower for w in engagement_indicators) or len(response) > 20
+        
+        # Determine tone
+        if is_dismissive:
+            tone = 'dismissive'
+            action = 'clarify' if has_suffering else 'skip'
+            confidence = 0.8
+            relevance = 3
+        elif has_suffering:
+            tone = 'suffering'
+            action = 'clarify'
+            confidence = 0.85
+            relevance = 7
+        elif is_detailed:
+            tone = 'engaged'
+            action = 'proceed'
+            confidence = 0.9
+            relevance = 8
+        else:
+            tone = 'confused'
+            action = 're_ask'
+            confidence = 0.6
+            relevance = 4
+        
+        return {
+            'tone': tone,
+            'tone_confidence': confidence,
+            'relevance_score': relevance,
+            'has_useful_data': relevance >= 5,
+            'action': action,
+            'reasoning': f"Fallback detection: {tone} response"
+        }
+
+    def should_repeat_question(self, analysis: Dict[str, Any], times_asked: int = 1) -> bool:
+        """
+        Determine if a question should be asked again based on tone analysis.
+        
+        Args:
+            analysis: Result from analyze_response_tone_and_relevance()
+            times_asked: How many times this question has been asked
+            
+        Returns:
+            bool: True if question should be re-asked, False to move forward
+        """
+        action = analysis.get('action', 'proceed')
+        relevance = analysis.get('relevance_score', 5)
+        
+        # Don't repeat more than 2 times
+        if times_asked >= 2:
+            return False
+        
+        # Re-ask if dismissed or irrelevant
+        if action in ['re_ask', 'clarify'] and relevance < 6:
+            return True
+        
+        # Never repeat if person is suffering (need to support, not push)
+        if analysis.get('tone') == 'suffering':
+            return False
+        
+        return False
+
 
 # ============================================================================
 # DAY-SPECIFIC PREDEFINED QUESTIONS FOR 1/3/5/7 FOLLOW-UP CYCLE

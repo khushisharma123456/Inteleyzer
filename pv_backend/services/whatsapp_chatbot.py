@@ -184,6 +184,22 @@ class ToneManager:
             'Urdu': "یہ اہم معلومات شیئر کرنے کا شکریہ! 🙏\n\n_{symptom}_ کے بارے میں آپ کی رائے ریکارڈ کر لی گئی۔ ہماری ٹیم جائزہ لے گی۔\n\nخیال رکھیں! 💚"
         },
         
+        'empathetic_support': {
+            'English': "I hear you, and I'm truly sorry you're going through this. 💙\n\nYour health and wellbeing matter to us. Please take good care of yourself, and don't hesitate to seek medical attention if needed.\n\nWe're here to support you through this. Let's continue with our next question when you're ready.",
+            'Hindi': "मैं आपकी परेशानी समझ सकता हूँ। 💙\n\nआपका स्वास्थ्य हमारी प्राथमिकता है। यदि आवश्यक हो तो डॉक्टर से मिलें। हम आपके साथ हैं।",
+            'Telugu': "నిన్ను అర్థం చేసుకున్నాను. 💙\n\nనీ ఆరోగ్యం ముఖ్యం. అవసరమైతే డాక్టర్‌ను సంప్రదించు. నేను నీతో ఉన్నాను.",
+            'Bengali': "আমি বুঝি আপনার কষ্ট। 💙\n\nআপনার স্বাস্থ্য গুরুত্বপূর্ণ। প্রয়োজনে ডাক্তার দেখান। আমরা আপনার সাথে আছি।",
+            'Marathi': "मी तुमची पीडा समजतो. 💙\n\nतुमचे आरोग्य महत्त्वाचे आहे. आवश्यकतेने डॉक्टर भेटा. मी तुमच्याबरोबर आहे.",
+            'Tamil': "உன் வலியைப் புரிகிறேன். 💙\n\nநீ முக்கியம். தேவைப்பட்டால் மருத்துவரைப் பார். நான் உன்னோடு இருக்கிறேன்.",
+            'Gujarati': "તમારી પીડા સમજું છું. 💙\n\nતમારું આરોગ્ય મહત્વપૂર્ણ છે. જરૂર આવે તો ડૉક્ટર મળો. હું તમારી સાથે છું.",
+            'Kannada': "ನಿಮ್ಮ ನೋವು ಅರ್ಥವಾಗಿದೆ. 💙\n\nನಿಮ್ಮ ಆರೋಗ್ಯ ಮುಖ್ಯ. ಅವಶ್ಯಕವಾದರೆ ವೈದ್ಯರನ್ನು ಭೇಟಿ ಮಾಡಿ. ನಾನು ನಿಮ್ಮೊಂದಿಗೆ ಇದ್ದೇನೆ.",
+            'Malayalam': "നിന്റെ വേദന ഞാൻ മനസിലാക്കുന്നു. 💙\n\nനീ പ്രധാനം. ആവശ്യമെങ്കിൽ ഡോക്ടറെ കാണുക. ഞാൻ നിന്നോടുണ്ട്.",
+            'Punjabi': "ਮੈਂ ਤੁਹਾਡਾ ਦਰਦ ਸਮਝਦਾ ਹਾਂ। 💙\n\nਤੁਸੀਂ ਮਹੱਤਵਪੂਰਨ ਹੋ। ਜੇਕਰ ਲੋੜ ਹੋਵੇ ਤਾਂ ਡਾਕਟਰ ਨੂੰ ਮਿਲੋ। ਮੈਂ ਤੁਹਾਡੇ ਨਾਲ ਹਾਂ।",
+            'Odia': "ମୁଁ ତୁମର ଯନ୍ତ୍ରଣା ବୁଝୁଛି. 💙\n\nତୁମ ସ୍ୱାସ୍ଥ୍ୟ ଗୁରୁତ୍ୱପୂର୍ଣ୍ଣ. ଦରକାର ହେଲେ ଡାକ୍ତରଙ୍କ ଦେଖା. ମୁଁ ତୁମ ସହିତ ଅଛି.",
+            'Assamese': "মই আপোনাৰ যন্ত্ৰণা বুজি পাই। 💙\n\nআপুনি গুৰুত্বপূৰ্ণ। দৰকাৰ হ'লে ডাক্তৰৰ লগত দেখা কৰক। মই আপোনাৰ লগত আছি।",
+            'Urdu': "میں تمہاری تکلیف سمجھتا ہوں۔ 💙\n\nتم اہم ہو۔ ضرورت پڑے تو ڈاکٹر سے ملیں۔ میں تمہاری ساتھ ہوں۔"
+        },
+        
         'all_questions_done': {
             'English': "You've completed all our questions! 🎉\n\nThank you so much for your patience and valuable responses. Your feedback will help us improve medication safety for everyone.\n\nIf you ever experience any health concerns or have questions about your medication, please don't hesitate to message us here.\n\nWe wish you excellent health and happiness! 💚🙏\n\n_Stay healthy, stay blessed!_ 🌟",
             'Hindi': "आपने सभी प्रश्नों का उत्तर दे दिया! 🎉\n\nआपके बहुमूल्य समय और प्रतिक्रियाओं के लिए धन्यवाद। आपकी प्रतिक्रिया दवा सुरक्षा में सुधार करने में मदद करेगी।\n\nअपना ख्याल रखें! 💚🙏🌟",
@@ -470,11 +486,70 @@ class WhatsAppChatbot:
             if current_idx < len(questions):
                 current_q = questions[current_idx]
                 
+                # ✨ NEW: Analyze tone and relevance using Groq
+                tone_analysis = llm.analyze_response_tone_and_relevance(
+                    current_q.get('question', ''),
+                    message_text,
+                    current_q.get('maps_to_column', '')
+                )
+                
+                print(f"🎯 TONE ANALYSIS: tone={tone_analysis.get('tone')}, relevance={tone_analysis.get('relevance_score')}/10, action={tone_analysis.get('action')}")
+                
+                # If patient is suffering, acknowledge and provide support
+                if tone_analysis.get('tone') == 'suffering':
+                    print(f"❤️ Patient expressing distress - providing supportive response")
+                    support_msg = ToneManager.get_message('empathetic_support', language)
+                    
+                    # Still save the response for later analysis
+                    current_day = tracking.current_day
+                    day_responses = getattr(tracking, f'day{current_day}_responses', {}) or {}
+                    question_id = current_q.get('id', f'q{current_idx}')
+                    day_responses[question_id] = f"[DISTRESSED] {message_text}"
+                    setattr(tracking, f'day{current_day}_responses', day_responses)
+                    from sqlalchemy.orm.attributes import flag_modified
+                    flag_modified(tracking, f'day{current_day}_responses')
+                    
+                    # Move to next question (don't push)
+                    tracking.current_question_index = current_idx + 1
+                    tracking.last_question_sent_at = datetime.utcnow()
+                    
+                    if current_idx + 1 < len(questions):
+                        next_q_formatted = self._format_question_for_display(questions[current_idx + 1], language, current_idx + 2)
+                        db.session.commit()
+                        return {
+                            'response_message': support_msg + f"\n\n{next_q_formatted}",
+                            'action': 'patient_distressed_next_q',
+                            'tone': 'suffering'
+                        }
+                    else:
+                        tracking.chatbot_state = 'completed'
+                        db.session.commit()
+                        return {
+                            'response_message': support_msg + f"\n\n" + ToneManager.get_message('all_questions_done', language),
+                            'action': 'patient_distressed_completed',
+                            'tone': 'suffering'
+                        }
+                
+                # If response is dismissive and was relevant, ask for clarification
+                if tone_analysis.get('tone') == 'dismissive' and tone_analysis.get('action') == 'clarify':
+                    times_asked = getattr(tracking, f'q{current_idx}_times_asked', 0) + 1
+                    setattr(tracking, f'q{current_idx}_times_asked', times_asked)
+                    
+                    if llm.should_repeat_question(tone_analysis, times_asked):
+                        print(f"⚠️ Dismissive response detected - asking clarification (attempt {times_asked})")
+                        clarify_msg = f"Thank you! 🙏 Could you provide a bit more detail about: {current_q.get('question', '')}\n\n_Your detailed response helps us better understand._ 💚"
+                        db.session.commit()
+                        return {
+                            'response_message': clarify_msg,
+                            'action': 'ask_clarification',
+                            'relevance_score': tone_analysis.get('relevance_score')
+                        }
+                
                 # Parse numeric response to actual option text (converts to English for DB storage)
                 parsed_response = self._parse_option_response(message_text, current_q, language)
                 
-                # Validate and map response
-                if current_q.get('maps_to_column'):
+                # Validate and map response ONLY if tone is acceptable
+                if current_q.get('maps_to_column') and tone_analysis.get('action') != 'skip':
                     validation = llm.validate_response(
                         current_q['question'],
                         current_q['maps_to_column'],
@@ -495,6 +570,35 @@ class WhatsAppChatbot:
                 from sqlalchemy.orm.attributes import flag_modified
                 flag_modified(tracking, f'day{current_day}_responses')
                 
+                # ✨ NEW: Track tone and engagement metrics
+                tracking.last_response_tone = tone_analysis.get('tone')
+                tracking.last_response_relevance_score = tone_analysis.get('relevance_score')
+                tracking.last_response_received_at = datetime.utcnow()
+                tracking.responses_received_count = (tracking.responses_received_count or 0) + 1
+                
+                # Store tone history for analysis
+                tone_history = tracking.responses_tone_json or {}
+                tone_history[question_id] = {
+                    'tone': tone_analysis.get('tone'),
+                    'relevance': tone_analysis.get('relevance_score'),
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'response_text': message_text[:100]  # Store first 100 chars for reference
+                }
+                tracking.responses_tone_json = tone_history
+                flag_modified(tracking, 'responses_tone_json')
+                
+                # Calculate average response time if we have previous times
+                if tracking.last_question_sent_at:
+                    time_diff = datetime.utcnow() - tracking.last_question_sent_at
+                    response_minutes = int(time_diff.total_seconds() / 60)
+                    if tracking.average_response_time_minutes:
+                        # Running average
+                        tracking.average_response_time_minutes = int(
+                            (tracking.average_response_time_minutes + response_minutes) / 2
+                        )
+                    else:
+                        tracking.average_response_time_minutes = response_minutes
+                
                 # Log comprehensive DB save info
                 is_llm_question = current_q.get('source') == 'llm'
                 print(f"💾 ===== RESPONSE SAVED TO DATABASE =====")
@@ -506,13 +610,20 @@ class WhatsAppChatbot:
                 print(f"   💬 User Response (raw): {message_text}")
                 print(f"   💾 Stored Value (English): {parsed_response}")
                 print(f"   📅 Day: {current_day}")
+                print(f"   🎯 TONE ANALYSIS:")
+                print(f"      - Tone: {tone_analysis.get('tone')}")
+                print(f"      - Relevance: {tone_analysis.get('relevance_score')}/10")
+                print(f"      - Confidence: {tone_analysis.get('tone_confidence', 0):.0%}")
+                print(f"      - Action: {tone_analysis.get('action')}")
                 print(f"   📊 All Day {current_day} Responses: {day_responses}")
+                print(f"   ⏱️ Avg Response Time: {tracking.average_response_time_minutes} minutes")
                 print(f"==========================================")
                 
                 # Move to next question
                 tracking.current_question_index = current_idx + 1
                 tracking.reminder_count = 0
                 tracking.last_question_sent_at = datetime.utcnow()
+
                 
                 if current_idx + 1 < len(questions):
                     # Format next question with translation and options

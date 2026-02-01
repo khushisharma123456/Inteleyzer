@@ -1051,32 +1051,62 @@ class PVAgentOrchestrator:
         return not email_responded
     
     def _send_day_messages(self, patient, tracking, day: int) -> dict:
-        """Send messages for a specific day (Gmail first, then Conversational WhatsApp)."""
+        """
+        Send messages for a specific day using DUAL CHANNELS.
+        
+        CHANNEL LOGIC (Day 1/3/5/7):
+        1. Send EMAIL with follow-up form link
+        2. Send WhatsApp conversational flow (question-by-question)
+        3. Patient responds via either channel
+        4. Once responded via ANY channel → Don't ask same day questions again via other channel
+        5. Move to next day questions
+        
+        This ensures patient can respond via their preferred channel.
+        """
         from models import db, FollowupToken
         from pv_backend.routes.followup_routes import store_followup_token
         
-        results = {'email': None, 'whatsapp': None}
+        results = {
+            'email': None, 
+            'whatsapp': None,
+            'routing_decision': None,
+            'day': day,
+            'channels_sent': 0
+        }
         
-        # Generate token (for potential email use later)
+        # Generate token (for email and WhatsApp forms)
         token = self.followup_agent.generate_followup_token(patient.id)
         
         # Store the token in the database
         store_followup_token(patient.id, token, expires_in_days=7)
         print(f"✅ Stored follow-up token for patient {patient.id}")
         
-        # Send Email with follow-up form link
+        # Check if patient already responded to this day
+        day_responses_attr = f'day{day}_responses'
+        has_responded = bool(getattr(tracking, day_responses_attr, None))
+        
+        if has_responded:
+            print(f"📬 Day {day}: Patient already responded for this day - skipping dual sends")
+            results['routing_decision'] = 'already_responded'
+            return results
+        
+        # ===== CHANNEL 1: EMAIL =====
         if patient.email:
             email_result = self.followup_agent.send_followup_email(patient, token)
             results['email'] = email_result
             setattr(tracking, f'day{day}_email_sent', True)
+            
             if email_result.get('success'):
-                print(f"✅ Day {day}: Sent email to {patient.email}")
+                print(f"✅ Day {day}: Email sent to {patient.email}")
+                results['channels_sent'] += 1
             else:
                 print(f"⚠️ Day {day}: Email failed - {email_result.get('error')}")
         else:
             print(f"⚠️ Day {day}: No email for patient {patient.id}")
+            results['email'] = {'success': False, 'error': 'No email address'}
         
-        # Send Conversational WhatsApp (interactive chat with day-specific questions)
+        # ===== CHANNEL 2: WHATSAPP =====
+        # Always send WhatsApp if phone number exists (dual channel approach)
         if patient.phone:
             # Use conversational WhatsApp that asks questions one by one
             # Questions are day-specific: predefined + Gemini-generated personalized questions
@@ -1085,11 +1115,35 @@ class PVAgentOrchestrator:
             setattr(tracking, f'day{day}_whatsapp_sent', True)
             
             if whatsapp_result.get('success'):
-                print(f"✅ Day {day}: Started conversational WhatsApp with {patient.phone}")
-                print(f"   📋 Questions loaded: {len(tracking.predefined_questions or [])} predefined + {len(tracking.llm_questions or [])} Gemini")
+                print(f"✅ Day {day}: WhatsApp conversational chat started with {patient.phone}")
+                print(f"   📋 Questions loaded: {len(tracking.predefined_questions or [])} predefined + {len(tracking.llm_questions or [])} Gemini-generated")
+                results['channels_sent'] += 1
+            else:
+                print(f"⚠️ Day {day}: WhatsApp failed - {whatsapp_result.get('error')}")
         else:
             print(f"⚠️ Day {day}: No phone number for patient {patient.id}")
             results['whatsapp'] = {'success': False, 'error': 'No phone number'}
+        
+        # ===== ROUTING SUMMARY =====
+        if results['channels_sent'] == 2:
+            results['routing_decision'] = 'dual_channel_active'
+            print(f"📊 Day {day}: DUAL CHANNEL MODE - Patient can respond via email OR WhatsApp")
+            print(f"   💡 Once responded via either channel, other channel for this day is skipped")
+        elif results['channels_sent'] == 1:
+            if results['email'] and results['email'].get('success'):
+                results['routing_decision'] = 'email_only'
+                print(f"📊 Day {day}: EMAIL ONLY - WhatsApp unavailable")
+            else:
+                results['routing_decision'] = 'whatsapp_only'
+                print(f"📊 Day {day}: WHATSAPP ONLY - Email unavailable")
+        else:
+            results['routing_decision'] = 'no_channels_available'
+            print(f"💥 Day {day}: NO CONTACT CHANNELS AVAILABLE - Patient cannot be reached!")
+        
+        # ===== TRACKING UPDATES =====
+        # Record message send time
+        tracking.messages_sent_count = (tracking.messages_sent_count or 0) + results['channels_sent']
+        tracking.last_response_received_at = datetime.utcnow()
         
         # Schedule next day
         next_day = self._get_next_day(day)
