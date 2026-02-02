@@ -67,6 +67,12 @@ class FollowupAgent:
         self.twilio_config = TWILIO_CONFIG
         self.twilio_client = None
         
+        # Debug: Print what we loaded
+        print(f"[FOLLOWUP AGENT INIT]")
+        print(f"  TWILIO_ACCOUNT_SID: {self.twilio_config.get('account_sid')[:10] if self.twilio_config.get('account_sid') else 'NOT SET'}...")
+        print(f"  TWILIO_AUTH_TOKEN: {self.twilio_config.get('auth_token')[:10] if self.twilio_config.get('auth_token') else 'NOT SET'}...")
+        print(f"  TWILIO_WHATSAPP_FROM: {self.twilio_config.get('whatsapp_from')}")
+        
         # Initialize Twilio client if credentials are available
         if self.is_whatsapp_configured():
             try:
@@ -75,10 +81,13 @@ class FollowupAgent:
                     self.twilio_config['account_sid'],
                     self.twilio_config['auth_token']
                 )
+                print(f"[FOLLOWUP AGENT] ✅ Twilio client initialized successfully")
             except ImportError:
                 print("⚠️ Twilio library not installed. Run: pip install twilio")
             except Exception as e:
                 print(f"⚠️ Failed to initialize Twilio client: {e}")
+        else:
+            print(f"[FOLLOWUP AGENT] ⚠️ WhatsApp not configured - missing Twilio credentials")
         
     def configure_email(self, email: str, password: str):
         """Configure email credentials programmatically"""
@@ -104,11 +113,20 @@ class FollowupAgent:
     
     def is_whatsapp_configured(self) -> bool:
         """Check if WhatsApp/Twilio credentials are properly configured"""
-        return bool(
-            self.twilio_config.get('account_sid') and 
-            self.twilio_config.get('auth_token') and
-            self.twilio_config.get('whatsapp_from')
-        )
+        # Check both from config dict and from environment (in case env changed)
+        account_sid = self.twilio_config.get('account_sid') or os.environ.get('TWILIO_ACCOUNT_SID')
+        auth_token = self.twilio_config.get('auth_token') or os.environ.get('TWILIO_AUTH_TOKEN')
+        whatsapp_from = self.twilio_config.get('whatsapp_from') or os.environ.get('TWILIO_WHATSAPP_FROM')
+        
+        is_configured = bool(account_sid and auth_token and whatsapp_from)
+        
+        if not is_configured:
+            print(f"[WHATSAPP CONFIG CHECK]")
+            print(f"  account_sid: {bool(account_sid)}")
+            print(f"  auth_token: {bool(auth_token)}")
+            print(f"  whatsapp_from: {bool(whatsapp_from)}")
+        
+        return is_configured
     
     def generate_followup_token(self, patient_id: str) -> str:
         """Generate a secure token for the follow-up form link"""

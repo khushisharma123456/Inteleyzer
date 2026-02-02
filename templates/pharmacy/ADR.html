@@ -467,6 +467,13 @@
 
         // Success Modal Function
         function showSuccessModal(result) {
+            console.log('[ADR FORM] Success response:', result);
+            console.log('[ADR FORM] patient_1_email_sent:', result.patient_1_email_sent);
+            console.log('[ADR FORM] patient_1_whatsapp_sent:', result.patient_1_whatsapp_sent);
+            console.log('[ADR FORM] patient_1_whatsapp_pending:', result.patient_1_whatsapp_pending);
+            console.log('[ADR FORM] patient_1_whatsapp_help:', result.patient_1_whatsapp_help);
+            console.log('[ADR FORM] patient_1_whatsapp_error:', result.patient_1_whatsapp_error);
+            
             const modal = document.getElementById('successModal');
             const modalContent = document.getElementById('modalContent');
             
@@ -496,6 +503,12 @@
                             ${result.patient_1_whatsapp_sent ? '✅ Sent' : result.patient_1_whatsapp_pending ? '⏳ Awaiting Verification' : '❌ Unable to Send'}
                         </span>
                     </div>
+                    ${result.patient_1_whatsapp_error ? `
+                    <div class="detail-item error-box" style="background: #fee2e2; border-left: 4px solid #dc2626;">
+                        <span class="detail-label">⚠️ WhatsApp Error:</span>
+                        <span class="detail-value" style="color: #991b1b;">${result.patient_1_whatsapp_error}</span>
+                    </div>
+                    ` : ''}
                     ${result.patient_1_whatsapp_sent ? `
                     <div class="detail-item help-box">
                         <span class="detail-label">💡 WhatsApp Verification (Sandbox Mode):</span>
