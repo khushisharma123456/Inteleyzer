@@ -1085,8 +1085,8 @@ class PVAgentOrchestrator:
         from pv_backend.routes.followup_routes import store_followup_token
         
         results = {
-            'email': None, 
-            'whatsapp': None,
+            'email': {'success': False, 'error': 'Not sent'}, 
+            'whatsapp': {'success': False, 'error': 'Not sent'},
             'routing_decision': None,
             'day': day,
             'channels_sent': 0
@@ -1109,38 +1109,40 @@ class PVAgentOrchestrator:
             return results
         
         # ===== CHANNEL 1: EMAIL =====
+        print(f"[DAY {day} CHANNEL 1] Attempting EMAIL to {patient.email if patient.email else 'NO EMAIL'}")
         if patient.email:
             email_result = self.followup_agent.send_followup_email(patient, token)
             results['email'] = email_result
-            setattr(tracking, f'day{day}_email_sent', True)
+            setattr(tracking, f'day{day}_email_sent', email_result.get('success', False))
             
             if email_result.get('success'):
-                print(f"✅ Day {day}: Email sent to {patient.email}")
+                print(f"✅ Day {day}: Email SENT to {patient.email}")
                 results['channels_sent'] += 1
             else:
-                print(f"⚠️ Day {day}: Email failed - {email_result.get('error')}")
+                print(f"⚠️ Day {day}: Email FAILED - {email_result.get('error')}")
         else:
-            print(f"⚠️ Day {day}: No email for patient {patient.id}")
-            results['email'] = {'success': False, 'error': 'No email address'}
+            print(f"⚠️ Day {day}: No email address for patient {patient.id}")
+            results['email'] = {'success': False, 'error': 'No email address on file'}
         
         # ===== CHANNEL 2: WHATSAPP =====
         # Always send WhatsApp if phone number exists (dual channel approach)
+        print(f"[DAY {day} CHANNEL 2] Attempting WHATSAPP to {patient.phone if patient.phone else 'NO PHONE'}")
         if patient.phone:
             # Use conversational WhatsApp that asks questions one by one
             # Questions are day-specific: predefined + Gemini-generated personalized questions
             whatsapp_result = self.followup_agent.send_conversational_whatsapp(patient, tracking)
             results['whatsapp'] = whatsapp_result
-            setattr(tracking, f'day{day}_whatsapp_sent', True)
+            setattr(tracking, f'day{day}_whatsapp_sent', whatsapp_result.get('success', False))
             
             if whatsapp_result.get('success'):
-                print(f"✅ Day {day}: WhatsApp conversational chat started with {patient.phone}")
+                print(f"✅ Day {day}: WhatsApp SENT to {patient.phone}")
                 print(f"   📋 Questions loaded: {len(tracking.predefined_questions or [])} predefined + {len(tracking.llm_questions or [])} Gemini-generated")
                 results['channels_sent'] += 1
             else:
-                print(f"⚠️ Day {day}: WhatsApp failed - {whatsapp_result.get('error')}")
+                print(f"⚠️ Day {day}: WhatsApp FAILED - {whatsapp_result.get('error')}")
         else:
             print(f"⚠️ Day {day}: No phone number for patient {patient.id}")
-            results['whatsapp'] = {'success': False, 'error': 'No phone number'}
+            results['whatsapp'] = {'success': False, 'error': 'No phone number on file'}
         
         # ===== ROUTING SUMMARY =====
         if results['channels_sent'] == 2:

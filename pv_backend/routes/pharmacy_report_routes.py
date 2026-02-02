@@ -358,34 +358,17 @@ def submit_report():
                                 patient.followup_pending = True
                                 patient.follow_up_sent = True
                                 
-                                # Extract send results from the orchestrator response
-                                send_result = followup_result.get('send_result', {})
-                                email_success = send_result.get('email', {}).get('success', False)
-                                whatsapp_result = send_result.get('whatsapp', {})
-                                whatsapp_success = whatsapp_result.get('success', False)
-                                whatsapp_error = whatsapp_result.get('error', None)
-                                
-                                # Debug logging
-                                print(f"[WHATSAPP DEBUG] send_result keys: {send_result.keys()}")
-                                print(f"[WHATSAPP DEBUG] whatsapp_result: {whatsapp_result}")
-                                print(f"[WHATSAPP DEBUG] whatsapp_success: {whatsapp_success}")
-                                print(f"[WHATSAPP DEBUG] whatsapp_error: {whatsapp_error}")
-                                
                                 followup_results.append({
                                     'patient_id': patient.id,
                                     'patient_name': patient.name,
                                     'status': 'sent',
                                     'tracking_id': followup_result.get('tracking_id'),
-                                    'email_sent': email_success,
-                                    'whatsapp_sent': whatsapp_success,
-                                    'whatsapp_error': whatsapp_error,
+                                    'email_sent': followup_result.get('send_result', {}).get('email', {}).get('success', False),
+                                    'whatsapp_sent': followup_result.get('send_result', {}).get('whatsapp', {}).get('success', False),
                                     'current_day': followup_result.get('current_day', 1),
                                     'questions_count': len(followup_result.get('all_questions', []))
                                 })
                                 print(f"[PV AGENT OK] Started for patient {patient.id} - Day 1 of 1/3/5/7 cycle")
-                                print(f"[PV AGENT] Email: {email_success}, WhatsApp: {whatsapp_success}")
-                                if whatsapp_error:
-                                    print(f"[PV AGENT] WhatsApp error: {whatsapp_error}")
                             else:
                                 followup_results.append({
                                     'patient_id': patient.id,
@@ -455,27 +438,10 @@ def submit_report():
                 # Check WhatsApp status from followup_results  
                 if result.get('whatsapp_sent'):
                     response_data[f'patient_{i}_whatsapp_sent'] = True
-                else:
-                    # WhatsApp was not successfully sent
-                    response_data[f'patient_{i}_whatsapp_sent'] = False
-                    
-                    # Check if there was an error
-                    whatsapp_error = result.get('whatsapp_error')
-                    if whatsapp_error:
-                        response_data[f'patient_{i}_whatsapp_error'] = whatsapp_error
-                        
-                        # Provide helpful message based on error type
-                        if 'not configured' in whatsapp_error.lower():
-                            response_data[f'patient_{i}_whatsapp_help'] = "⚠️ WhatsApp is not configured. Admin needs to set Twilio credentials (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM)."
-                        elif 'unverified' in whatsapp_error.lower() or 'sandbox' in whatsapp_error.lower():
-                            response_data[f'patient_{i}_whatsapp_help'] = f"Patient needs to join Twilio sandbox: Send 'join bright-joy' to +1-415-523-8886"
-                        else:
-                            response_data[f'patient_{i}_whatsapp_help'] = whatsapp_error
-                    else:
-                        # Check if status was 'sent' (meaning it was attempted)
-                        if result.get('status') == 'sent':
-                            response_data[f'patient_{i}_whatsapp_pending'] = True
-                            response_data[f'patient_{i}_whatsapp_help'] = f"Patient needs to join Twilio sandbox: Send 'join bright-joy' to +1-415-523-8886"
+                elif result.get('status') == 'sent' and not result.get('whatsapp_sent'):
+                    # Message was attempted but WhatsApp not confirmed - might be awaiting verification
+                    response_data[f'patient_{i}_whatsapp_pending'] = True
+                    response_data[f'patient_{i}_whatsapp_help'] = f"Patient needs to join Twilio sandbox: Send 'join bright-joy' to +1-415-523-8886"
             
             if skipped_duplicates:
                 response_data['skipped_duplicates'] = skipped_duplicates
